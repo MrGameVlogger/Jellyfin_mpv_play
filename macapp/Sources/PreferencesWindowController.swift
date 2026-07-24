@@ -90,9 +90,18 @@ class PreferencesWindowController: NSWindowController {
         serverUrlField.stringValue = extractValue(from: content, key: "serverUrl")
         usernameField.stringValue = extractValue(from: content, key: "username")
         passwordField.stringValue = extractValue(from: content, key: "password")
-        mpvPathField.stringValue = extractValue(from: content, key: "mpvPath")
-        deviceNameField.stringValue = extractValue(from: content, key: "deviceName")
-        deviceIdField.stringValue = extractValue(from: content, key: "deviceId")
+
+        var mpvPath = extractValue(from: content, key: "mpvPath")
+        if mpvPath.isEmpty { mpvPath = "/opt/homebrew/bin/mpv" }
+        mpvPathField.stringValue = mpvPath
+
+        var deviceName = extractValue(from: content, key: "deviceName")
+        if deviceName.isEmpty { deviceName = "Mac" }
+        deviceNameField.stringValue = deviceName
+
+        var deviceId = extractValue(from: content, key: "deviceId")
+        if deviceId.isEmpty { deviceId = "mac-mpv" }
+        deviceIdField.stringValue = deviceId
     }
 
     @objc private func browseMpvPath() {

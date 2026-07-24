@@ -72,13 +72,23 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             return true
         }
 
-        let defaults = ["YOUR_JELLYFIN_IP", "your_username", "your_password", "C:\\\\path\\\\to\\\\mpv.exe", "My-MPV-Player", "My-MPV-room"]
-        for d in defaults {
-            if content.contains(d) {
-                return true
-            }
+        // Config needs setup if server URL, username, or password are empty
+        let hasServer = extractConfigValue(content, key: "serverUrl").isEmpty == false
+        let hasUser = extractConfigValue(content, key: "username").isEmpty == false
+        let hasPass = extractConfigValue(content, key: "password").isEmpty == false
+
+        return !hasServer || !hasUser || !hasPass
+    }
+
+    private func extractConfigValue(_ content: String, key: String) -> String {
+        let escapedKey = NSRegularExpression.escapedPattern(for: key)
+        let pattern = "\(escapedKey):\\s*['\"]([^'\\\"]*(?:\\\\.[^'\\\"]*)*)['\"]"
+        guard let regex = try? NSRegularExpression(pattern: pattern),
+              let match = regex.firstMatch(in: content, range: NSRange(content.startIndex..., in: content)),
+              let range = Range(match.range(at: 1), in: content) else {
+            return ""
         }
-        return false
+        return String(content[range]).trimmingCharacters(in: .whitespaces)
     }
 
     private func showSetup() {
