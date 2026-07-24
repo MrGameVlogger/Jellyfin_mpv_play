@@ -5,7 +5,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     var nodeProcessManager: NodeProcessManager!
     var logWindowController: LogWindowController!
     var notificationManager: NotificationManager!
-    private var preferencesWindowController: PreferencesWindowController?
+    private var setupWindowController: SetupWindowController?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         logWindowController = LogWindowController()
@@ -72,7 +72,6 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             return true
         }
 
-        // Config needs setup if server URL, username, or password are empty
         let hasServer = extractConfigValue(content, key: "serverUrl").isEmpty == false
         let hasUser = extractConfigValue(content, key: "username").isEmpty == false
         let hasPass = extractConfigValue(content, key: "password").isEmpty == false
@@ -92,13 +91,12 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     private func showSetup() {
-        let prefs = PreferencesWindowController()
-        prefs.onSave = { [weak self] in
+        let setup = SetupWindowController { [weak self] in
             self?.nodeProcessManager.start()
         }
-        prefs.showWindow(nil)
-        prefs.window?.makeKeyAndOrderFront(nil)
+        setup.showWindow(nil)
+        setup.window?.makeKeyAndOrderFront(nil)
         NSApp.activate(ignoringOtherApps: true)
-        preferencesWindowController = prefs
+        setupWindowController = setup
     }
 }

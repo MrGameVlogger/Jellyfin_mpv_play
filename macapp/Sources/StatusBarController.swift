@@ -6,6 +6,7 @@ class StatusBarController {
     private var logWindowController: LogWindowController
     private var preferencesWindowController: PreferencesWindowController?
     private var aboutWindowController: AboutWindowController?
+    private var helpWindowController: HelpWindowController?
     private var menu: NSMenu!
     private var nowPlayingItem: NSMenuItem!
     private var pauseItem: NSMenuItem!
@@ -59,6 +60,10 @@ class StatusBarController {
         let aboutItem = NSMenuItem(title: "About", action: #selector(showAbout), keyEquivalent: "")
         aboutItem.target = self
         menu.addItem(aboutItem)
+
+        let helpItem = NSMenuItem(title: "Help", action: #selector(showHelp), keyEquivalent: "?")
+        helpItem.target = self
+        menu.addItem(helpItem)
 
         menu.addItem(.separator())
 
@@ -157,6 +162,15 @@ class StatusBarController {
         }
         aboutWindowController?.showWindow(nil)
         aboutWindowController?.window?.makeKeyAndOrderFront(nil)
+    }
+
+    @objc private func showHelp() {
+        if helpWindowController == nil {
+            helpWindowController = HelpWindowController()
+        }
+        helpWindowController?.showWindow(nil)
+        helpWindowController?.window?.makeKeyAndOrderFront(nil)
+        NSApp.activate(ignoringOtherApps: true)
     }
 
     @objc private func restart() {
