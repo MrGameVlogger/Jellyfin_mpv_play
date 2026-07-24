@@ -6,10 +6,11 @@ Control your **MPV player** from the **Jellyfin web interface** Play movies and 
 
 ### What's different in this fork
 - **Native macOS menubar app** — no terminal needed; built with Swift
+- **Bundled Node.js** — no need to install Node separately; the `.app` is self-contained (~175MB)
 - **Full episode metadata** — titles shown in menubar include series, season, and episode name
 - **Smart Resume** — "Play from beginning" in Jellyfin starts fresh instead of resuming
 - **Stability fixes** — stdout buffering, proper pipe cleanup, robust process management
-- **Self-contained .app** — bundles Node.js shim and dependencies inside the app bundle
+- **Self-contained .app** — bundles Node.js 22 LTS and dependencies inside the app bundle
 
 ---
 

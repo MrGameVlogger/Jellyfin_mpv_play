@@ -9,6 +9,9 @@ APP_BUNDLE="$PROJECT_DIR/$APP_NAME.app"
 SOURCES_DIR="$BUILD_DIR/Sources"
 RESOURCES_DIR="$APP_BUNDLE/Contents/Resources"
 
+NODE_VERSION="22.23.1"
+NODE_DIR="$RESOURCES_DIR/node"
+
 echo "Building $APP_NAME..."
 
 # Clean old build
@@ -26,6 +29,37 @@ echo "Bundling JS files..."
 cp "$PROJECT_DIR/shim.js" "$RESOURCES_DIR/shim.js"
 cp "$PROJECT_DIR/config.example.js" "$RESOURCES_DIR/config.example.js"
 cp -R "$PROJECT_DIR/node_modules" "$RESOURCES_DIR/node_modules"
+
+# Download and bundle Node.js
+echo "Bundling Node.js v$NODE_VERSION..."
+ARCH=$(uname -m)
+if [ "$ARCH" = "arm64" ]; then
+    NODE_ARCH="arm64"
+else
+    NODE_ARCH="x64"
+fi
+NODE_TAR="node-v$NODE_VERSION-darwin-$NODE_ARCH.tar.gz"
+NODE_URL="https://nodejs.org/dist/v$NODE_VERSION/$NODE_TAR"
+NODE_TMP="$PROJECT_DIR/.node-tmp"
+
+rm -rf "$NODE_TMP"
+mkdir -p "$NODE_TMP"
+
+echo "Downloading $NODE_URL..."
+curl -L "$NODE_URL" -o "$NODE_TMP/$NODE_TAR"
+echo "Extracting..."
+tar -xzf "$NODE_TMP/$NODE_TAR" -C "$NODE_TMP"
+mv "$NODE_TMP/node-v$NODE_VERSION-darwin-$NODE_ARCH" "$NODE_DIR"
+rm -rf "$NODE_TMP"
+
+# Make node executable
+chmod +x "$NODE_DIR/bin/node"
+
+# Remove unnecessary npm/corepack to reduce bundle size
+rm -rf "$NODE_DIR/lib/node_modules/npm" "$NODE_DIR/lib/node_modules/corepack" 2>/dev/null || true
+rm -f "$NODE_DIR/bin/npm" "$NODE_DIR/bin/npx" "$NODE_DIR/bin/corepack" 2>/dev/null || true
+
+echo "Node.js bundled: $NODE_DIR/bin/node ($(uname -m))"
 
 # Compile Swift sources
 echo "Compiling Swift sources..."
