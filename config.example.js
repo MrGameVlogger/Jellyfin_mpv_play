@@ -10,6 +10,7 @@ module.exports = {
     
     // Full path to MPV executable
     // Windows example: 'C:\\Program Files\\mpv\\mpv.exe'
+    // macOS example: '/opt/homebrew/bin/mpv' or '/usr/local/bin/mpv'
     // Linux example: '/usr/bin/mpv'
     mpvPath: 'C:\\path\\to\\mpv.exe',
     
@@ -19,6 +20,8 @@ module.exports = {
     // Any name, but different from the one you put in deviceName
     deviceId: 'My-MPV-room',
     
-    // Optional: IPC socket path (leave as-is unless you know what you're doing)
-    ipcSocketPath: '\\\\.\\pipe\\mpv-ipc'
+    // IPC socket path (optional — defaults to platform-appropriate path)
+    // Windows default: '\\\\.\\pipe\\mpv-ipc'
+    // macOS/Linux default: '/tmp/mpv-ipc.sock'
+    // ipcSocketPath: '/tmp/mpv-ipc.sock'
 };
