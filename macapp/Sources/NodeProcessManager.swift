@@ -294,6 +294,16 @@ class NodeProcessManager {
     }
 
     private func findNodePath() -> String {
+        // Prefer bundled Node from app Resources
+        if let bundlePath = Bundle.main.resourcePath {
+            let bundledNode = "\(bundlePath)/node/bin/node"
+            if FileManager.default.isExecutableFile(atPath: bundledNode) {
+                logHandler("Using bundled node: \(bundledNode)")
+                return bundledNode
+            }
+        }
+
+        // Fall back to system Node
         let paths = [
             "/opt/homebrew/bin/node",
             "/usr/local/bin/node",
@@ -301,6 +311,7 @@ class NodeProcessManager {
         ]
         for path in paths {
             if FileManager.default.isExecutableFile(atPath: path) {
+                logHandler("Using system node: \(path)")
                 return path
             }
         }
@@ -310,6 +321,7 @@ class NodeProcessManager {
             for v in sorted {
                 let nodePath = "\(nvmBase)/\(v)/bin/node"
                 if FileManager.default.isExecutableFile(atPath: nodePath) {
+                    logHandler("Using nvm node: \(nodePath)")
                     return nodePath
                 }
             }
@@ -325,6 +337,7 @@ class NodeProcessManager {
             try process.run()
             process.waitUntilExit()
         } catch {
+            logHandler("ERROR: node not found in bundle or system")
             return "node"
         }
         let data = pipe.fileHandleForReading.readDataToEndOfFile()
@@ -332,6 +345,7 @@ class NodeProcessManager {
            !output.isEmpty {
             return output
         }
+        logHandler("ERROR: node not found in bundle or system")
         return "node"
     }
 }
