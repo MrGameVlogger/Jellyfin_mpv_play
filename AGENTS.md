@@ -34,7 +34,7 @@ Version lives in `macapp/Info.plist` (`CFBundleVersion` / `CFBundleShortVersionS
 
 | File | Role |
 |------|------|
-| `shim.js` | Entire Node.js application (~930 lines) |
+| `shim.js` | Entire Node.js application (~935 lines) |
 | `config.js` | User config with credentials (gitignored, never commit) |
 | `config.example.js` | Template for `config.js` |
 | `data/` | Runtime state: auth tokens and playback positions (gitignored) |
@@ -81,3 +81,31 @@ The title after `Episode detected:` is parsed by `extractTitleFromEpisode()` and
 - `process.environment` is built as a explicit dict with `NODE_PATH` to ensure node_modules found.
 - `setupApplicationSupport()` runs before the guard check (shim.js must exist before we check for it).
 - The bundled Node.js is arm64 or x64 depending on build machine — not universal. Rebuild on target architecture if needed.
+
+## Release workflow
+
+When the user asks to ship changes, follow these steps:
+
+1. **Commit and push** (after user approval):
+   ```bash
+   git add -A && git commit -m "<description>" && git push
+   ```
+
+2. **Build the app**:
+   ```bash
+   cd macapp && ./build.sh
+   ```
+   This deploys to `/Applications/Jellyfin MPV Play.app` and also produces `.app` in the workspace root.
+
+3. **Create release zip** (after user approval):
+   ```bash
+   ditto -c -k --sequesterRsrc --keepParent "Jellyfin MPV Play.app" "JellyfinMPVPlay-macOS-vX.Y.Z.zip"
+   ```
+
+4. **Create GitHub release and upload**:
+   ```bash
+   gh release create vX.Y.Z JellyfinMPVPlay-macOS-vX.Y.Z.zip --title "vX.Y.Z" --notes "..."
+   ```
+   If `gh` fails with scope errors, use the GitHub API directly (see repo history for curl pattern).
+
+5. **Update version** in `macapp/Info.plist` before building if shipping new changes.

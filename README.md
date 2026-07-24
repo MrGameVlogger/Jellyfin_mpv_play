@@ -181,7 +181,7 @@ Jellyfin_mpv_play/
 │   ├── Sources/             #   Swift source files
 │   ├── build.sh             #   Build script (downloads + bundles Node.js)
 │   ├── AppIcon.icns         #   App icon (macOS .icns format)
-│   └── Info.plist           #   App metadata (v1.3.1)
+│   └── Info.plist           #   App metadata (v1.4.0)
 ├── images/                  # Logo SVGs and screenshots
 │   ├── logo.svg             #   Full logo with text
 │   ├── icon.svg             #   App icon (no text)
