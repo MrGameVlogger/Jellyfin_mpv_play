@@ -1,8 +1,14 @@
-# 🎬 Jellyfin MPV Play
+<p align="center">
+  <img src="images/logo-banner.svg" width="400" alt="Jellyfin MPV Play">
+</p>
 
-Control your **MPV player** from the **Jellyfin web interface**. Play movies and series with hardware acceleration, auto-resume, and auto-play next episode.
+<p align="center">
+  Control your <b>MPV player</b> from the <b>Jellyfin web interface</b>. Play movies and series with hardware acceleration, auto-resume, and auto-play next episode.
+</p>
 
-> **Fork of [JohnGlaus/Jellyfin_mpv_play](https://github.com/JohnGlaus/Jellyfin_mpv_play)** — adds a native macOS menubar app, setup wizard, built-in help, and stability fixes.
+<p align="center">
+  <i>Fork of <a href="https://github.com/JohnGlaus/Jellyfin_mpv_play">JohnGlaus/Jellyfin_mpv_play</a> — adds a native macOS menubar app, setup wizard, built-in help, and stability fixes.</i>
+</p>
 
 ---
 
@@ -23,7 +29,7 @@ Control your **MPV player** from the **Jellyfin web interface**. Play movies and
 
 | Platform | Requirements |
 |----------|-------------|
-| 🍎 **macOS** | [MPV Player](https://mpv.io/installation/) + the `.app` (download or build) |
+| 🍎 **macOS** | [MPV Player](https://mpv.io/installation/) + the `.app` (download or build) · Jellyfin server |
 | 🪟 **Windows** | [Node.js](https://nodejs.org/) v14+ · [MPV Player](https://mpv.io/installation/) · Jellyfin server |
 | 🐧 **Linux** | [Node.js](https://nodejs.org/) v14+ · [MPV Player](https://mpv.io/installation/) · Jellyfin server |
 
@@ -46,12 +52,12 @@ Control your **MPV player** from the **Jellyfin web interface**. Play movies and
    ```
    The build compiles the Swift app, downloads Node.js 22 LTS, and bundles everything into a self-contained `.app` (~175MB) deployed to `/Applications`.
 
-3. **Launch** — drag `Jellyfin MPV Play.app` to `/Applications`, then right-click → Open (first launch only, to bypass Gatekeeper)
+3. **Launch** — if you built from source, the app is already deployed to `/Applications`. Otherwise drag `Jellyfin MPV Play.app` there, then right-click → Open (first launch only, to bypass Gatekeeper)
 
-4. **Set up** — the app walks you through a 5-step wizard on first launch:
+4. **Set up** — the app walks you through a setup wizard on first launch:
+   - Welcome overview
    - Enter your Jellyfin server URL
-   - Enter your username and password
-   - Test the connection
+   - Enter your username and password (with a Test Connection button)
    - Confirm MPV path and device settings
    - Done!
 
@@ -98,10 +104,16 @@ Control your **MPV player** from the **Jellyfin web interface**. Play movies and
 4. **Click "Play on"** — the cast icon (📺) or "Play on" button
 5. **Enjoy!** — MPV opens automatically and starts playing 🎉
 
-![Step 1](images/1.png)
-![Step 2](images/2.png)
-![Step 3](images/3.png)
-![Step 4](images/4.png)
+<table>
+  <tr>
+    <td align="center"><img src="images/1.png" width="300"><br><sub>1. Click the cast icon in Jellyfin</sub></td>
+    <td align="center"><img src="images/2.png" width="300"><br><sub>2. Select your device from the list</sub></td>
+  </tr>
+  <tr>
+    <td align="center"><img src="images/3.png" width="300"><br><sub>3. Device connects and shows in the top bar</sub></td>
+    <td align="center"><img src="images/4.png" width="300"><br><sub>4. Remote control options appear</sub></td>
+  </tr>
+</table>
 
 ---
 
@@ -168,13 +180,19 @@ Jellyfin_mpv_play/
 ├── macapp/                  # Native macOS app
 │   ├── Sources/             #   Swift source files
 │   ├── build.sh             #   Build script (downloads + bundles Node.js)
-│   └── Info.plist           #   App metadata (v1.3.0)
+│   ├── AppIcon.icns         #   App icon (macOS .icns format)
+│   └── Info.plist           #   App metadata (v1.3.1)
+├── images/                  # Logo SVGs and screenshots
+│   ├── logo.svg             #   Full logo with text
+│   ├── icon.svg             #   App icon (no text)
+│   ├── icon-dark.svg        #   Dark variant
+│   ├── logo-banner.svg      #   Horizontal banner for README
+│   └── 1-4.png              #   Step-by-step screenshots
 ├── data/                    # Runtime state (auto-generated, gitignored)
-├── images/                  # Screenshots for README
 ├── node_modules/            # Dependencies (gitignored)
 ├── config.example.js        # Configuration template
 ├── config.js                # Your config — never commit! (gitignored)
-├── shim.js                  # Main Node.js application (~930 lines)
+├── shim.js                  # Main Node.js application (~935 lines)
 ├── package.json
 └── README.md
 ```

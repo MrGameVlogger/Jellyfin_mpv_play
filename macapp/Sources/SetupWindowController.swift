@@ -29,6 +29,7 @@ class SetupWindowController: NSWindowController {
         window.title = "Welcome to Jellyfin MPV Play"
         window.center()
         window.isReleasedWhenClosed = false
+        window.level = .floating
 
         self.init(window: window)
         self.onComplete = onComplete
@@ -39,7 +40,7 @@ class SetupWindowController: NSWindowController {
     private func setupUI() {
         guard let contentView = window?.contentView else { return }
 
-        let icon = NSImage(systemSymbolName: "play.circle.fill", accessibilityDescription: nil)
+        let icon = NSImage(named: "AppIcon") ?? NSImage(systemSymbolName: "play.circle.fill", accessibilityDescription: nil)
         let iconView = NSImageView(image: icon ?? NSImage())
         iconView.frame = NSRect(x: 230, y: 355, width: 60, height: 60)
         iconView.contentTintColor = .systemOrange
@@ -340,7 +341,7 @@ class SetupWindowController: NSWindowController {
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.addValue("application/json", forHTTPHeaderField: "Content-Type")
-        let authHeader = "MediaBrowser Client=\"Jellyfin MPV Play\", Device=\"Setup\", DeviceId=\"setup-test\", Version=\"1.3.0\""
+        let authHeader = "MediaBrowser Client=\"Jellyfin MPV Play\", Device=\"Setup\", DeviceId=\"setup-test\", Version=\"\(Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0.0")\""
         request.addValue(authHeader, forHTTPHeaderField: "X-Emby-Authorization")
         let body: [String: Any] = ["Username": user, "Pw": pass]
         request.httpBody = try? JSONSerialization.data(withJSONObject: body)
@@ -415,15 +416,15 @@ class SetupWindowController: NSWindowController {
     }
 
     private func shakeField(_ field: NSTextField) {
-        let frame = field.frame
+        let position = field.layer?.position ?? NSPoint(x: field.frame.midX, y: field.frame.midY)
         let shake = CAKeyframeAnimation(keyPath: "position")
         shake.values = [
-            NSValue(point: NSPoint(x: frame.origin.x, y: frame.origin.y)),
-            NSValue(point: NSPoint(x: frame.origin.x - 8, y: frame.origin.y)),
-            NSValue(point: NSPoint(x: frame.origin.x + 8, y: frame.origin.y)),
-            NSValue(point: NSPoint(x: frame.origin.x - 4, y: frame.origin.y)),
-            NSValue(point: NSPoint(x: frame.origin.x + 4, y: frame.origin.y)),
-            NSValue(point: NSPoint(x: frame.origin.x, y: frame.origin.y))
+            NSValue(point: position),
+            NSValue(point: NSPoint(x: position.x - 8, y: position.y)),
+            NSValue(point: NSPoint(x: position.x + 8, y: position.y)),
+            NSValue(point: NSPoint(x: position.x - 4, y: position.y)),
+            NSValue(point: NSPoint(x: position.x + 4, y: position.y)),
+            NSValue(point: position)
         ]
         shake.duration = 0.4
         field.layer?.add(shake, forKey: "position")

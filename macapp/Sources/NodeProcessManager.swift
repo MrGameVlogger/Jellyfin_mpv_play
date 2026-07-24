@@ -20,6 +20,7 @@ class NodeProcessManager {
     private var isShuttingDown = false
     private(set) var nowPlaying: String?
     var nowPlayingHandler: ((String?) -> Void)?
+    var pauseStateHandler: ((Bool) -> Void)?
     private var isPaused = false
     private var stdoutBuffer = ""
 
@@ -239,11 +240,18 @@ class NodeProcessManager {
                 isPlaying = true
                 statusHandler(.playing)
             }
+        } else if line.contains("Playback paused") {
+            isPaused = true
+            pauseStateHandler?(true)
+        } else if line.contains("Playback resumed") {
+            isPaused = false
+            pauseStateHandler?(false)
         } else if line.contains("Closing application") || line.contains("MPV closed") || line.contains("Process terminated") {
             isPlaying = false
             isPaused = false
             nowPlaying = nil
             nowPlayingHandler?(nil)
+            pauseStateHandler?(false)
             statusHandler(.connected)
         } else if line.hasPrefix("ERROR") || line.hasPrefix("error") || line.contains("FATAL") {
             notificationHandler("Error", line)

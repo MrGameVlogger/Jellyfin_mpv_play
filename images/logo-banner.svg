@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 200">
+  <defs>
+    <linearGradient id="orange" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#FF8C00"/>
+      <stop offset="100%" style="stop-color:#E06800"/>
+    </linearGradient>
+  </defs>
+  <!-- Icon -->
+  <circle cx="100" cy="100" r="85" fill="url(#orange)"/>
+  <polygon points="78,55 78,145 135,100" fill="#fff"/>
+  <!-- Text -->
+  <text x="210" y="90" font-family="SF Pro Display, Helvetica Neue, Arial" font-size="60" font-weight="700" fill="#1a1a1a">Jellyfin</text>
+  <text x="210" y="145" font-family="SF Pro Display, Helvetica Neue, Arial" font-size="40" font-weight="400" fill="#666">MPV Play</text>
+</svg>

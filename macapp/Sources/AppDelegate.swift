@@ -31,9 +31,9 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         )
 
         statusBarController = StatusBarController(nodeProcessManager: nodeProcessManager, logWindowController: logWindowController)
-        nodeProcessManager.statusHandler = { status in
+        nodeProcessManager.statusHandler = { [weak self] status in
             DispatchQueue.main.async {
-                self.statusBarController.updateStatus(status)
+                self?.statusBarController.updateStatus(status)
             }
         }
 
