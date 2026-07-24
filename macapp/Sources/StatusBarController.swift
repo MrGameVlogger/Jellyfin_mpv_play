@@ -57,11 +57,11 @@ class StatusBarController {
         preferencesItem.target = self
         menu.addItem(preferencesItem)
 
-        let aboutItem = NSMenuItem(title: "About", action: #selector(showAbout), keyEquivalent: "")
+        let aboutItem = NSMenuItem(title: "About", action: #selector(showAbout), keyEquivalent: "i")
         aboutItem.target = self
         menu.addItem(aboutItem)
 
-        let helpItem = NSMenuItem(title: "Help", action: #selector(showHelp), keyEquivalent: "?")
+        let helpItem = NSMenuItem(title: "Help", action: #selector(showHelp), keyEquivalent: "/")
         helpItem.target = self
         menu.addItem(helpItem)
 
@@ -84,6 +84,12 @@ class StatusBarController {
         nodeProcessManager.nowPlayingHandler = { [weak self] title in
             DispatchQueue.main.async {
                 self?.updateNowPlaying(title)
+            }
+        }
+        nodeProcessManager.pauseStateHandler = { [weak self] isPaused in
+            DispatchQueue.main.async {
+                self?.isPausedState = isPaused
+                self?.pauseItem.title = isPaused ? "Resume" : "Pause"
             }
         }
     }
@@ -138,6 +144,7 @@ class StatusBarController {
     @objc private func stopPlayback() {
         nodeProcessManager.stopPlayback()
         isPausedState = false
+        pauseItem.title = "Pause"
         updateNowPlaying(nil)
     }
 
@@ -162,6 +169,7 @@ class StatusBarController {
         }
         aboutWindowController?.showWindow(nil)
         aboutWindowController?.window?.makeKeyAndOrderFront(nil)
+        NSApp.activate(ignoringOtherApps: true)
     }
 
     @objc private func showHelp() {

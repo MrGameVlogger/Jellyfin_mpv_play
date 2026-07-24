@@ -18,6 +18,7 @@ class LogWindowController: NSWindowController {
         window.center()
         window.minSize = NSSize(width: 400, height: 300)
         window.isReleasedWhenClosed = false
+        window.level = .floating
 
         self.init(window: window)
         setupUI()
@@ -47,7 +48,7 @@ class LogWindowController: NSWindowController {
         scrollView.hasHorizontalScroller = false
         scrollView.autohidesScrollers = true
 
-        textView = NSTextView(frame: scrollView.bounds)
+        textView = NSTextView(frame: NSRect(origin: .zero, size: scrollView.contentSize))
         textView.isEditable = false
         textView.isSelectable = true
         textView.font = NSFont.monospacedSystemFont(ofSize: 12, weight: .regular)

@@ -3,14 +3,16 @@ import Cocoa
 class HelpWindowController: NSWindowController {
     convenience init() {
         let window = NSWindow(
-            contentRect: NSRect(x: 0, y: 0, width: 520, height: 480),
-            styleMask: [.titled, .closable],
+            contentRect: NSRect(x: 0, y: 0, width: 560, height: 520),
+            styleMask: [.titled, .closable, .resizable],
             backing: .buffered,
             defer: false
         )
         window.title = "Help"
         window.center()
+        window.minSize = NSSize(width: 400, height: 300)
         window.isReleasedWhenClosed = false
+        window.level = .floating
 
         self.init(window: window)
         setupUI()
@@ -19,92 +21,140 @@ class HelpWindowController: NSWindowController {
     private func setupUI() {
         guard let contentView = window?.contentView else { return }
 
-        let scrollView = NSScrollView(frame: NSRect(x: 0, y: 0, width: 520, height: 480))
-        scrollView.hasVerticalScroller = true
+        let scrollView = NSScrollView(frame: contentView.bounds)
         scrollView.autoresizingMask = [.width, .height]
+        scrollView.hasVerticalScroller = true
+        scrollView.hasHorizontalScroller = false
+        scrollView.autohidesScrollers = true
+        scrollView.drawsBackground = false
 
-        let contentSize = scrollView.contentSize
-        let containerView = NSView(frame: NSRect(x: 0, y: 0, width: contentSize.width, height: 700))
+        let containerWidth = scrollView.contentView.bounds.width
+        let containerView = NSView(frame: NSRect(x: 0, y: 0, width: containerWidth, height: 1100))
 
-        var y: CGFloat = 660
+        var y: CGFloat = 1060
 
-        func addSection(_ title: String) {
-            let label = NSTextField(labelWithString: title)
-            label.frame = NSRect(x: 20, y: y, width: 480, height: 24)
-            label.font = NSFont.boldSystemFont(ofSize: 15)
-            containerView.addSubview(label)
-            y -= 30
+        func addDivider() {
+            let line = NSBox()
+            line.boxType = .separator
+            line.frame = NSRect(x: 24, y: y + 4, width: containerWidth - 48, height: 1)
+            containerView.addSubview(line)
+            y -= 16
         }
 
-        func addText(_ text: String, indent: CGFloat = 0) {
+        func addSection(_ title: String, icon: String? = nil) {
+            y -= 8
+            if let icon = icon {
+                let img = NSImage(systemSymbolName: icon, accessibilityDescription: nil)
+                let imgView = NSImageView(image: img ?? NSImage())
+                imgView.frame = NSRect(x: 24, y: y - 2, width: 18, height: 18)
+                imgView.contentTintColor = .systemOrange
+                containerView.addSubview(imgView)
+
+                let label = NSTextField(labelWithString: title)
+                label.frame = NSRect(x: 50, y: y, width: 400, height: 22)
+                label.font = NSFont.boldSystemFont(ofSize: 15)
+                containerView.addSubview(label)
+            } else {
+                let label = NSTextField(labelWithString: title)
+                label.frame = NSRect(x: 24, y: y, width: 400, height: 22)
+                label.font = NSFont.boldSystemFont(ofSize: 15)
+                containerView.addSubview(label)
+            }
+            y -= 28
+        }
+
+        func addText(_ text: String, bold: Bool = false, color: NSColor = .labelColor, indent: CGFloat = 0) {
             let label = NSTextField(labelWithString: text)
-            label.frame = NSRect(x: 20 + indent, y: y, width: 480 - indent, height: 20)
-            label.font = NSFont.systemFont(ofSize: 13)
-            label.textColor = .labelColor
+            label.frame = NSRect(x: 24 + indent, y: y, width: containerWidth - 48 - indent, height: 18)
+            label.font = bold ? NSFont.boldSystemFont(ofSize: 13) : NSFont.systemFont(ofSize: 13)
+            label.textColor = color
             containerView.addSubview(label)
+            y -= 20
+        }
+
+        func addKeybind(_ key: String, _ description: String) {
+            let keyLabel = NSTextField(labelWithString: key)
+            keyLabel.frame = NSRect(x: 40, y: y, width: 140, height: 18)
+            keyLabel.font = NSFont.monospacedSystemFont(ofSize: 12, weight: .medium)
+            keyLabel.textColor = .secondaryLabelColor
+            containerView.addSubview(keyLabel)
+
+            let descLabel = NSTextField(labelWithString: description)
+            descLabel.frame = NSRect(x: 190, y: y, width: containerWidth - 240, height: 18)
+            descLabel.font = NSFont.systemFont(ofSize: 13)
+            containerView.addSubview(descLabel)
             y -= 22
         }
 
-        func addSpace() {
-            y -= 12
+        func addSpacing(_ height: CGFloat = 12) {
+            y -= height
         }
 
-        // Getting Started
-        addSection("Getting Started")
+        // ── Getting Started ──
+        addSection("Getting Started", icon: "play.circle")
         addText("1. Open Jellyfin in your web browser")
         addText("2. Find a movie or TV episode to play")
         addText("3. Click the cast icon (Play on) and select 'Jellyfin MPV Play'")
-        addText("4. MPV will open and start playing automatically")
-        addSpace()
-        addText("The app runs from your menu bar. Click the play icon to see status and controls.")
-        addSpace()
+        addText("4. MPV opens and starts playing automatically")
+        addSpacing()
+        addText("The app runs from your menu bar. Click the play icon for controls.", color: .secondaryLabelColor)
+        addSpacing()
+        addDivider()
 
-        // Menu Bar
-        addSection("Menu Bar Controls")
-        addText("Pause / Resume — Pause or resume playback")
-        addText("Stop — Stop playback and close MPV")
-        addText("Show Logs — View connection and playback logs")
-        addText("Preferences — Update server, credentials, or MPV path")
-        addText("Help — This help window")
-        addText("About — App version and info")
-        addText("Restart — Restart the connection to Jellyfin")
-        addText("Quit — Exit the app")
-        addSpace()
+        // ── Menu Bar ──
+        addSection("Menu Bar Controls", icon: "menubar.arrow.up.rectangle")
+        addKeybind("⌘P", "Pause / Resume playback")
+        addKeybind("⌘.", "Stop playback and close MPV")
+        addKeybind("⌘L", "Show Logs")
+        addKeybind("⌘,", "Preferences")
+        addKeybind("⌘/", "Help")
+        addKeybind("⌘I", "About")
+        addKeybind("⌘R", "Restart connection")
+        addKeybind("⌘Q", "Quit")
+        addSpacing()
+        addDivider()
 
-        // Keyboard Shortcuts
-        addSection("Keyboard Shortcuts (in MPV)")
-        addText(" >  or  Media Next — Next episode")
-        addText(" <  or  Media Previous — Previous episode")
-        addSpace()
+        // ── Keyboard Shortcuts ──
+        addSection("Keyboard Shortcuts (in MPV)", icon: "keyboard")
+        addKeybind(">", "Next episode")
+        addKeybind("<", "Previous episode")
+        addKeybind("Media Next", "Next episode (media key)")
+        addKeybind("Media Previous", "Previous episode (media key)")
+        addSpacing()
+        addDivider()
 
-        // Smart Resume
-        addSection("Smart Resume")
+        // ── Smart Resume ──
+        addSection("Smart Resume", icon: "clock.arrow.circlepath")
         addText("The app remembers where you left off. When you play something again,")
-        addText("it resumes from your last position.")
-        addText("Use 'Play from beginning' in Jellyfin to start fresh instead.")
-        addSpace()
+        addText("it resumes from your last position automatically.")
+        addSpacing(4)
+        addText("Use 'Play from beginning' in Jellyfin to start fresh instead.", color: .secondaryLabelColor)
+        addSpacing()
+        addDivider()
 
-        // Troubleshooting
-        addSection("Troubleshooting")
-        addText("MPV doesn't open:", indent: 0)
-        addText("Check that mpvPath is correct in Preferences. Run 'mpv --version' in Terminal to verify.", indent: 10)
-        addSpace()
-        addText("Device doesn't appear in Jellyfin:", indent: 0)
-        addText("Verify server URL, username, and password are correct.", indent: 10)
-        addSpace()
-        addText("Black screen or no video:", indent: 0)
-        addText("Check ~/.config/mpv/mpv.conf has valid 'vo' and 'hwdec' settings.", indent: 10)
-        addSpace()
-        addText("Episode navigation not working:", indent: 0)
-        addText("Custom keybinds in ~/.config/mpv/input.conf may override defaults.", indent: 10)
-        addSpace()
+        // ── Troubleshooting ──
+        addSection("Troubleshooting", icon: "wrench.and.screwdriver")
+        addText("MPV doesn't open:", bold: true)
+        addText("Check that mpvPath is correct in Preferences. Run 'mpv --version' in Terminal to verify.", indent: 12)
+        addSpacing(8)
+        addText("Device doesn't appear in Jellyfin:", bold: true)
+        addText("Verify server URL, username, and password are correct.", indent: 12)
+        addSpacing(8)
+        addText("Black screen or no video:", bold: true)
+        addText("Check ~/.config/mpv/mpv.conf for valid 'vo' and 'hwdec' settings.", indent: 12)
+        addSpacing(8)
+        addText("Episode navigation (>/<) not working:", bold: true)
+        addText("Custom keybinds in ~/.config/mpv/input.conf may override defaults.", indent: 12)
+        addSpacing()
+        addDivider()
 
-        // Links
-        addSection("More Info")
-        addText("GitHub: github.com/MrGameVlogger/Jellyfin_mpv_play")
-        addText("Upstream: github.com/JohnGlaus/Jellyfin_mpv_play")
-        addText("MPV: mpv.io")
-        addText("Jellyfin: jellyfin.org")
+        // ── Links ──
+        addSection("More Info", icon: "link")
+        addText("GitHub: github.com/MrGameVlogger/Jellyfin_mpv_play", color: .systemBlue)
+        addText("Upstream: github.com/JohnGlaus/Jellyfin_mpv_play", color: .systemBlue)
+        addText("MPV: mpv.io", color: .systemBlue)
+        addText("Jellyfin: jellyfin.org", color: .systemBlue)
+        addSpacing(20)
 
         scrollView.documentView = containerView
         contentView.addSubview(scrollView)

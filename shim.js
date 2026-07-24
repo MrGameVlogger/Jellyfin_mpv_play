@@ -44,6 +44,7 @@ let keepAliveInterval = null;
 let pendingStreamUrl = null;
 let pendingStartSeconds = 0;
 let playbackGeneration = 0;
+let isMpvPaused = false;
 
 function loadToken() {
     try {
@@ -132,11 +133,6 @@ function savePlaybackPosition(itemId, positionTicks) {
     } catch (error) {
         console.error('⚠️ Error saving position:', error.message);
     }
-}
-
-function getSavedPosition(itemId) {
-    const positions = loadPlaybackPositions();
-    return positions[itemId]?.positionTicks || 0;
 }
 
 function getAuthHeaders() {
@@ -419,6 +415,7 @@ async function getEpisodeInfo(itemId) {
 
 async function playMedia(itemId, startTicks) {
     killMpv();
+    isReportingStop = false;
     
     playbackGeneration++;
     const gen = playbackGeneration;
@@ -686,6 +683,12 @@ function handleMpvEvent(event) {
         return;
     }
 
+    if (event.event === 'property-change' && event.name === 'pause' && typeof event.data === 'boolean') {
+        isMpvPaused = event.data;
+        console.log(event.data ? '⏸️ Playback paused' : '▶️ Playback resumed');
+        return;
+    }
+
     if (event.event === 'property-change' && event.name === 'eof-reached' && event.data === true) {
         console.log('🎬 eof-reached event detected (End of episode)');
         
@@ -803,7 +806,7 @@ function reportPlaybackProgress(itemId, positionTicks) {
     const data = {
         ItemId: itemId,
         PositionTicks: positionTicks,
-        IsPaused: false,
+        IsPaused: isMpvPaused,
         IsMuted: false,
         VolumeLevel: 100,
         PlayMethod: 'DirectPlay',

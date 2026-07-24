@@ -23,6 +23,7 @@ class PreferencesWindowController: NSWindowController {
         window.title = "Preferences"
         window.center()
         window.isReleasedWhenClosed = false
+        window.level = .floating
 
         self.init(window: window)
         setupUI()

@@ -40,6 +40,7 @@ Version lives in `macapp/Info.plist` (`CFBundleVersion` / `CFBundleShortVersionS
 | `data/` | Runtime state: auth tokens and playback positions (gitignored) |
 | `macapp/Sources/*.swift` | Native macOS app (8 files) |
 | `macapp/build.sh` | Build + deploy script (downloads + bundles Node.js) |
+| `macapp/AppIcon.icns` | App icon (generated from `images/icon.svg` via `qlmanage` + `iconutil`) |
 | `macapp/Info.plist` | App metadata and version |
 
 ## Architecture
@@ -61,6 +62,8 @@ The macOS app (`NodeProcessManager.swift:processLogLine`) parses specific log li
 | `WebSocket connection established` | Sets status to connected, sends notification |
 | `Episode detected: <title>` | Sets now-playing title, enables pause/stop |
 | `File loaded by MPV` | Marks as playing (fallback if no episode detected) |
+| `Playback paused` | Sets pause state, updates menu to "Resume" |
+| `Playback resumed` | Clears pause state, updates menu to "Pause" |
 | `Closing application` / `MPV closed` / `Process terminated` | Clears now-playing, resets state |
 | Lines starting with `ERROR` / `error` / `FATAL` | Sends error notification |
 
