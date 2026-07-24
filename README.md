@@ -1,94 +1,89 @@
 # 🎬 Jellyfin MPV Play
 
-Control your **MPV player** from the **Jellyfin web interface** Play movies and series with hardware acceleration and resume from where you left off.
+Control your **MPV player** from the **Jellyfin web interface**. Play movies and series with hardware acceleration, auto-resume, and auto-play next episode.
 
-> **Fork of [JohnGlaus/Jellyfin_mpv_play](https://github.com/JohnGlaus/Jellyfin_mpv_play)** with a native macOS menubar app, bug fixes, and improvements.
-
-### What's different in this fork
-- **Native macOS menubar app** — no terminal needed; built with Swift
-- **Bundled Node.js** — no need to install Node separately; the `.app` is self-contained (~175MB)
-- **Full episode metadata** — titles shown in menubar include series, season, and episode name
-- **Smart Resume** — "Play from beginning" in Jellyfin starts fresh instead of resuming
-- **Stability fixes** — stdout buffering, proper pipe cleanup, robust process management
-- **Self-contained .app** — bundles Node.js 22 LTS and dependencies inside the app bundle
+> **Fork of [JohnGlaus/Jellyfin_mpv_play](https://github.com/JohnGlaus/Jellyfin_mpv_play)** — adds a native macOS menubar app, setup wizard, built-in help, and stability fixes.
 
 ---
 
 ## ✨ Features
 
-- 🎯 **Remote Control** - Play from any device on your network
-- 💾 **Smart Resume** - Resumes from where you stopped; "Play from beginning" in Jellyfin starts fresh
-- ⏭️ **Auto-Play Next Episode** - Binge-watch series seamlessly
-- ⚡ **Hardware Acceleration** - Smooth playback with MPV
-- 🔄 **Auto-Reconnect** - Handles network interruptions
-- 🍎 **Native macOS App** - Menubar icon, notifications, preferences, log viewer
+- 🎯 **Remote Control** — Play from any device on your network
+- 💾 **Smart Resume** — Remembers where you left off; "Play from beginning" in Jellyfin starts fresh
+- ⏭️ **Auto-Play Next Episode** — Binge-watch series seamlessly
+- ⚡ **Hardware Acceleration** — Smooth playback powered by MPV
+- 🔄 **Auto-Reconnect** — Handles network interruptions with exponential backoff
+- 🍎 **Native macOS App** — Menubar icon, notifications, preferences editor, log viewer, setup wizard
+- 📦 **Self-Contained** — macOS `.app` bundles Node.js 22 LTS; no separate installation needed
+- ❓ **Built-in Help** — Reference guide accessible from the menu bar
 
 ---
 
 ## 📋 What You Need
 
-**macOS:** Just the `.app` (downloaded or built) and [MPV Player](https://mpv.io/installation/). Node.js is bundled.
-
-**Windows/Linux:**
-1. **Node.js** (v14 or newer) - [Download here](https://nodejs.org/)
-2. **MPV Player** - [Download here](https://mpv.io/installation/)
-3. **Jellyfin Server** - Your server URL and login credentials
+| Platform | Requirements |
+|----------|-------------|
+| 🍎 **macOS** | [MPV Player](https://mpv.io/installation/) + the `.app` (download or build) |
+| 🪟 **Windows** | [Node.js](https://nodejs.org/) v14+ · [MPV Player](https://mpv.io/installation/) · Jellyfin server |
+| 🐧 **Linux** | [Node.js](https://nodejs.org/) v14+ · [MPV Player](https://mpv.io/installation/) · Jellyfin server |
 
 ---
 
 ## 🚀 Quick Start
 
-### macOS (Recommended)
+### 🍎 macOS
 
-1. **Download** the latest release from [Releases](https://github.com/MrGameVlogger/Jellyfin_mpv_play/releases) or build it yourself (see below)
-2. **Install MPV** via Homebrew:
+1. **Install MPV** via Homebrew:
    ```bash
    brew install mpv
    ```
-3. **Unzip** and drag `Jellyfin MPV Play.app` to `/Applications`
-4. **Right-click → Open** (first launch only, to bypass Gatekeeper)
-5. **Configure** credentials — the app opens a preferences editor on first run, or edit manually:
+
+2. **Download** the latest release from [Releases](https://github.com/MrGameVlogger/Jellyfin_mpv_play/releases), or build from source:
    ```bash
-   nano ~/Library/Application\ Support/JellyfinMpvPlay/config.js
+   git clone https://github.com/MrGameVlogger/Jellyfin_mpv_play.git
+   cd Jellyfin_mpv_play/macapp
+   ./build.sh
    ```
-   ```javascript
-   module.exports = {
-       serverUrl: 'http://192.168.1.100:8096',  // Your Jellyfin server
-       username: 'your_username',
-       password: 'your_password',
-       mpvPath: '/opt/homebrew/bin/mpv',         // Apple Silicon
-       // mpvPath: '/usr/local/bin/mpv',         // Intel
-       deviceName: 'My-Mac',
-       deviceId: 'my-mac'                       // Different from deviceName
-   };
-   ```
-6. Done — the app runs from the menubar
+   The build compiles the Swift app, downloads Node.js 22 LTS, and bundles everything into a self-contained `.app` (~175MB) deployed to `/Applications`.
 
-**Or build from source:**
-```bash
-git clone https://github.com/MrGameVlogger/Jellyfin_mpv_play.git
-cd Jellyfin_mpv_play/macapp
-./build.sh
-```
-This compiles the Swift app, downloads Node.js 22 LTS, bundles everything into a self-contained `.app`, and deploys to `/Applications/Jellyfin MPV Play.app`. The `.app` (~175MB) includes Node.js — no separate installation needed.
+3. **Launch** — drag `Jellyfin MPV Play.app` to `/Applications`, then right-click → Open (first launch only, to bypass Gatekeeper)
 
-### Windows / Linux
+4. **Set up** — the app walks you through a 5-step wizard on first launch:
+   - Enter your Jellyfin server URL
+   - Enter your username and password
+   - Test the connection
+   - Confirm MPV path and device settings
+   - Done!
 
-1. **Install** prerequisites:
-   - [Node.js](https://nodejs.org/) (v14 or newer)
-   - [MPV Player](https://mpv.io/installation/)
-2. **Clone and install:**
+   > 💡 Config is saved to `~/Library/Application Support/JellyfinMpvPlay/config.js`. You can edit it manually or from the Preferences menu.
+
+### 🪟 Windows / Linux
+
+1. **Clone and install:**
    ```bash
    git clone https://github.com/MrGameVlogger/Jellyfin_mpv_play.git
    cd Jellyfin_mpv_play
    npm install
    ```
-3. **Configure:**
+
+2. **Configure:**
    ```bash
    cp config.example.js config.js
-   nano config.js
    ```
-4. **Run:**
+   Edit `config.js` with your details:
+   ```javascript
+   module.exports = {
+       serverUrl: 'http://192.168.1.100:8096',  // Your Jellyfin server
+       username: 'your_username',
+       password: 'your_password',
+       mpvPath: '/usr/bin/mpv',                  // Linux
+       // mpvPath: 'C:\\Program Files\\mpv\\mpv.exe',  // Windows
+       deviceName: 'My-PC',
+       deviceId: 'my-pc'                         // Different from deviceName
+   };
+   ```
+
+3. **Run:**
    ```bash
    npm start
    ```
@@ -97,25 +92,16 @@ This compiles the Swift app, downloads Node.js 22 LTS, bundles everything into a
 
 ## 🎮 How to Use
 
-### Step 1: Start the application
-Run `npm start` in your project folder
-
-### Step 2: Open Jellyfin
-Open Jellyfin in your web browser
-
-### Step 3: Select content
-Choose any movie or episode
-
-### Step 4: Click "Play on"
-Click the cast icon (📺) or "Play on" button
+1. **Start the app** — macOS: click the menu bar icon · Windows/Linux: `npm start`
+2. **Open Jellyfin** in your web browser
+3. **Pick something to watch** — any movie or episode
+4. **Click "Play on"** — the cast icon (📺) or "Play on" button
+5. **Enjoy!** — MPV opens automatically and starts playing 🎉
 
 ![Step 1](images/1.png)
 ![Step 2](images/2.png)
 ![Step 3](images/3.png)
 ![Step 4](images/4.png)
-
-### Step 5: Enjoy!
-MPV will open automatically and start playing 🎉
 
 ---
 
@@ -132,98 +118,75 @@ While watching in MPV:
 
 ## 🔄 Auto-Start (Optional)
 
-### macOS
+### 🍎 macOS
 
 1. Open **System Settings** → **General** → **Login Items**
 2. Click the **+** button
-3. Navigate to the project folder and select `Jellyfin MPV Play.app`
+3. Navigate to `/Applications` and select `Jellyfin MPV Play.app`
 
-### Windows
+### 🪟 Windows
 
-### Create `start.bat`
-
-Create a file named `start.bat` in the project folder:
+**Create `start.bat`:**
 ```batch
 @echo off
-cd /d "C:\_ELECTRON\jellyfin_mpv_play"
+cd /d "C:\path\to\Jellyfin_mpv_play"
 node shim.js
 ```
 
-> ⚠️ **Change the path** to match your installation folder
-
-### Create `start.vbs`
-
-Create a file named `start.vbs` (runs silently without showing a window):
+**Create `start.vbs`** (runs silently):
 ```vbscript
-Set WshShell = CreateObject("WScript.Shell") 
-WshShell.Run chr(34) & "C:\_ELECTRON\jellyfin_mpv_play\start.bat" & Chr(34), 0
+Set WshShell = CreateObject("WScript.Shell")
+WshShell.Run chr(34) & "C:\path\to\start.bat" & Chr(34), 0
 Set WshShell = Nothing
 ```
 
-> ⚠️ **Change the path** to match your `start.bat` location
+**Add to Startup:**
+1. Press `Win + R`, type `shell:startup`, press Enter
+2. Create a shortcut to `start.vbs` in the Startup folder
 
-### Add to Startup
-
-1. Press `Win + R`
-2. Type: `shell:startup` and press Enter
-3. Create a **shortcut** to `start.vbs`
-4. Move the shortcut to the Startup folder
+> ⚠️ **Change the paths** to match your installation folder
 
 ---
 
 ## 🛠️ Troubleshooting
 
-### "config.js file not found"
-- Run: `cp config.example.js config.js` (macOS/Linux) or `copy config.example.js config.js` (Windows)
-- Edit `config.js` with your details
-
-### MPV doesn't open
-- Check `mpvPath` in `config.js` points to the correct location
-- Test MPV manually: Run `mpv --version` in your terminal
-
-### Device doesn't appear in Jellyfin
-- Verify `serverUrl` is correct
-- Check username and password
-- Make sure your PC and Jellyfin server are on the same network
-
-### Playback doesn't resume
-- Wait at least 10 seconds before closing MPV
-- Resume data is saved in the `data/` folder
-
-### MPV opens but no video / black screen
-- Check your `~/.config/mpv/mpv.conf` has valid `vo` and `hwdec` settings (e.g., `vo=gpu-next`, `hwdec=videotoolbox` on macOS)
-
-### Episode navigation (`>`/`<`) not working
-- These keys are bound via IPC. If you have custom keybinds in `~/.config/mpv/input.conf`, they may override them
+| Problem | Solution |
+|---------|----------|
+| **"config.js file not found"** | Run `cp config.example.js config.js` and edit with your details |
+| **MPV doesn't open** | Check `mpvPath` in config. Test: `mpv --version` in terminal |
+| **Device doesn't appear in Jellyfin** | Verify `serverUrl`, username, password. Ensure same network |
+| **Playback doesn't resume** | Wait at least 10 seconds before closing MPV |
+| **Black screen / no video** | Check `~/.config/mpv/mpv.conf` for valid `vo` and `hwdec` settings |
+| **Episode navigation (`>`/`<`) not working** | Custom keybinds in `~/.config/mpv/input.conf` may override defaults |
 
 ---
 
 ## 📁 Project Structure
+
 ```
-jellyfin_mpv_play/
-├── Jellyfin MPV Play.app/   # macOS app bundle (double-click to run)
-├── macapp/                  # Swift source for native macOS app
-│   ├── Sources/             # Swift source files
-│   ├── build.sh             # Build script
-│   └── Info.plist            # App metadata
-├── data/                    # Tokens & positions (auto-generated)
+Jellyfin_mpv_play/
+├── macapp/                  # Native macOS app
+│   ├── Sources/             #   Swift source files
+│   ├── build.sh             #   Build script (downloads + bundles Node.js)
+│   └── Info.plist           #   App metadata (v1.3.0)
+├── data/                    # Runtime state (auto-generated, gitignored)
 ├── images/                  # Screenshots for README
-├── node_modules/            # Dependencies
-├── .gitignore
+├── node_modules/            # Dependencies (gitignored)
 ├── config.example.js        # Configuration template
-├── config.js                # Your config (don't share!)
+├── config.js                # Your config — never commit! (gitignored)
+├── shim.js                  # Main Node.js application (~930 lines)
 ├── package.json
-├── README.md
-└── shim.js                  # Main application
+└── README.md
 ```
 
 ---
 
 ## 🔒 Security
 
-- ⚠️ **Never share `config.js`** - it contains your password
+- ⚠️ **Never share `config.js`** — it contains your password
 - 🔐 Your password is only used to authenticate with Jellyfin
-- 💾 Tokens are stored locally in the `data/` folder
+- 💾 Tokens and playback positions are stored locally in the `data/` folder
+- 📁 `config.js` and `data/` are gitignored — they stay on your machine
 
 ---
 
@@ -240,23 +203,29 @@ This is a fork of [JohnGlaus/Jellyfin_mpv_play](https://github.com/JohnGlaus/Jel
 
 ## 📄 License
 
-MIT License - Feel free to use and modify!
+MIT License — Feel free to use and modify!
 
 ---
 
 ## ❓ FAQ
 
-**Q: Does this work on macOS?**  
-A: Yes. Tested on macOS with Homebrew MPV. Use `/opt/homebrew/bin/mpv` (Apple Silicon) or `/usr/local/bin/mpv` (Intel) as your `mpvPath`. The native macOS app bundles Node.js 22 LTS — no separate Node installation needed. Build it with `cd macapp && ./build.sh`, or download the release zip.
+**Q: Does this work on macOS?**
+A: Yes. Tested on macOS with Homebrew MPV. Use `/opt/homebrew/bin/mpv` (Apple Silicon) or `/usr/local/bin/mpv` (Intel) as your `mpvPath`. The native macOS app bundles Node.js 22 LTS — no separate installation needed.
 
-**Q: Does this work on Linux?**  
+**Q: Does this work on Linux?**
 A: Yes. Set `mpvPath` to `/usr/bin/mpv` (or wherever MPV is installed).
 
-**Q: Can I use this over the internet?**  
-A: Yes, if your Jellyfin server is accessible, but LAN is recommended
+**Q: Can I use this over the internet?**
+A: Yes, if your Jellyfin server is accessible, but LAN is recommended.
 
-**Q: Can I run multiple instances?**  
-A: Yes, use different `deviceId` and `ipcSocketPath` for each
+**Q: Can I run multiple instances?**
+A: Yes, use different `deviceId` and `ipcSocketPath` for each.
+
+**Q: Where is my config on macOS?**
+A: `~/Library/Application Support/JellyfinMpvPlay/config.js`. The setup wizard configures this on first launch.
+
+**Q: How do I update the macOS app?**
+A: Download the latest release, unzip, and replace the app in `/Applications`. Your config is stored separately and persists across updates.
 
 ---
 
