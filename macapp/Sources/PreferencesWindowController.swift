@@ -11,6 +11,7 @@ class PreferencesWindowController: NSWindowController {
     private var testButton: NSButton!
     private var statusLabel: NSTextField!
     private var launchAtLoginCheckbox: NSButton!
+    var onSave: (() -> Void)?
 
     convenience init() {
         let window = NSWindow(
@@ -197,12 +198,7 @@ class PreferencesWindowController: NSWindowController {
         let configPath = findConfigPath()
         do {
             try dedented.write(toFile: configPath, atomically: true, encoding: .utf8)
-            let alert = NSAlert()
-            alert.messageText = "Config saved"
-            alert.informativeText = "Changes will take effect after restarting the app."
-            alert.alertStyle = .informational
-            alert.addButton(withTitle: "OK")
-            alert.runModal()
+            onSave?()
             window?.close()
         } catch {
             let alert = NSAlert()
