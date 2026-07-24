@@ -9,5 +9,5 @@ playback_positions_*.json
 *.vbs
 *.app
 .DS_Store
-JellyfinMPVPlay-macOS.zip
+*.zip
 .node-tmp/
