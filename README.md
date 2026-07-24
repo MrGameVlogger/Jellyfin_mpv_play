@@ -1,6 +1,15 @@
 # 🎬 Jellyfin MPV Play
 
-Control your **MPV player** from the **Jellyfin web interface**. Play movies and series with hardware acceleration and resume from where you left off.
+Control your **MPV player** from the **Jellyfin web interface** Play movies and series with hardware acceleration and resume from where you left off.
+
+> **Fork of [JohnGlaus/Jellyfin_mpv_play](https://github.com/JohnGlaus/Jellyfin_mpv_play)** with a native macOS menubar app, bug fixes, and improvements.
+
+### What's different in this fork
+- **Native macOS menubar app** — no terminal needed; built with Swift
+- **Full episode metadata** — titles shown in menubar include series, season, and episode name
+- **Smart Resume** — "Play from beginning" in Jellyfin starts fresh instead of resuming
+- **Stability fixes** — stdout buffering, proper pipe cleanup, robust process management
+- **Self-contained .app** — bundles Node.js shim and dependencies inside the app bundle
 
 ---
 
@@ -30,7 +39,7 @@ Before starting, make sure you have:
 ### 1️⃣ Download & Install
 ```bash
 # Clone the repository
-git clone https://github.com/JohnGlaus/Jellyfin_mpv_play.git
+git clone https://github.com/MrGameVlogger/Jellyfin_mpv_play.git
 cd Jellyfin_mpv_play
 
 # Install dependencies
@@ -232,8 +241,10 @@ jellyfin_mpv_play/
 
 Found a bug? Have a suggestion?
 
-- Open an [Issue](https://github.com/JohnGlaus/Jellyfin_mpv_play/issues)
+- Open an [Issue](https://github.com/MrGameVlogger/Jellyfin_mpv_play/issues)
 - Submit a Pull Request
+
+This is a fork of [JohnGlaus/Jellyfin_mpv_play](https://github.com/JohnGlaus/Jellyfin_mpv_play). Upstream improvements may be synced periodically.
 
 ---
 
