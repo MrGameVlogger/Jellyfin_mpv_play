@@ -7,4 +7,7 @@ jellyfin_token_*.json
 playback_positions_*.json
 *.bat
 *.vbs
+*.app
 *.app.DS_Store
+JellyfinMPVPlay-macOS.zip
+.node-tmp/
