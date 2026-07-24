@@ -38,72 +38,60 @@ Control your **MPV player** from the **Jellyfin web interface** Play movies and 
 
 ## 🚀 Quick Start
 
-### 1️⃣ Download & Install
+### macOS (Recommended)
+
+1. **Download** the latest release from [Releases](https://github.com/MrGameVlogger/Jellyfin_mpv_play/releases) or build it yourself (see below)
+2. **Install MPV** via Homebrew:
+   ```bash
+   brew install mpv
+   ```
+3. **Unzip** and drag `Jellyfin MPV Play.app` to `/Applications`
+4. **Right-click → Open** (first launch only, to bypass Gatekeeper)
+5. **Configure** credentials — the app opens a preferences editor on first run, or edit manually:
+   ```bash
+   nano ~/Library/Application\ Support/JellyfinMpvPlay/config.js
+   ```
+   ```javascript
+   module.exports = {
+       serverUrl: 'http://192.168.1.100:8096',  // Your Jellyfin server
+       username: 'your_username',
+       password: 'your_password',
+       mpvPath: '/opt/homebrew/bin/mpv',         // Apple Silicon
+       // mpvPath: '/usr/local/bin/mpv',         // Intel
+       deviceName: 'My-Mac',
+       deviceId: 'my-mac'                       // Different from deviceName
+   };
+   ```
+6. Done — the app runs from the menubar
+
+**Or build from source:**
 ```bash
-# Clone the repository
 git clone https://github.com/MrGameVlogger/Jellyfin_mpv_play.git
-cd Jellyfin_mpv_play
-
-# Install dependencies
-npm install
-```
-
-### 2️⃣ Configure
-```bash
-# Copy the example config
-cp config.example.js config.js    # macOS/Linux
-copy config.example.js config.js  # Windows
-```
-
-Edit `config.js` with your details:
-
-```javascript
-module.exports = {
-    serverUrl: 'http://192.168.1.100:8096',  // Your Jellyfin server
-    username: 'your_username',                // Your Jellyfin username
-    password: 'your_password',                // Your Jellyfin password
-    mpvPath: '/opt/homebrew/bin/mpv',         // Path to MPV (see below)
-    deviceName: 'Living-Room-PC',            // Any name you want
-    deviceId: 'Room-PC'                      // Any name, but different from deviceName
-};
-```
-
-**MPV path examples:**
-| OS | Path |
-|----|------|
-| macOS (Homebrew ARM) | `/opt/homebrew/bin/mpv` |
-| macOS (Homebrew Intel) | `/usr/local/bin/mpv` |
-| Windows | `C:\Program Files\mpv\mpv.exe` |
-| Linux | `/usr/bin/mpv` |
-
-> **💡 Tip:** On Windows, use double backslashes `\\` in paths
-
-> **💡 Tip:** `ipcSocketPath` is optional — defaults to `/tmp/mpv-ipc.sock` on macOS/Linux and `\\.\pipe\mpv-ipc` on Windows
-
-### 3️⃣ Run
-
-**macOS:** Double-click `Jellyfin MPV Play.app` in the project folder, or run:
-```bash
-npm start
-```
-
-To build and install the native macOS app:
-```bash
-cd macapp
+cd Jellyfin_mpv_play/macapp
 ./build.sh
 ```
 This compiles the Swift app, downloads Node.js 22 LTS, bundles everything into a self-contained `.app`, and deploys to `/Applications/Jellyfin MPV Play.app`. The `.app` (~175MB) includes Node.js — no separate installation needed.
 
-**Windows/Linux:**
-```bash
-npm start
-```
+### Windows / Linux
 
-You should see:
-```
-✅ WebSocket connection established
-💡 Open Jellyfin in your browser and use "Play on" to select this device
-```
+1. **Install** prerequisites:
+   - [Node.js](https://nodejs.org/) (v14 or newer)
+   - [MPV Player](https://mpv.io/installation/)
+2. **Clone and install:**
+   ```bash
+   git clone https://github.com/MrGameVlogger/Jellyfin_mpv_play.git
+   cd Jellyfin_mpv_play
+   npm install
+   ```
+3. **Configure:**
+   ```bash
+   cp config.example.js config.js
+   nano config.js
+   ```
+4. **Run:**
+   ```bash
+   npm start
+   ```
 
 ---
 
