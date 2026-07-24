@@ -5,6 +5,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     var nodeProcessManager: NodeProcessManager!
     var logWindowController: LogWindowController!
     var notificationManager: NotificationManager!
+    private var preferencesWindowController: PreferencesWindowController?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         logWindowController = LogWindowController()
@@ -36,7 +37,11 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             }
         }
 
-        nodeProcessManager.start()
+        if needsSetup() {
+            showSetup()
+        } else {
+            nodeProcessManager.start()
+        }
     }
 
     func applicationWillTerminate(_ notification: Notification) {
@@ -57,5 +62,33 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             }
         }
         return .terminateNow
+    }
+
+    private func needsSetup() -> Bool {
+        let appSupport = NSSearchPathForDirectoriesInDomains(.applicationSupportDirectory, .userDomainMask, true).first ?? ""
+        let configPath = (appSupport as NSString).appendingPathComponent("JellyfinMpvPlay/config.js")
+
+        guard let content = try? String(contentsOfFile: configPath, encoding: .utf8) else {
+            return true
+        }
+
+        let defaults = ["YOUR_JELLYFIN_IP", "your_username", "your_password", "C:\\\\path\\\\to\\\\mpv.exe", "My-MPV-Player", "My-MPV-room"]
+        for d in defaults {
+            if content.contains(d) {
+                return true
+            }
+        }
+        return false
+    }
+
+    private func showSetup() {
+        let prefs = PreferencesWindowController()
+        prefs.onSave = { [weak self] in
+            self?.nodeProcessManager.start()
+        }
+        prefs.showWindow(nil)
+        prefs.window?.makeKeyAndOrderFront(nil)
+        NSApp.activate(ignoringOtherApps: true)
+        preferencesWindowController = prefs
     }
 }
