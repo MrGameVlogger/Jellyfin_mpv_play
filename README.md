@@ -27,8 +27,9 @@ Control your **MPV player** from the **Jellyfin web interface** Play movies and 
 
 ## 📋 What You Need
 
-Before starting, make sure you have:
+**macOS:** Just the `.app` (downloaded or built) and [MPV Player](https://mpv.io/installation/). Node.js is bundled.
 
+**Windows/Linux:**
 1. **Node.js** (v14 or newer) - [Download here](https://nodejs.org/)
 2. **MPV Player** - [Download here](https://mpv.io/installation/)
 3. **Jellyfin Server** - Your server URL and login credentials
@@ -91,7 +92,7 @@ To build and install the native macOS app:
 cd macapp
 ./build.sh
 ```
-This compiles the Swift app, bundles `shim.js` + `node_modules` into a self-contained `.app`, and deploys to `/Applications/Jellyfin MPV Play.app`.
+This compiles the Swift app, downloads Node.js 22 LTS, bundles everything into a self-contained `.app`, and deploys to `/Applications/Jellyfin MPV Play.app`. The `.app` (~175MB) includes Node.js — no separate installation needed.
 
 **Windows/Linux:**
 ```bash
@@ -258,7 +259,7 @@ MIT License - Feel free to use and modify!
 ## ❓ FAQ
 
 **Q: Does this work on macOS?**  
-A: Yes. Tested on macOS with Homebrew MPV. Use `/opt/homebrew/bin/mpv` (Apple Silicon) or `/usr/local/bin/mpv` (Intel) as your `mpvPath`. A native macOS app with menubar icon, notifications, preferences, and log viewer is included — build it with `cd macapp && ./build.sh`.
+A: Yes. Tested on macOS with Homebrew MPV. Use `/opt/homebrew/bin/mpv` (Apple Silicon) or `/usr/local/bin/mpv` (Intel) as your `mpvPath`. The native macOS app bundles Node.js 22 LTS — no separate Node installation needed. Build it with `cd macapp && ./build.sh`, or download the release zip.
 
 **Q: Does this work on Linux?**  
 A: Yes. Set `mpvPath` to `/usr/bin/mpv` (or wherever MPV is installed).

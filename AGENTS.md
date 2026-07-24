@@ -19,13 +19,13 @@ No build, lint, test, or typecheck steps exist. `npm start` is the only script.
 cd macapp && ./build.sh
 ```
 
-Compiles Swift sources with `swiftc`, bundles `shim.js` + `node_modules` into `.app/Contents/Resources`, deploys to `/Applications/Jellyfin MPV Play.app`. Kills any running instance before deploying.
+Compiles Swift sources with `swiftc`, downloads Node.js 22 LTS (v22.23.1) for the current architecture, bundles everything into `.app/Contents/Resources`, deploys to `/Applications/Jellyfin MPV Play.app`. Kills any running instance before deploying. The `.app` is self-contained — no system Node.js required (~175MB).
 
 Version lives in `macapp/Info.plist` (`CFBundleVersion` / `CFBundleShortVersionString`). Increment when shipping changes.
 
 ## Prerequisites
 
-- Node.js >= 14
+- Node.js >= 14 (only needed for Windows/Linux; macOS app bundles Node.js)
 - MPV installed and path set in `config.js` (`mpvPath`)
 - `config.js` created from `config.example.js` with real Jellyfin credentials
 - macOS app requires Xcode Command Line Tools (for `swiftc`)
@@ -39,7 +39,7 @@ Version lives in `macapp/Info.plist` (`CFBundleVersion` / `CFBundleShortVersionS
 | `config.example.js` | Template for `config.js` |
 | `data/` | Runtime state: auth tokens and playback positions (gitignored) |
 | `macapp/Sources/*.swift` | Native macOS app (8 files) |
-| `macapp/build.sh` | Build + deploy script |
+| `macapp/build.sh` | Build + deploy script (downloads + bundles Node.js) |
 | `macapp/Info.plist` | App metadata and version |
 
 ## Architecture
@@ -50,6 +50,7 @@ Version lives in `macapp/Info.plist` (`CFBundleVersion` / `CFBundleShortVersionS
 - Auto-reconnect uses exponential backoff on WebSocket disconnect
 - Episode navigation (`>`/`<` keys) via MPV client-message IPC events
 - macOS app spawns `node shim.js`, parses stdout lines for state changes, sends MPV commands via raw Unix socket
+- macOS app bundles Node.js 22 LTS in `Contents/Resources/node/` — `findNodePath()` checks bundle first, falls back to system Node
 
 ## Critical: Log line contracts
 
@@ -76,3 +77,4 @@ The title after `Episode detected:` is parsed by `extractTitleFromEpisode()` and
 - `bash -l` is avoided in `findNodePath()` — it hangs in GUI apps.
 - `process.environment` is built as a explicit dict with `NODE_PATH` to ensure node_modules found.
 - `setupApplicationSupport()` runs before the guard check (shim.js must exist before we check for it).
+- The bundled Node.js is arm64 or x64 depending on build machine — not universal. Rebuild on target architecture if needed.
