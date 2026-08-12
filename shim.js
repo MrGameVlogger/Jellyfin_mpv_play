@@ -870,7 +870,6 @@ function startProgressPoll() {
         } else if (pos === null) {
             currentDuration = 0;
         }
-        console.log(`📊 Poll: pos=${pos} dur=${dur} curDur=${currentDuration} curPos=${currentPositionSeconds} paused=${isMpvPaused} playingNext=${isPlayingNext} itemId=${currentItemId}`);
         if (!isMpvPaused && currentDuration > 0 && currentPositionSeconds >= currentDuration - 1 && !isPlayingNext && currentItemId) {
             console.log(`🎬 Position near end (${currentPositionSeconds.toFixed(1)}s / ${currentDuration.toFixed(1)}s), triggering next episode`);
             markItemAsWatched(currentItemId);
