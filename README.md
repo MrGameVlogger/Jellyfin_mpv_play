@@ -194,7 +194,7 @@ Jellyfin_mpv_play/
 ├── node_modules/            # Dependencies (gitignored)
 ├── config.example.js        # Configuration template
 ├── config.js                # Your config — never commit! (gitignored)
-├── shim.js                  # Main Node.js application (~935 lines)
+├── shim.js                  # Main Node.js application (~1200 lines)
 ├── package.json
 └── README.md
 ```
@@ -213,6 +213,44 @@ Jellyfin_mpv_play/
 ## 📝 Changelog
 
 ### v1.5.0
+
+**Auto-Play Overhaul:**
+- Fixed auto-play next episode — now uses IPC poll timer (queries mpv every 1s) instead of unreliable `eof-reached` events
+- Episode transitions reuse the running MPV process via `loadfile` IPC command (no more window flash)
+- Uses Jellyfin's `GET /Shows/NextUp` API for "Next Up" when clicking play from series page
+- Falls back to first unwatched episode when `StartIndex` not provided
+- Skips non-playable items (theme videos, trailers) when multiple items are sent
+- `playPreviousEpisode()` seeks to 0 instead of respawning MPV when restarting current episode
+
+**Jellyfin API Compliance:**
+- Handles all 9 `PlaystateCommand` types: Stop, Pause, Unpause, PlayPause, NextTrack, PreviousTrack, Seek, Rewind, FastForward
+- Full `GeneralCommand` handler: SetAudioStreamIndex, SetSubtitleStreamIndex, SetVolume, VolumeUp/Down, Mute/Unmute/ToggleMute, SetRepeatMode, SetPlaybackOrder, DisplayMessage, PlayNext, ToggleFullscreen
+- Handles `PlayRequest.PlayCommand`: PlayNow, PlayShuffle (with shuffle), PlayNext/PlayLast (logged)
+- Handles `PlayRequest.StartIndex`, `AudioStreamIndex`, `SubtitleStreamIndex`
+- Reports `MediaSourceId`, `RepeatMode`, `PlaybackOrder` in all playback reports
+- Tracks actual `volume` and `mute` state from mpv (was hardcoded to 100/false)
+- Sends `SessionsStop` on clean shutdown (prevents zombie sessions)
+- Handles `RestartRequired`, `ServerShuttingDown`, `ServerRestarting` messages
+- `SupportedCommands` uses correct `GeneralCommandType` enum names
+
+**Bug Fixes:**
+- Fixed poll timer hanging forever when IPC disconnects (pending promises now resolved)
+- Fixed `connectToMpvIpc` retries racing with new playback (generation check added)
+- Fixed `reportPlaybackStop` failure leaving `isReportingStop` stuck true
+- Fixed `loadNextEpisode` not clearing progress interval (stale position saves)
+- Fixed `shutdown()` not reporting playback stop to server
+- Fixed stale `currentDuration` from previous episode after IPC query failure
+- Fixed `isPlayingNext` never resetting if `loadfile` send silently fails (10s timeout)
+- Removed dead `eof-reached` observer (never fires with `--keep-open=yes`)
+- Fixed next/prev episode title format to match `Episode detected` format
+
+**macOS App:**
+- Thread safety: `processLogLine` now dispatched to main thread
+- Error notifications now fire (changed `hasPrefix` to `contains`, stderr routed through `processLogLine`)
+- IPC socket cleanup moved after process exits (was racing with mpv)
+- `setupApplicationSupport()` always overwrites `shim.js` from bundle (was only copying on first run)
+- Reads `ipcSocketPath` from config instead of hardcoding `/tmp/mpv-ipc.sock`
+- Log line count trimming now correctly decrements
 
 **Apple HIG Compliance:**
 - All windows now respect standard macOS window layering (removed `.floating`)
