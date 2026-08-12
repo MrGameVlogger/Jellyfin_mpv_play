@@ -367,3 +367,4 @@ A: Download the latest release, unzip, and replace the app in `/Applications`. Y
 **Made with ❤️ for the Jellyfin community**
 
 ⭐ **Star this repo** if you find it useful!
+
