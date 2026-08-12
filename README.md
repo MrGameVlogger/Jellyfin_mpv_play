@@ -212,26 +212,22 @@ Jellyfin_mpv_play/
 
 ## 📝 Changelog
 
-### v1.5.0
+### v1.5.0 — Apple HIG Compliance, Bug Fixes, New Features
+
+**New Features:**
+- **Playback control from Jellyfin** — full `GeneralCommand` handler for volume, mute, audio/subtitle tracks, repeat mode, shuffle, fullscreen
+- **Playstate commands** — PlayPause, NextTrack, PreviousTrack, Rewind (−10s), FastForward (+10s)
+- **Series page play** — queries Jellyfin's NextUp API to find the correct episode
+- **Copy Now Playing** — copies current title to clipboard
+- **Open at Login** — toggle directly from menu bar dropdown
+- **Open Config File** — opens `config.js` in default editor
+- **Open App Folder** — opens Application Support directory in Finder
 
 **Auto-Play Overhaul:**
 - Fixed auto-play next episode — now uses IPC poll timer (queries mpv every 1s) instead of unreliable `eof-reached` events
 - Episode transitions reuse the running MPV process via `loadfile` IPC command (no more window flash)
-- Uses Jellyfin's `GET /Shows/NextUp` API for "Next Up" when clicking play from series page
-- Falls back to first unwatched episode when `StartIndex` not provided
-- Skips non-playable items (theme videos, trailers) when multiple items are sent
-- `playPreviousEpisode()` seeks to 0 instead of respawning MPV when restarting current episode
-
-**Jellyfin API Compliance:**
-- Handles all 9 `PlaystateCommand` types: Stop, Pause, Unpause, PlayPause, NextTrack, PreviousTrack, Seek, Rewind, FastForward
-- Full `GeneralCommand` handler: SetAudioStreamIndex, SetSubtitleStreamIndex, SetVolume, VolumeUp/Down, Mute/Unmute/ToggleMute, SetRepeatMode, SetPlaybackOrder, DisplayMessage, PlayNext, ToggleFullscreen
-- Handles `PlayRequest.PlayCommand`: PlayNow, PlayShuffle (with shuffle), PlayNext/PlayLast (logged)
-- Handles `PlayRequest.StartIndex`, `AudioStreamIndex`, `SubtitleStreamIndex`
-- Reports `MediaSourceId`, `RepeatMode`, `PlaybackOrder` in all playback reports
-- Tracks actual `volume` and `mute` state from mpv (was hardcoded to 100/false)
-- Sends `SessionsStop` on clean shutdown (prevents zombie sessions)
-- Handles `RestartRequired`, `ServerShuttingDown`, `ServerRestarting` messages
-- `SupportedCommands` uses correct `GeneralCommandType` enum names
+- Double-trigger prevention with `isPlayingNext` flag and 10s timeout
+- Duplicate watched marking prevented with `markedWatched` Set
 
 **Bug Fixes:**
 - Fixed poll timer hanging forever when IPC disconnects (pending promises now resolved)
@@ -241,86 +237,25 @@ Jellyfin_mpv_play/
 - Fixed `shutdown()` not reporting playback stop to server
 - Fixed stale `currentDuration` from previous episode after IPC query failure
 - Fixed `isPlayingNext` never resetting if `loadfile` send silently fails (10s timeout)
-- Removed dead `eof-reached` observer (never fires with `--keep-open=yes`)
-- Fixed next/prev episode title format to match `Episode detected` format
-
-**macOS App:**
-- Thread safety: `processLogLine` now dispatched to main thread
-- Error notifications now fire (changed `hasPrefix` to `contains`, stderr routed through `processLogLine`)
-- IPC socket cleanup moved after process exits (was racing with mpv)
-- `setupApplicationSupport()` always overwrites `shim.js` from bundle (was only copying on first run)
-- Reads `ipcSocketPath` from config instead of hardcoding `/tmp/mpv-ipc.sock`
-- Log line count trimming now correctly decrements
+- Preferences save now triggers node restart (was silently ignored)
+- Setup "Skip" no longer writes empty config (was causing infinite setup loop)
+- Stop playback state protected from stale log line callbacks
+- Shake animation now works (added `field.wantsLayer = true`)
+- IPC socket cleanup on shutdown and MPV exit
+- Pending IPC queries resolved on cleanup (prevents poll timer hang)
 
 **Apple HIG Compliance:**
 - All windows now respect standard macOS window layering (removed `.floating`)
 - Status bar icons use template images and adapt to light/dark menu bar
 - Replaced deprecated `NSApp.activate(ignoringOtherApps:)` with version-checked API
-- Added accessibility descriptions to all status bar icon states
 - Log viewer respects system appearance instead of forcing dark theme
 - Added `LSApplicationCategoryType` to Info.plist
-- Setup window now has a close button
-
-**Bug Fixes:**
-- Setup "Skip" no longer writes empty config (was causing setup to reappear every launch)
-- Preferences save now triggers node restart (changes were silently ignored)
-- Closing setup window no longer leaves app in broken state
-- `stopPlayback()` state can't be overridden by stale log line callbacks
-- `sendMpvCommand` captures socket path before background dispatch (was falling back to hardcoded path)
-- `togglePause()` checks `isStoppingPlayback` flag
-- Shake animation now works (NSTextField wasn't layer-backed)
-- `start()` stops existing process before starting new one (prevents orphaned processes)
-- Removed synchronous `which node` call that blocked main thread
-- Help window links are now clickable buttons
-- Preferences validates required fields before saving
-- Log color detection uses "Connected" instead of fragile emoji
-
-**New Features:**
-- **Copy Now Playing** — copies current title to clipboard
-- **Open at Login** — toggle directly from menu bar dropdown
-- **Open Config File** — opens `config.js` in default editor
-- **Open App Folder** — opens Application Support folder for troubleshooting
-- Preferences Save button accepts Enter key
-- Setup auto-prepends `http://` if no scheme provided
 
 **Code Quality:**
 - Extracted shared `ConfigParser` utility (eliminates duplication across 3 files)
-- Removed unused `playbackGeneration` property
-- Removed unnecessary `applicationSupportDir()` wrapper
-- Removed dead `NotificationPermissionDenied` notification code
-- Removed `DistributedNotificationCenter` observer leak in About window
-- Removed hacky `icon-dark.png` — uses proper `AppIcon.icns` for all modes
-
-### v1.2.1 — Native macOS App, Play-from-Beginning Fix, 8 Bug Fixes
-
-**New: Native macOS Menu Bar App:**
-- Status bar icon with color-coded states (disconnected/connected/playing)
-- Now Playing display, Pause/Resume and Stop controls
-- Log viewer with syntax coloring, auto-scroll, export
-- Preferences window with "Test Connection" button
-- Launch at Login toggle, macOS notifications
-- Automatic process management with exponential backoff restart
-- Build script compiles Swift, bundles into `.app` for `/Applications`
-
-**Fixed: Play-from-Beginning Bug:**
-- Server's `StartPositionTicks: 0` now correctly starts from beginning
-- Previously, saved local position could override "play from beginning" request
-
-**Bug Fixes:**
-1. Removed duplicate `connectToMpvIpc()` function
-2. Race condition fix with `playbackGeneration` counter
-3. Graceful shutdown now saves position and reports stop
-4. `eof-reached` handler now reports stop to server
-5. Episode list sort no longer mutates API response
-6. Fixed `currentIndex` bounds check
-7. Platform-aware IPC socket path (Unix/Windows)
-8. Fixed MPV keybind names (`NEXT`/`PREV`)
-
-**Improvements:**
-- Log messages translated from Spanish to English (enables macOS app parsing)
-- Simplified MPV arguments (delegated to user's `mpv.conf`)
-- Added `--force-media-title` for descriptive window titles
-- Better token validation and error handling
+- Thread safety: `processLogLine` dispatched to main thread
+- `shim.js`: Progress reports now include `RepeatMode`, `PlaybackOrder`, `MediaSourceId`
+- `shim.js`: Shutdown sends `SessionsStop` message before closing WebSocket
 
 ### v1.4.0 — Bug Fixes, Logo, UI Overhaul
 
@@ -356,6 +291,37 @@ Jellyfin_mpv_play/
 - Preferences auto-fills default values for empty fields
 - `findNodePath()` checks bundle first, falls back to system Node
 - README rewritten with separate macOS/Windows/Linux sections
+
+### v1.2.1 — Native macOS App, Play-from-Beginning Fix, 8 Bug Fixes
+
+**New: Native macOS Menu Bar App:**
+- Status bar icon with color-coded states (disconnected/connected/playing)
+- Now Playing display, Pause/Resume and Stop controls
+- Log viewer with syntax coloring, auto-scroll, export
+- Preferences window with "Test Connection" button
+- Launch at Login toggle, macOS notifications
+- Automatic process management with exponential backoff restart
+- Build script compiles Swift, bundles into `.app` for `/Applications`
+
+**Fixed: Play-from-Beginning Bug:**
+- Server's `StartPositionTicks: 0` now correctly starts from beginning
+- Previously, saved local position could override "play from beginning" request
+
+**Bug Fixes:**
+1. Removed duplicate `connectToMpvIpc()` function
+2. Race condition fix with `playbackGeneration` counter
+3. Graceful shutdown now saves position and reports stop
+4. `eof-reached` handler now reports stop to server
+5. Episode list sort no longer mutates API response
+6. Fixed `currentIndex` bounds check
+7. Platform-aware IPC socket path (Unix/Windows)
+8. Fixed MPV keybind names (`NEXT`/`PREV`)
+
+**Improvements:**
+- Log messages translated from Spanish to English (enables macOS app parsing)
+- Simplified MPV arguments (delegated to user's `mpv.conf`)
+- Added `--force-media-title` for descriptive window titles
+- Better token validation and error handling
 
 ---
 
