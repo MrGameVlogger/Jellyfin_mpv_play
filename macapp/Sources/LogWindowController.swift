@@ -18,8 +18,6 @@ class LogWindowController: NSWindowController {
         window.center()
         window.minSize = NSSize(width: 400, height: 300)
         window.isReleasedWhenClosed = false
-        window.level = .floating
-
         self.init(window: window)
         setupUI()
     }
@@ -52,9 +50,9 @@ class LogWindowController: NSWindowController {
         textView.isEditable = false
         textView.isSelectable = true
         textView.font = NSFont.monospacedSystemFont(ofSize: 12, weight: .regular)
-        textView.backgroundColor = NSColor(white: 0.1, alpha: 1.0)
-        textView.textColor = NSColor(white: 0.9, alpha: 1.0)
-        textView.insertionPointColor = .white
+        textView.backgroundColor = .textBackgroundColor
+        textView.textColor = .textColor
+        textView.insertionPointColor = .textColor
         textView.textContainerInset = NSSize(width: 10, height: 10)
 
         scrollView.documentView = textView
@@ -82,20 +80,22 @@ class LogWindowController: NSWindowController {
             let halfLength = nsString.length / 2
             let range = nsString.range(of: "\n", options: [], range: NSRange(location: 0, length: halfLength))
             if range.location != NSNotFound {
+                let deletedText = nsString.substring(to: range.location + 1)
+                let deletedLines = deletedText.components(separatedBy: "\n").count - 1
                 textView.textStorage?.deleteCharacters(in: NSRange(location: 0, length: range.location + 1))
-                lineCount -= 1
+                lineCount -= deletedLines
             }
         }
     }
 
     private func colorForLine(_ line: String) -> NSColor {
-        if line.hasPrefix("ERROR") || line.contains("STDERR") {
+        if line.hasPrefix("ERROR") || line.contains("STDERR") || line.contains("FATAL") {
             return .systemRed
-        } else if line.contains("WARNING") || line.contains("warn") {
+        } else if line.contains("WARNING") || line.contains("WARN") || line.contains("warn") {
             return .systemYellow
-        } else if line.contains("✅") || line.contains("Connected") {
+        } else if line.contains("Connected") || line.contains("connection established") {
             return .systemGreen
-        } else if line.contains("Playing") || line.contains("file-loaded") {
+        } else if line.contains("Playing") || line.contains("Episode detected") || line.contains("file-loaded") {
             return .systemOrange
         }
         return .labelColor

@@ -2,110 +2,95 @@
 
 ## What this is
 
-Two-part system: a Node.js shim (`shim.js`) that connects to Jellyfin via WebSocket and launches MPV with IPC control, plus an optional native macOS menubar app (`macapp/`) that spawns the shim and parses its stdout to drive UI state.
+Node.js shim (`shim.js`, ~1200 lines) that connects to Jellyfin via WebSocket, receives play commands, and controls MPV via Unix socket IPC. Optional macOS menubar app (`macapp/`) spawns the shim and parses its stdout for UI state.
 
-## Running
-
-```bash
-npm install
-npm start          # runs: node shim.js
-```
-
-No build, lint, test, or typecheck steps exist. `npm start` is the only script.
-
-## Building the macOS app
+## Commands
 
 ```bash
-cd macapp && ./build.sh
+npm install && npm start     # run shim directly
+cd macapp && ./build.sh      # compile Swift, bundle Node.js 22, deploy to /Applications
 ```
 
-Compiles Swift sources with `swiftc`, downloads Node.js 22 LTS (v22.23.1) for the current architecture, bundles everything into `.app/Contents/Resources`, deploys to `/Applications/Jellyfin MPV Play.app`. Kills any running instance before deploying. The `.app` is self-contained — no system Node.js required (~175MB).
-
-Version lives in `macapp/Info.plist` (`CFBundleVersion` / `CFBundleShortVersionString`). Increment when shipping changes.
-
-## Prerequisites
-
-- Node.js >= 14 (only needed for Windows/Linux; macOS app bundles Node.js)
-- MPV installed and path set in `config.js` (`mpvPath`)
-- `config.js` created from `config.example.js` with real Jellyfin credentials
-- macOS app requires Xcode Command Line Tools (for `swiftc`)
+No test, lint, or typecheck steps exist.
 
 ## Key files
 
 | File | Role |
 |------|------|
-| `shim.js` | Entire Node.js application (~935 lines) |
-| `config.js` | User config with credentials (gitignored, never commit) |
+| `shim.js` | Entire Node.js application |
+| `config.js` | User config with credentials (gitignored) |
 | `config.example.js` | Template for `config.js` |
-| `data/` | Runtime state: auth tokens and playback positions (gitignored) |
-| `macapp/Sources/*.swift` | Native macOS app (8 files) |
-| `macapp/build.sh` | Build + deploy script (downloads + bundles Node.js) |
-| `macapp/AppIcon.icns` | App icon (generated from `images/icon.svg` via `qlmanage` + `iconutil`) |
-| `macapp/Info.plist` | App metadata and version |
+| `data/` | Runtime state: auth tokens, playback positions (gitignored) |
+| `macapp/Sources/*.swift` | Native macOS menubar app (10 files) |
+| `macapp/build.sh` | Compile + bundle + deploy to `/Applications` |
+| `macapp/Info.plist` | App version — increment before shipping |
 
 ## Architecture
 
-- IPC with MPV over Unix socket (`/tmp/mpv-ipc.sock`)
-- MPV launched in `--idle` mode, `loadfile` sent via IPC after connection
-- `--save-position-on-quit=no` — position tracking handled in-app via `data/` files
-- Auto-reconnect uses exponential backoff on WebSocket disconnect
-- Episode navigation (`>`/`<` keys) via MPV client-message IPC events
-- macOS app spawns `node shim.js`, parses stdout lines for state changes, sends MPV commands via raw Unix socket
-- macOS app bundles Node.js 22 LTS in `Contents/Resources/node/` — `findNodePath()` checks bundle first, falls back to system Node
+- **IPC**: Unix socket at `/tmp/mpv-ipc.sock` (configurable via `ipcSocketPath` in config.js)
+- **MPV flags**: `--idle=yes --keep-open=yes --save-position-on-quit=no`
+- **Auto-play**: Poll timer queries `time-pos` and `duration` via IPC every 1s. Triggers next episode when `pos >= dur - 1`. Does NOT rely on `eof-reached` or `end-file` — those don't fire with `--keep-open=yes`.
+- **Episode transitions**: `loadNextEpisode()` reuses the running MPV process (sends `loadfile` via IPC). `playMedia()` spawns a fresh MPV (used for initial play and when IPC is down).
+- **Series page play**: Queries `GET /Shows/NextUp?userId={id}&seriesId={id}&limit=1` to find the correct next episode, falls back to first unwatched in the list.
+- **Playable types**: `Episode`, `Movie`, `Video`, `MusicVideo`, `Audio` — anything else is skipped.
+- **Watched threshold**: Item marked watched at 90% of runtime.
+- **Reconnection**: Exponential backoff (5s → 10s → 20s → 30s cap) on WebSocket disconnect.
 
-## Critical: Log line contracts
+## Jellyfin API compliance
 
-The macOS app (`NodeProcessManager.swift:processLogLine`) parses specific log lines from `shim.js` to update UI. If you change these log messages, the app breaks silently:
+The shim handles three WebSocket message types: `Play`, `Playstate`, `GeneralCommand`.
 
-| Log line pattern | What it triggers |
+**PlaystateCommand** — all 9 handled: Stop, Pause, Unpause, PlayPause, NextTrack, PreviousTrack, Seek, Rewind, FastForward.
+
+**GeneralCommand** — SetAudioStreamIndex, SetSubtitleStreamIndex, SetVolume, VolumeUp/Down, Mute/Unmute/ToggleMute, SetRepeatMode, SetPlaybackOrder, DisplayMessage, PlayNext, ToggleFullscreen.
+
+**PlayRequest fields used**: ItemIds, StartPositionTicks, PlayCommand (PlayNow/PlayShuffle), StartIndex, AudioStreamIndex, SubtitleStreamIndex.
+
+**Progress reports include**: ItemId, PositionTicks, IsPaused, IsMuted, VolumeLevel, PlayMethod, PlaySessionId, CanSeek, RepeatMode, PlaybackOrder, MediaSourceId.
+
+**SupportedCommands** must use exact `GeneralCommandType` enum names from Jellyfin source (`MediaBrowser.Model/Session/GeneralCommandType.cs`). Wrong names cause 400 errors.
+
+**Shutdown**: Sends `SessionsStop` message before closing WebSocket to prevent zombie sessions.
+
+## Log line contracts
+
+`NodeProcessManager.swift:processLogLine` parses stdout from shim.js. It runs on the **main thread** (dispatched from background readability handler). Changing these patterns breaks the macOS app silently:
+
+| Pattern in stdout | What Swift code does |
 |---|---|
-| `WebSocket connection established` | Sets status to connected, sends notification |
-| `Episode detected: <title>` | Sets now-playing title, enables pause/stop |
-| `File loaded by MPV` | Marks as playing (fallback if no episode detected) |
-| `Playback paused` | Sets pause state, updates menu to "Resume" |
-| `Playback resumed` | Clears pause state, updates menu to "Pause" |
-| `Closing application` / `MPV closed` / `Process terminated` | Clears now-playing, resets state |
-| Lines starting with `ERROR` / `error` / `FATAL` | Sends error notification |
+| `WebSocket connection established` | Status → connected, notification |
+| `Episode detected: <title>` | Sets now-playing title, status → playing |
+| `Starting next episode: <title>` | Updates now-playing title |
+| `Starting previous episode: <title>` | Updates now-playing title |
+| `File loaded by MPV` | Status → playing (fallback) |
+| `Playback paused` | Pause state on |
+| `Playback resumed` | Pause state off |
+| `No more episodes` | Clears now-playing, status → connected |
+| `Closing application` / `MPV closed` / `Process terminated` | Clears now-playing, status → connected |
+| Lines containing `ERROR` / `❌` / `FATAL` | Error notification |
 
-The title after `Episode detected:` is parsed by `extractTitleFromEpisode()` and displayed in the menubar. Format: `SeriesName - SxEp - EpisodeName`.
+stderr is also routed through `processLogLine` (prefixed with `STDERR:`), so `❌` in stderr triggers error notifications.
+
+Title format for `Episode detected`: `SeriesName - SxEp - EpisodeName` (parsed by `extractTitleFromEpisode()`). Next/prev episode logs use the same format.
 
 ## Gotchas
 
 - `config.js` is gitignored. Missing file → `MODULE_NOT_FOUND` on start.
 - `deviceId` must differ from `deviceName` per Jellyfin's device registration.
-- Positions and token files are per-device, named with `deviceId`.
-- App marks items watched at 90% of runtime.
-- MPV args in `shim.js` are minimal (idle, window, title, IPC, no-save-position). User's `~/.config/mpv/mpv.conf` handles playback settings (vo, hwdec, ao, cache, etc.).
-- The macOS app's `NODE_PATH` is set to bundle Resources so `node_modules` resolves correctly.
+- `setupApplicationSupport()` always overwrites `shim.js` from the bundle on launch. This ensures rebuilds take effect.
+- The bundled Node.js is arm64 or x64 depending on build machine — not universal.
 - `bash -l` is avoided in `findNodePath()` — it hangs in GUI apps.
-- `process.environment` is built as a explicit dict with `NODE_PATH` to ensure node_modules found.
-- `setupApplicationSupport()` runs before the guard check (shim.js must exist before we check for it).
-- The bundled Node.js is arm64 or x64 depending on build machine — not universal. Rebuild on target architecture if needed.
+- `processLogLine` mutates `isPlaying`, `isPaused`, `nowPlaying` — always runs on main thread (dispatched from GCD background thread in readability handler).
+- `pendingQueries` Map must resolve all promises before clearing — otherwise poll timer hangs forever.
+- `playbackGeneration` counter prevents stale MPV close handlers from corrupting new playback state.
+- `isPlayingNext` flag prevents double-triggering of episode transitions. Has a 10s timeout fallback in case `loadfile` silently fails.
+- `markedWatched` Set prevents duplicate "mark as watched" API calls. Cleared on each new file load.
+- MPV args are minimal. User's `~/.config/mpv/mpv.conf` handles vo, hwdec, ao, cache, etc.
 
 ## Release workflow
 
-When the user asks to ship changes, follow these steps:
-
-1. **Commit and push** (after user approval):
-   ```bash
-   git add -A && git commit -m "<description>" && git push
-   ```
-
-2. **Build the app**:
-   ```bash
-   cd macapp && ./build.sh
-   ```
-   This deploys to `/Applications/Jellyfin MPV Play.app` and also produces `.app` in the workspace root.
-
-3. **Create release zip** (after user approval):
-   ```bash
-   ditto -c -k --sequesterRsrc --keepParent "Jellyfin MPV Play.app" "JellyfinMPVPlay-macOS-vX.Y.Z.zip"
-   ```
-
-4. **Create GitHub release and upload**:
-   ```bash
-   gh release create vX.Y.Z JellyfinMPVPlay-macOS-vX.Y.Z.zip --title "vX.Y.Z" --notes "..."
-   ```
-   If `gh` fails with scope errors, use the GitHub API directly (see repo history for curl pattern).
-
-5. **Update version** in `macapp/Info.plist` before building if shipping new changes.
+1. Increment version in `macapp/Info.plist`
+2. `cd macapp && ./build.sh` (deploys to `/Applications`)
+3. Commit + push (after user approval)
+4. Create release zip: `ditto -c -k --sequesterRsrc --keepParent "Jellyfin MPV Play.app" "JellyfinMPVPlay-macOS-vX.Y.Z.zip"`
+5. GitHub release: `gh release create vX.Y.Z JellyfinMPVPlay-macOS-vX.Y.Z.zip --title "vX.Y.Z" --notes "..."`

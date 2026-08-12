@@ -1,6 +1,6 @@
 import Cocoa
 
-class SetupWindowController: NSWindowController {
+class SetupWindowController: NSWindowController, NSWindowDelegate {
     private var stepLabel: NSTextField!
     private var titleLabel: NSTextField!
     private var subtitleLabel: NSTextField!
@@ -18,20 +18,20 @@ class SetupWindowController: NSWindowController {
     private var containerView: NSView!
     private var currentStep = 0
     private var onComplete: (() -> Void)?
+    private var didComplete = false
 
     convenience init(onComplete: @escaping () -> Void) {
         let window = NSWindow(
             contentRect: NSRect(x: 0, y: 0, width: 520, height: 420),
-            styleMask: [.titled],
+            styleMask: [.titled, .closable],
             backing: .buffered,
             defer: false
         )
         window.title = "Welcome to Jellyfin MPV Play"
         window.center()
         window.isReleasedWhenClosed = false
-        window.level = .floating
-
         self.init(window: window)
+        window.delegate = self
         self.onComplete = onComplete
         setupUI()
         showStep(0)
@@ -86,6 +86,13 @@ class SetupWindowController: NSWindowController {
         skipButton.frame = NSRect(x: 415, y: 20, width: 90, height: 32)
         skipButton.bezelStyle = .rounded
         contentView.addSubview(skipButton)
+    }
+
+    func windowWillClose(_ notification: Notification) {
+        if !didComplete {
+            didComplete = true
+            onComplete?()
+        }
     }
 
     private func clearContainer() {
@@ -273,6 +280,14 @@ class SetupWindowController: NSWindowController {
             shakeField(serverField)
             return
         }
+        if currentStep == 1 {
+            var url = serverField.stringValue.trimmingCharacters(in: .whitespaces)
+            url = url.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
+            if !url.hasPrefix("http://") && !url.hasPrefix("https://") {
+                url = "http://" + url
+            }
+            serverField.stringValue = url
+        }
         if currentStep == 2 && (usernameField.stringValue.isEmpty || passwordField.stringValue.isEmpty) {
             if usernameField.stringValue.isEmpty { shakeField(usernameField) }
             if passwordField.stringValue.isEmpty { shakeField(passwordField) }
@@ -293,7 +308,9 @@ class SetupWindowController: NSWindowController {
     }
 
     @objc private func skip() {
-        saveAndFinish()
+        didComplete = true
+        onComplete?()
+        window?.close()
     }
 
     @objc private func browseMpv() {
@@ -403,6 +420,7 @@ class SetupWindowController: NSWindowController {
         do {
             let dedented = config.components(separatedBy: "\n").map { $0.trimmingCharacters(in: .whitespaces) }.joined(separator: "\n")
             try dedented.write(toFile: configPath, atomically: true, encoding: .utf8)
+            didComplete = true
             onComplete?()
             window?.close()
         } catch {
@@ -416,6 +434,7 @@ class SetupWindowController: NSWindowController {
     }
 
     private func shakeField(_ field: NSTextField) {
+        field.wantsLayer = true
         let position = field.layer?.position ?? NSPoint(x: field.frame.midX, y: field.frame.midY)
         let shake = CAKeyframeAnimation(keyPath: "position")
         shake.values = [

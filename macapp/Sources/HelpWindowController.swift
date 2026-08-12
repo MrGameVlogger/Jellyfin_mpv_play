@@ -12,8 +12,6 @@ class HelpWindowController: NSWindowController {
         window.center()
         window.minSize = NSSize(width: 400, height: 300)
         window.isReleasedWhenClosed = false
-        window.level = .floating
-
         self.init(window: window)
         setupUI()
     }
@@ -86,6 +84,18 @@ class HelpWindowController: NSWindowController {
             y -= 22
         }
 
+        func addLink(_ text: String, url: String) {
+            let button = NSButton(title: text, target: self, action: #selector(openLink(_:)))
+            button.frame = NSRect(x: 24, y: y, width: containerWidth - 48, height: 18)
+            button.bezelStyle = .inline
+            button.isBordered = false
+            button.contentTintColor = .systemBlue
+            button.font = NSFont.systemFont(ofSize: 13)
+            button.identifier = NSUserInterfaceItemIdentifier(url)
+            containerView.addSubview(button)
+            y -= 20
+        }
+
         func addSpacing(_ height: CGFloat = 12) {
             y -= height
         }
@@ -103,6 +113,8 @@ class HelpWindowController: NSWindowController {
 
         // ── Menu Bar ──
         addSection("Menu Bar Controls", icon: "menubar.arrow.up.rectangle")
+        addText("Click the menu bar icon to access these shortcuts:", color: .secondaryLabelColor)
+        addSpacing(4)
         addKeybind("⌘P", "Pause / Resume playback")
         addKeybind("⌘.", "Stop playback and close MPV")
         addKeybind("⌘L", "Show Logs")
@@ -150,13 +162,19 @@ class HelpWindowController: NSWindowController {
 
         // ── Links ──
         addSection("More Info", icon: "link")
-        addText("GitHub: github.com/MrGameVlogger/Jellyfin_mpv_play", color: .systemBlue)
-        addText("Upstream: github.com/JohnGlaus/Jellyfin_mpv_play", color: .systemBlue)
-        addText("MPV: mpv.io", color: .systemBlue)
-        addText("Jellyfin: jellyfin.org", color: .systemBlue)
+        addLink("GitHub: github.com/MrGameVlogger/Jellyfin_mpv_play", url: "https://github.com/MrGameVlogger/Jellyfin_mpv_play")
+        addLink("Upstream: github.com/JohnGlaus/Jellyfin_mpv_play", url: "https://github.com/JohnGlaus/Jellyfin_mpv_play")
+        addLink("MPV: mpv.io", url: "https://mpv.io")
+        addLink("Jellyfin: jellyfin.org", url: "https://jellyfin.org")
         addSpacing(20)
 
         scrollView.documentView = containerView
         contentView.addSubview(scrollView)
+    }
+
+    @objc private func openLink(_ sender: NSButton) {
+        if let urlString = sender.identifier?.rawValue, let url = URL(string: urlString) {
+            NSWorkspace.shared.open(url)
+        }
     }
 }

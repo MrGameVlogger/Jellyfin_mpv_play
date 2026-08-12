@@ -17,11 +17,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
                     self?.logWindowController.appendLog(line)
                 }
             },
-            statusHandler: { [weak self] status in
-                DispatchQueue.main.async {
-                    self?.statusBarController?.updateStatus(status)
-                }
-            },
+            statusHandler: { _ in },
             notificationHandler: { [weak self] title, message in
                 DispatchQueue.main.async {
                     self?.notificationManager.showNotification(title: title, message: message)
@@ -65,29 +61,15 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     private func needsSetup() -> Bool {
-        let appSupport = NSSearchPathForDirectoriesInDomains(.applicationSupportDirectory, .userDomainMask, true).first ?? ""
-        let configPath = (appSupport as NSString).appendingPathComponent("JellyfinMpvPlay/config.js")
-
-        guard let content = try? String(contentsOfFile: configPath, encoding: .utf8) else {
+        guard let content = ConfigParser.loadConfigContent() else {
             return true
         }
 
-        let hasServer = extractConfigValue(content, key: "serverUrl").isEmpty == false
-        let hasUser = extractConfigValue(content, key: "username").isEmpty == false
-        let hasPass = extractConfigValue(content, key: "password").isEmpty == false
+        let hasServer = ConfigParser.extractValue(from: content, key: "serverUrl").isEmpty == false
+        let hasUser = ConfigParser.extractValue(from: content, key: "username").isEmpty == false
+        let hasPass = ConfigParser.extractValue(from: content, key: "password").isEmpty == false
 
         return !hasServer || !hasUser || !hasPass
-    }
-
-    private func extractConfigValue(_ content: String, key: String) -> String {
-        let escapedKey = NSRegularExpression.escapedPattern(for: key)
-        let pattern = "\(escapedKey):\\s*['\"]([^'\\\"]*(?:\\\\.[^'\\\"]*)*)['\"]"
-        guard let regex = try? NSRegularExpression(pattern: pattern),
-              let match = regex.firstMatch(in: content, range: NSRange(content.startIndex..., in: content)),
-              let range = Range(match.range(at: 1), in: content) else {
-            return ""
-        }
-        return String(content[range]).trimmingCharacters(in: .whitespaces)
     }
 
     private func showSetup() {
@@ -96,7 +78,11 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         }
         setup.showWindow(nil)
         setup.window?.makeKeyAndOrderFront(nil)
-        NSApp.activate(ignoringOtherApps: true)
+        if #available(macOS 14.0, *) {
+            NSApp.activate()
+        } else {
+            NSApp.activate(ignoringOtherApps: true)
+        }
         setupWindowController = setup
     }
 }

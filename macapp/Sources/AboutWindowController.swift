@@ -1,8 +1,6 @@
 import Cocoa
 
 class AboutWindowController: NSWindowController {
-    private var iconView: NSImageView!
-
     convenience init() {
         let window = NSWindow(
             contentRect: NSRect(x: 0, y: 0, width: 420, height: 350),
@@ -13,18 +11,16 @@ class AboutWindowController: NSWindowController {
         window.title = "About Jellyfin MPV Play"
         window.center()
         window.isReleasedWhenClosed = false
-        window.level = .floating
-
         self.init(window: window)
         setupUI()
-        updateIconForTheme()
     }
 
     private func setupUI() {
         guard let contentView = window?.contentView else { return }
 
-        iconView = NSImageView(frame: NSRect(x: 180, y: 275, width: 60, height: 60))
+        let iconView = NSImageView(frame: NSRect(x: 180, y: 275, width: 60, height: 60))
         iconView.imageScaling = .scaleProportionallyUpOrDown
+        iconView.image = NSImage(named: "AppIcon")
         contentView.addSubview(iconView)
 
         let title = NSTextField(labelWithString: "Jellyfin MPV Play")
@@ -102,27 +98,6 @@ class AboutWindowController: NSWindowController {
         copyright.font = NSFont.systemFont(ofSize: 11)
         copyright.textColor = .quaternaryLabelColor
         contentView.addSubview(copyright)
-
-        DistributedNotificationCenter.default.addObserver(
-            self,
-            selector: #selector(systemAppearanceChanged),
-            name: NSNotification.Name("AppleInterfaceThemeChangedNotification"),
-            object: nil
-        )
-    }
-
-    @objc private func systemAppearanceChanged() {
-        updateIconForTheme()
-    }
-
-    private func updateIconForTheme() {
-        let isDark = NSApp.effectiveAppearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
-        if isDark {
-            iconView.image = NSImage(named: "icon-dark")
-        } else {
-            iconView.image = NSImage(named: "AppIcon")
-        }
-        iconView.needsDisplay = true
     }
 
     @objc private func openGitHub() {

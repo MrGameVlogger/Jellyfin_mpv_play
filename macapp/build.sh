@@ -26,7 +26,6 @@ cp "$BUILD_DIR/Info.plist" "$APP_BUNDLE/Contents/Info.plist"
 
 # Copy app icon
 cp "$BUILD_DIR/AppIcon.icns" "$RESOURCES_DIR/AppIcon.icns"
-cp "$BUILD_DIR/icon-dark.png" "$RESOURCES_DIR/icon-dark.png"
 
 # Bundle JS files into Resources
 echo "Bundling JS files..."

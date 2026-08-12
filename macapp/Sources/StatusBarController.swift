@@ -1,4 +1,5 @@
 import Cocoa
+import ServiceManagement
 
 class StatusBarController {
     private var statusItem: NSStatusItem!
@@ -11,6 +12,7 @@ class StatusBarController {
     private var nowPlayingItem: NSMenuItem!
     private var pauseItem: NSMenuItem!
     private var stopItem: NSMenuItem!
+    private var copyNowPlayingItem: NSMenuItem!
     private var isPausedState = false
 
     init(nodeProcessManager: NodeProcessManager, logWindowController: LogWindowController) {
@@ -24,8 +26,10 @@ class StatusBarController {
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
 
         if let button = statusItem.button {
-            button.image = NSImage(systemSymbolName: "play.circle", accessibilityDescription: "Jellyfin MPV Play")
-            button.contentTintColor = .white
+            if let image = NSImage(systemSymbolName: "play.circle", accessibilityDescription: "Jellyfin MPV Play") {
+                image.isTemplate = true
+                button.image = image
+            }
         }
 
         menu = NSMenu()
@@ -47,6 +51,11 @@ class StatusBarController {
         stopItem.isEnabled = false
         menu.addItem(stopItem)
 
+        copyNowPlayingItem = NSMenuItem(title: "Copy Now Playing", action: #selector(copyNowPlaying), keyEquivalent: "c")
+        copyNowPlayingItem.target = self
+        copyNowPlayingItem.isEnabled = false
+        menu.addItem(copyNowPlayingItem)
+
         menu.addItem(.separator())
 
         let showLogsItem = NSMenuItem(title: "Show Logs", action: #selector(showLogs), keyEquivalent: "l")
@@ -64,6 +73,21 @@ class StatusBarController {
         let helpItem = NSMenuItem(title: "Help", action: #selector(showHelp), keyEquivalent: "/")
         helpItem.target = self
         menu.addItem(helpItem)
+
+        menu.addItem(.separator())
+
+        let loginItem = NSMenuItem(title: "Open at Login", action: #selector(toggleOpenAtLogin), keyEquivalent: "")
+        loginItem.target = self
+        loginItem.state = SMAppService.mainApp.status == .enabled ? .on : .off
+        menu.addItem(loginItem)
+
+        let openConfigItem = NSMenuItem(title: "Open Config File", action: #selector(openConfigFile), keyEquivalent: "")
+        openConfigItem.target = self
+        menu.addItem(openConfigItem)
+
+        let openAppSupportItem = NSMenuItem(title: "Open App Folder", action: #selector(openAppFolder), keyEquivalent: "")
+        openAppSupportItem.target = self
+        menu.addItem(openAppSupportItem)
 
         menu.addItem(.separator())
 
@@ -99,12 +123,14 @@ class StatusBarController {
             nowPlayingItem.title = "\u{25B6} \(title)"
             pauseItem.isEnabled = true
             stopItem.isEnabled = true
+            copyNowPlayingItem.isEnabled = true
             pauseItem.title = "Pause"
             setStatusIcon("play.circle.fill", color: .systemOrange, tooltip: "Jellyfin MPV Play — \(title)")
         } else {
             nowPlayingItem.title = "Not playing"
             pauseItem.isEnabled = false
             stopItem.isEnabled = false
+            copyNowPlayingItem.isEnabled = false
             pauseItem.title = "Pause"
             isPausedState = false
             setStatusIcon("checkmark.circle", color: .systemGreen, tooltip: "Jellyfin MPV Play — Connected")
@@ -126,8 +152,8 @@ class StatusBarController {
 
     private func setStatusIcon(_ symbolName: String, color: NSColor, tooltip: String) {
         guard let button = statusItem.button else { return }
-        if let image = NSImage(systemSymbolName: symbolName, accessibilityDescription: nil) {
-            image.isTemplate = false
+        if let image = NSImage(systemSymbolName: symbolName, accessibilityDescription: tooltip) {
+            image.isTemplate = true
             button.image = image
         }
         button.contentTintColor = color
@@ -151,16 +177,31 @@ class StatusBarController {
     @objc private func showLogs() {
         logWindowController.showWindow(nil)
         logWindowController.window?.makeKeyAndOrderFront(nil)
-        NSApp.activate(ignoringOtherApps: true)
+        if #available(macOS 14.0, *) {
+            NSApp.activate()
+        } else {
+            NSApp.activate(ignoringOtherApps: true)
+        }
     }
 
     @objc private func showPreferences() {
         if preferencesWindowController == nil {
             preferencesWindowController = PreferencesWindowController()
+            preferencesWindowController?.onSave = { [weak self] in
+                self?.nodeProcessManager.stop {
+                    DispatchQueue.main.async {
+                        self?.nodeProcessManager.start()
+                    }
+                }
+            }
         }
         preferencesWindowController?.showWindow(nil)
         preferencesWindowController?.window?.makeKeyAndOrderFront(nil)
-        NSApp.activate(ignoringOtherApps: true)
+        if #available(macOS 14.0, *) {
+            NSApp.activate()
+        } else {
+            NSApp.activate(ignoringOtherApps: true)
+        }
     }
 
     @objc private func showAbout() {
@@ -169,7 +210,11 @@ class StatusBarController {
         }
         aboutWindowController?.showWindow(nil)
         aboutWindowController?.window?.makeKeyAndOrderFront(nil)
-        NSApp.activate(ignoringOtherApps: true)
+        if #available(macOS 14.0, *) {
+            NSApp.activate()
+        } else {
+            NSApp.activate(ignoringOtherApps: true)
+        }
     }
 
     @objc private func showHelp() {
@@ -178,7 +223,65 @@ class StatusBarController {
         }
         helpWindowController?.showWindow(nil)
         helpWindowController?.window?.makeKeyAndOrderFront(nil)
-        NSApp.activate(ignoringOtherApps: true)
+        if #available(macOS 14.0, *) {
+            NSApp.activate()
+        } else {
+            NSApp.activate(ignoringOtherApps: true)
+        }
+    }
+
+    @objc private func copyNowPlaying() {
+        if let title = nodeProcessManager.nowPlaying {
+            NSPasteboard.general.clearContents()
+            NSPasteboard.general.setString(title, forType: .string)
+        }
+    }
+
+    @objc private func toggleOpenAtLogin() {
+        do {
+            if SMAppService.mainApp.status == .enabled {
+                try SMAppService.mainApp.unregister()
+            } else {
+                try SMAppService.mainApp.register()
+            }
+            menu.items.first { $0.title == "Open at Login" }?.state =
+                SMAppService.mainApp.status == .enabled ? .on : .off
+        } catch {
+            let alert = NSAlert()
+            alert.messageText = "Failed to update login item"
+            alert.informativeText = error.localizedDescription
+            alert.alertStyle = .warning
+            alert.addButton(withTitle: "OK")
+            alert.runModal()
+        }
+    }
+
+    @objc private func openConfigFile() {
+        let configPath = ConfigParser.configPath()
+        if FileManager.default.fileExists(atPath: configPath) {
+            NSWorkspace.shared.open(URL(fileURLWithPath: configPath))
+        } else {
+            let alert = NSAlert()
+            alert.messageText = "Config file not found"
+            alert.informativeText = "No config.js found at:\n\(configPath)"
+            alert.alertStyle = .warning
+            alert.addButton(withTitle: "OK")
+            alert.runModal()
+        }
+    }
+
+    @objc private func openAppFolder() {
+        let folderPath = ConfigParser.applicationSupportDir()
+        if FileManager.default.fileExists(atPath: folderPath) {
+            NSWorkspace.shared.open(URL(fileURLWithPath: folderPath))
+        } else {
+            let alert = NSAlert()
+            alert.messageText = "App folder not found"
+            alert.informativeText = "No folder found at:\n\(folderPath)"
+            alert.alertStyle = .warning
+            alert.addButton(withTitle: "OK")
+            alert.runModal()
+        }
     }
 
     @objc private func restart() {

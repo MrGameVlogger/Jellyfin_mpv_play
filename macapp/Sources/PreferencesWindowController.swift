@@ -23,8 +23,6 @@ class PreferencesWindowController: NSWindowController {
         window.title = "Preferences"
         window.center()
         window.isReleasedWhenClosed = false
-        window.level = .floating
-
         self.init(window: window)
         setupUI()
         loadConfig()
@@ -34,9 +32,15 @@ class PreferencesWindowController: NSWindowController {
         guard let contentView = window?.contentView else { return }
 
         let labels = ["Server URL:", "Username:", "Password:", "MPV Path:", "Device Name:", "Device ID:"]
-        let fields: [NSTextField] = [
-            NSTextField(), NSTextField(), NSSecureTextField(), NSTextField(), NSTextField(), NSTextField()
-        ]
+
+        serverUrlField = NSTextField()
+        usernameField = NSTextField()
+        passwordField = NSSecureTextField()
+        mpvPathField = NSTextField()
+        deviceNameField = NSTextField()
+        deviceIdField = NSTextField()
+
+        let fields: [NSTextField] = [serverUrlField, usernameField, passwordField, mpvPathField, deviceNameField, deviceIdField]
 
         for (i, label) in labels.enumerated() {
             let labelView = NSTextField(labelWithString: label)
@@ -47,13 +51,6 @@ class PreferencesWindowController: NSWindowController {
             fields[i].frame = NSRect(x: 130, y: 330 - i * 40, width: 310, height: 24)
             contentView.addSubview(fields[i])
         }
-
-        serverUrlField = fields[0]
-        usernameField = fields[1]
-        passwordField = fields[2] as? NSSecureTextField
-        mpvPathField = fields[3]
-        deviceNameField = fields[4]
-        deviceIdField = fields[5]
 
         let browseButton = NSButton(title: "Browse...", target: self, action: #selector(browseMpvPath))
         browseButton.frame = NSRect(x: 448, y: 330 - 3 * 40, width: 80, height: 24)
@@ -72,6 +69,7 @@ class PreferencesWindowController: NSWindowController {
 
         let saveButton = NSButton(title: "Save", target: self, action: #selector(saveConfig))
         saveButton.frame = NSRect(x: 380, y: 20, width: 80, height: 32)
+        saveButton.keyEquivalent = "\r"
         contentView.addSubview(saveButton)
 
         let cancelButton = NSButton(title: "Cancel", target: self, action: #selector(cancel))
@@ -85,22 +83,21 @@ class PreferencesWindowController: NSWindowController {
     }
 
     private func loadConfig() {
-        let configPath = findConfigPath()
-        guard let content = try? String(contentsOfFile: configPath, encoding: .utf8) else { return }
+        guard let content = ConfigParser.loadConfigContent() else { return }
 
-        serverUrlField.stringValue = extractValue(from: content, key: "serverUrl")
-        usernameField.stringValue = extractValue(from: content, key: "username")
-        passwordField.stringValue = extractValue(from: content, key: "password")
+        serverUrlField.stringValue = ConfigParser.extractValue(from: content, key: "serverUrl")
+        usernameField.stringValue = ConfigParser.extractValue(from: content, key: "username")
+        passwordField.stringValue = ConfigParser.extractValue(from: content, key: "password")
 
-        var mpvPath = extractValue(from: content, key: "mpvPath")
+        var mpvPath = ConfigParser.extractValue(from: content, key: "mpvPath")
         if mpvPath.isEmpty { mpvPath = "/opt/homebrew/bin/mpv" }
         mpvPathField.stringValue = mpvPath
 
-        var deviceName = extractValue(from: content, key: "deviceName")
+        var deviceName = ConfigParser.extractValue(from: content, key: "deviceName")
         if deviceName.isEmpty { deviceName = "Mac" }
         deviceNameField.stringValue = deviceName
 
-        var deviceId = extractValue(from: content, key: "deviceId")
+        var deviceId = ConfigParser.extractValue(from: content, key: "deviceId")
         if deviceId.isEmpty { deviceId = "mac-mpv" }
         deviceIdField.stringValue = deviceId
     }
@@ -186,6 +183,18 @@ class PreferencesWindowController: NSWindowController {
     }
 
     @objc private func saveConfig() {
+        guard !serverUrlField.stringValue.isEmpty,
+              !usernameField.stringValue.isEmpty,
+              !passwordField.stringValue.isEmpty else {
+            let alert = NSAlert()
+            alert.messageText = "Missing required fields"
+            alert.informativeText = "Server URL, Username, and Password are required."
+            alert.alertStyle = .warning
+            alert.addButton(withTitle: "OK")
+            alert.runModal()
+            return
+        }
+
         func escape(_ s: String) -> String {
             return s
                 .replacingOccurrences(of: "\\", with: "\\\\")
@@ -205,7 +214,7 @@ class PreferencesWindowController: NSWindowController {
         };
         """
         let dedented = config.components(separatedBy: "\n").map { $0.trimmingCharacters(in: .whitespaces) }.joined(separator: "\n")
-        let configPath = findConfigPath()
+        let configPath = ConfigParser.configPath()
         do {
             try dedented.write(toFile: configPath, atomically: true, encoding: .utf8)
             onSave?()
@@ -240,44 +249,5 @@ class PreferencesWindowController: NSWindowController {
             alert.addButton(withTitle: "OK")
             alert.runModal()
         }
-    }
-
-    private func findConfigPath() -> String {
-        let appSupport = NSSearchPathForDirectoriesInDomains(.applicationSupportDirectory, .userDomainMask, true).first ?? ""
-        let appDir = (appSupport as NSString).appendingPathComponent("JellyfinMpvPlay")
-        return (appDir as NSString).appendingPathComponent("config.js")
-    }
-
-    private func extractValue(from content: String, key: String) -> String {
-        let escapedKey = NSRegularExpression.escapedPattern(for: key)
-        let pattern = "\(escapedKey):\\s*['\"]([^'\\\"]*(?:\\\\.[^'\\\"]*)*)['\"]"
-        guard let regex = try? NSRegularExpression(pattern: pattern),
-              let match = regex.firstMatch(in: content, range: NSRange(content.startIndex..., in: content)),
-              let range = Range(match.range(at: 1), in: content) else {
-            let simplePattern = "\(escapedKey):\\s*['\"]([^'\"]*)['\"]"
-            guard let regex = try? NSRegularExpression(pattern: simplePattern),
-                  let match = regex.firstMatch(in: content, range: NSRange(content.startIndex..., in: content)),
-                  let range = Range(match.range(at: 1), in: content) else {
-                return ""
-            }
-            return String(content[range])
-        }
-        var result = String(content[range])
-        result = result.replacingOccurrences(of: "\\\\", with: "\\")
-        result = result.replacingOccurrences(of: "\\'", with: "'")
-        result = result.replacingOccurrences(of: "\\n", with: "\n")
-        result = result.replacingOccurrences(of: "\\r", with: "\r")
-        result = result.replacingOccurrences(of: "\\t", with: "\t")
-        return result
-    }
-
-    private func extractOptionalValue(from content: String, key: String) -> String? {
-        let result = extractValue(from: content, key: key)
-        return result.isEmpty ? nil : result
-    }
-
-    private func findConfigContent() -> String {
-        let configPath = findConfigPath()
-        return (try? String(contentsOfFile: configPath, encoding: .utf8)) ?? ""
     }
 }

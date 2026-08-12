@@ -5,17 +5,7 @@ class NotificationManager: NSObject, UNUserNotificationCenterDelegate {
     override init() {
         super.init()
         UNUserNotificationCenter.current().delegate = self
-        UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound]) { [weak self] granted, _ in
-            if !granted {
-                DispatchQueue.main.async {
-                    self?.logNotificationPermissionDenied()
-                }
-            }
-        }
-    }
-
-    private func logNotificationPermissionDenied() {
-        NotificationCenter.default.post(name: .init("NotificationPermissionDenied"), object: nil)
+        UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound]) { _, _ in }
     }
 
     func showNotification(title: String, message: String) {

@@ -23,6 +23,8 @@ class NodeProcessManager {
     var pauseStateHandler: ((Bool) -> Void)?
     private var isPaused = false
     private var stdoutBuffer = ""
+    private var ipcSocketPath = "/tmp/mpv-ipc.sock"
+    private var isStoppingPlayback = false
 
     init(logHandler: @escaping (String) -> Void, statusHandler: @escaping (ConnectionStatus) -> Void, notificationHandler: @escaping (String, String) -> Void, nowPlayingHandler: ((String?) -> Void)? = nil) {
         self.logHandler = logHandler
@@ -32,13 +34,20 @@ class NodeProcessManager {
     }
 
     func start() {
+        if let process = process, process.isRunning {
+            process.terminationHandler = nil
+            process.terminate()
+            cleanupPipes()
+        }
         isShuttingDown = false
-        let appSupport = applicationSupportDir()
+        isStoppingPlayback = false
+        let appSupport = ConfigParser.applicationSupportDir()
         let bundleResources = Bundle.main.resourcePath ?? ""
         let shimPath = appSupport + "/shim.js"
         let nodeModulesPath = bundleResources + "/node_modules"
 
         setupApplicationSupport()
+        loadIpcSocketPath()
 
         guard FileManager.default.fileExists(atPath: shimPath) else {
             logHandler("ERROR: shim.js not found at \(shimPath)")
@@ -61,20 +70,25 @@ class NodeProcessManager {
         stdoutPipe.fileHandleForReading.readabilityHandler = { [weak self] handle in
             let data = handle.availableData
             guard !data.isEmpty, let str = String(data: data, encoding: .utf8) else { return }
-            guard let self = self else { return }
-            self.stdoutBuffer += str
-            let lines = self.stdoutBuffer.components(separatedBy: .newlines)
-            self.stdoutBuffer = lines.last ?? ""
-            for line in lines.dropLast() where !line.isEmpty {
-                self.processLogLine(line)
+            DispatchQueue.main.async { [weak self] in
+                guard let self = self else { return }
+                self.stdoutBuffer += str
+                let lines = self.stdoutBuffer.components(separatedBy: .newlines)
+                self.stdoutBuffer = lines.last ?? ""
+                for line in lines.dropLast() where !line.isEmpty {
+                    self.processLogLine(line)
+                }
             }
         }
 
         stderrPipe.fileHandleForReading.readabilityHandler = { [weak self] handle in
             let data = handle.availableData
             guard !data.isEmpty, let str = String(data: data, encoding: .utf8) else { return }
-            for line in str.components(separatedBy: .newlines) where !line.isEmpty {
-                self?.logHandler("STDERR: \(line)")
+            DispatchQueue.main.async { [weak self] in
+                for line in str.components(separatedBy: .newlines) where !line.isEmpty {
+                    self?.logHandler("STDERR: \(line)")
+                    self?.processLogLine("STDERR: \(line)")
+                }
             }
         }
 
@@ -116,10 +130,14 @@ class NodeProcessManager {
 
     func stop(completion: (() -> Void)? = nil) {
         isShuttingDown = true
+        let ipcPath = ipcSocketPath
         if let process = process, process.isRunning {
             let proc = process
             let existingHandler = proc.terminationHandler
             proc.terminationHandler = { arg in
+                if FileManager.default.fileExists(atPath: ipcPath) {
+                    try? FileManager.default.removeItem(atPath: ipcPath)
+                }
                 DispatchQueue.main.async {
                     existingHandler?(arg)
                     completion?()
@@ -137,13 +155,11 @@ class NodeProcessManager {
                 }
             }
         } else {
+            if FileManager.default.fileExists(atPath: ipcPath) {
+                try? FileManager.default.removeItem(atPath: ipcPath)
+            }
             completion?()
             cleanupPipes()
-        }
-
-        let ipcPath = "/tmp/mpv-ipc.sock"
-        if FileManager.default.fileExists(atPath: ipcPath) {
-            try? FileManager.default.removeItem(atPath: ipcPath)
         }
     }
 
@@ -156,18 +172,22 @@ class NodeProcessManager {
         stdoutBuffer = ""
     }
 
+    private func loadIpcSocketPath() {
+        guard let content = ConfigParser.loadConfigContent() else { return }
+        let path = ConfigParser.extractValue(from: content, key: "ipcSocketPath")
+        if !path.isEmpty { ipcSocketPath = path }
+    }
+
     func sendMpvCommand(_ command: String) {
-        let ipcPath = "/tmp/mpv-ipc.sock"
-        guard FileManager.default.fileExists(atPath: ipcPath) else {
-            logHandler("WARN: MPV IPC socket not found at \(ipcPath)")
+        let path = ipcSocketPath
+        guard FileManager.default.fileExists(atPath: path) else {
+            logHandler("WARN: MPV IPC socket not found at \(path)")
             return
         }
 
         DispatchQueue.global().async {
             let sock = socket(AF_UNIX, SOCK_STREAM, 0)
-            guard sock >= 0 else {
-                return
-            }
+            guard sock >= 0 else { return }
             defer { close(sock) }
 
             var noSigPipe: Int32 = 1
@@ -175,7 +195,7 @@ class NodeProcessManager {
 
             var addr = sockaddr_un()
             addr.sun_family = sa_family_t(AF_UNIX)
-            let pathBytes = Array(ipcPath.utf8CString)
+            let pathBytes = Array(path.utf8CString)
             withUnsafeMutableBytes(of: &addr.sun_path) { buf in
                 guard let baseAddr = buf.baseAddress else { return }
                 _ = memcpy(baseAddr, pathBytes, min(pathBytes.count, buf.count))
@@ -206,15 +226,18 @@ class NodeProcessManager {
     }
 
     func togglePause() {
+        guard !isStoppingPlayback else { return }
         isPaused.toggle()
         sendMpvCommand("{\"command\": [\"set_property\", \"pause\", \(isPaused)]}")
     }
 
     func stopPlayback() {
+        isStoppingPlayback = true
         isPlaying = false
         isPaused = false
         nowPlaying = nil
         nowPlayingHandler?(nil)
+        pauseStateHandler?(false)
         statusHandler(.connected)
         sendMpvCommand("{\"command\": [\"quit\"]}")
     }
@@ -229,6 +252,7 @@ class NodeProcessManager {
             restartCount = 0
             notificationHandler("Connected", "Connected to Jellyfin server")
         } else if line.contains("Episode detected") {
+            if isStoppingPlayback { return }
             if let title = extractTitleFromEpisode(line) {
                 nowPlaying = title
                 nowPlayingHandler?(title)
@@ -236,26 +260,53 @@ class NodeProcessManager {
             isPlaying = true
             statusHandler(.playing)
         } else if line.contains("File loaded by MPV") {
+            if isStoppingPlayback { return }
             if !isPlaying {
                 isPlaying = true
                 statusHandler(.playing)
             }
+        } else if line.contains("Starting next episode") || line.contains("Starting previous episode") {
+            if let title = extractTitleFromNextEpisode(line) {
+                nowPlaying = title
+                nowPlayingHandler?(title)
+            }
         } else if line.contains("Playback paused") {
+            if isStoppingPlayback { return }
             isPaused = true
             pauseStateHandler?(true)
         } else if line.contains("Playback resumed") {
+            if isStoppingPlayback { return }
             isPaused = false
             pauseStateHandler?(false)
-        } else if line.contains("Closing application") || line.contains("MPV closed") || line.contains("Process terminated") {
+        } else if line.contains("No more episodes") {
+            isStoppingPlayback = false
             isPlaying = false
             isPaused = false
             nowPlaying = nil
             nowPlayingHandler?(nil)
             pauseStateHandler?(false)
             statusHandler(.connected)
-        } else if line.hasPrefix("ERROR") || line.hasPrefix("error") || line.contains("FATAL") {
+        } else if line.contains("Closing application") || line.contains("MPV closed") || line.contains("Process terminated") {
+            isStoppingPlayback = false
+            isPlaying = false
+            isPaused = false
+            nowPlaying = nil
+            nowPlayingHandler?(nil)
+            pauseStateHandler?(false)
+            statusHandler(.connected)
+        } else if line.contains("ERROR") || line.contains("❌") || line.contains("FATAL") {
             notificationHandler("Error", line)
         }
+    }
+
+    private func extractTitleFromNextEpisode(_ line: String) -> String? {
+        if let range = line.range(of: "Starting next episode: ") {
+            return String(line[range.upperBound...])
+        }
+        if let range = line.range(of: "Starting previous episode: ") {
+            return String(line[range.upperBound...])
+        }
+        return nil
     }
 
     private func extractTitleFromEpisode(_ line: String) -> String? {
@@ -272,17 +323,8 @@ class NodeProcessManager {
         return nil
     }
 
-    private func applicationSupportDir() -> String {
-        let paths = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)
-        guard let appSupport = paths.first else {
-            let fallback = NSHomeDirectory() + "/Library/Application Support/JellyfinMpvPlay"
-            return fallback
-        }
-        return appSupport.appendingPathComponent("JellyfinMpvPlay").path
-    }
-
     private func setupApplicationSupport() {
-        let appSupport = applicationSupportDir()
+        let appSupport = ConfigParser.applicationSupportDir()
         let dataDir = appSupport + "/data"
         let bundleResources = Bundle.main.resourcePath ?? ""
 
@@ -290,9 +332,9 @@ class NodeProcessManager {
         try? FileManager.default.createDirectory(atPath: dataDir, withIntermediateDirectories: true)
 
         let shimDest = appSupport + "/shim.js"
-        if !FileManager.default.fileExists(atPath: shimDest) {
-            try? FileManager.default.copyItem(atPath: bundleResources + "/shim.js", toPath: shimDest)
-        }
+        let bundledShim = bundleResources + "/shim.js"
+        try? FileManager.default.removeItem(atPath: shimDest)
+        try? FileManager.default.copyItem(atPath: bundledShim, toPath: shimDest)
 
         let configFile = appSupport + "/config.js"
         if !FileManager.default.fileExists(atPath: configFile) {
@@ -333,25 +375,6 @@ class NodeProcessManager {
                     return nodePath
                 }
             }
-        }
-        let process = Process()
-        process.executableURL = URL(fileURLWithPath: "/bin/bash")
-        process.arguments = ["-c", "which node"]
-        let pipe = Pipe()
-        process.standardOutput = pipe
-        process.standardError = FileHandle.nullDevice
-        process.standardInput = FileHandle.nullDevice
-        do {
-            try process.run()
-            process.waitUntilExit()
-        } catch {
-            logHandler("ERROR: node not found in bundle or system")
-            return "node"
-        }
-        let data = pipe.fileHandleForReading.readDataToEndOfFile()
-        if let output = String(data: data, encoding: .utf8)?.trimmingCharacters(in: .whitespacesAndNewlines),
-           !output.isEmpty {
-            return output
         }
         logHandler("ERROR: node not found in bundle or system")
         return "node"

@@ -132,6 +132,9 @@ While watching in MPV:
 
 ### 🍎 macOS
 
+The easiest way: click the menu bar icon → **Open at Login**.
+
+Or manually:
 1. Open **System Settings** → **General** → **Login Items**
 2. Click the **+** button
 3. Navigate to `/Applications` and select `Jellyfin MPV Play.app`
@@ -181,11 +184,10 @@ Jellyfin_mpv_play/
 │   ├── Sources/             #   Swift source files
 │   ├── build.sh             #   Build script (downloads + bundles Node.js)
 │   ├── AppIcon.icns         #   App icon (macOS .icns format)
-│   └── Info.plist           #   App metadata (v1.4.0)
+│   └── Info.plist           #   App metadata (v1.5.0)
 ├── images/                  # Logo SVGs and screenshots
 │   ├── logo.svg             #   Full logo with text
 │   ├── icon.svg             #   App icon (no text)
-│   ├── icon-dark.svg        #   Dark variant
 │   ├── logo-banner.svg      #   Horizontal banner for README
 │   └── 1-4.png              #   Step-by-step screenshots
 ├── data/                    # Runtime state (auto-generated, gitignored)
@@ -205,6 +207,57 @@ Jellyfin_mpv_play/
 - 🔐 Your password is only used to authenticate with Jellyfin
 - 💾 Tokens and playback positions are stored locally in the `data/` folder
 - 📁 `config.js` and `data/` are gitignored — they stay on your machine
+
+---
+
+## 📝 Changelog
+
+### v1.5.0
+
+**Apple HIG Compliance:**
+- All windows now respect standard macOS window layering (removed `.floating`)
+- Status bar icons use template images and adapt to light/dark menu bar
+- Replaced deprecated `NSApp.activate(ignoringOtherApps:)` with version-checked API
+- Added accessibility descriptions to all status bar icon states
+- Log viewer respects system appearance instead of forcing dark theme
+- Added `LSApplicationCategoryType` to Info.plist
+- Setup window now has a close button
+
+**Bug Fixes:**
+- Setup "Skip" no longer writes empty config (was causing setup to reappear every launch)
+- Preferences save now triggers node restart (changes were silently ignored)
+- Closing setup window no longer leaves app in broken state
+- `stopPlayback()` state can't be overridden by stale log line callbacks
+- `sendMpvCommand` captures socket path before background dispatch (was falling back to hardcoded path)
+- `togglePause()` checks `isStoppingPlayback` flag
+- Shake animation now works (NSTextField wasn't layer-backed)
+- `start()` stops existing process before starting new one (prevents orphaned processes)
+- Removed synchronous `which node` call that blocked main thread
+- Help window links are now clickable buttons
+- Preferences validates required fields before saving
+- Log color detection uses "Connected" instead of fragile emoji
+
+**New Features:**
+- **Copy Now Playing** — copies current title to clipboard
+- **Open at Login** — toggle directly from menu bar dropdown
+- **Open Config File** — opens `config.js` in default editor
+- **Open App Folder** — opens Application Support folder for troubleshooting
+- Preferences Save button accepts Enter key
+- Setup auto-prepends `http://` if no scheme provided
+
+**Code Quality:**
+- Extracted shared `ConfigParser` utility (eliminates duplication across 3 files)
+- Removed unused `playbackGeneration` property
+- Removed unnecessary `applicationSupportDir()` wrapper
+- Removed dead `NotificationPermissionDenied` notification code
+- Removed `DistributedNotificationCenter` observer leak in About window
+- Removed hacky `icon-dark.png` — uses proper `AppIcon.icns` for all modes
+
+### v1.4.0
+- Bug fixes, logo, UI overhaul
+
+### v1.3.0
+- Setup wizard, help window, updated about, macOS defaults
 
 ---
 
