@@ -99,6 +99,8 @@ Title format for `Episode detected`: `SeriesName - SxEp - EpisodeName` (parsed b
 
 **Important**: `gh` may default to the upstream repo (JohnGlaus). Always use `-R MrGameVlogger/Jellyfin_mpv_play` with release commands, or run `gh repo set-default MrGameVlogger/Jellyfin_mpv_play` once.
 
+**⚠️ Never delete releases to reorder them** — GitHub release assets (zip files, etc.) are permanently deleted when a release is deleted. If you need to reorder releases, use the GitHub API to update `published_at` dates instead. Always download assets before deleting a release.
+
 ## Recent changes (v1.5.0 session)
 
 This section tracks recent work for future session context. Remove or update as needed.
