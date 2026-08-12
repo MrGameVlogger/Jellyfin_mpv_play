@@ -98,3 +98,25 @@ Title format for `Episode detected`: `SeriesName - SxEp - EpisodeName` (parsed b
 5. GitHub release: `gh release create vX.Y.Z JellyfinMPVPlay-macOS-vX.Y.Z.zip --title "vX.Y.Z" --notes "..."`
 
 **Important**: `gh` may default to the upstream repo (JohnGlaus). Always use `-R MrGameVlogger/Jellyfin_mpv_play` with release commands, or run `gh repo set-default MrGameVlogger/Jellyfin_mpv_play` once.
+
+## Recent changes (v1.5.0 session)
+
+This section tracks recent work for future session context. Remove or update as needed.
+
+**Auto-play was completely rewritten:**
+- Old: relied on `eof-reached` IPC event (never fires with `--keep-open=yes`)
+- New: poll timer queries `time-pos`/`duration` via IPC every 1s, triggers at `pos >= dur - 1`
+- Episode transitions use `loadNextEpisode()` which reuses the MPV process via `loadfile` IPC command
+- `playMedia()` still spawns fresh MPV (used for initial play and when IPC is down)
+
+**Jellyfin API compliance was overhauled:**
+- Handles all 9 `PlaystateCommand` types
+- Full `GeneralCommand` handler (volume, mute, audio/subtitle tracks, etc.)
+- `SupportedCommands` uses correct `GeneralCommandType` enum names (wrong names cause 400 errors)
+- Reports `MediaSourceId`, `RepeatMode`, `PlaybackOrder` in all playback reports
+- Sends `SessionsStop` on shutdown
+
+**Known issues / TODO:**
+- `PlayNext`/`PlayLast` PlayCommand values are treated as `PlayNow` (mpv has no queue concept)
+- `AudioStreamIndex`/`SubtitleStreamIndex` not reported in progress reports (would need mpv query)
+- Thread safety: `processLogLine` now dispatched to main thread, but `togglePause()`/`stopPlayback()` still called from main thread without synchronization with background state changes
