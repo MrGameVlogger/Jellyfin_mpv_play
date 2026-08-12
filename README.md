@@ -291,11 +291,71 @@ Jellyfin_mpv_play/
 - Removed `DistributedNotificationCenter` observer leak in About window
 - Removed hacky `icon-dark.png` — uses proper `AppIcon.icns` for all modes
 
-### v1.4.0
-- Bug fixes, logo, UI overhaul
+### v1.2.1 — Native macOS App, Play-from-Beginning Fix, 8 Bug Fixes
 
-### v1.3.0
-- Setup wizard, help window, updated about, macOS defaults
+**New: Native macOS Menu Bar App:**
+- Status bar icon with color-coded states (disconnected/connected/playing)
+- Now Playing display, Pause/Resume and Stop controls
+- Log viewer with syntax coloring, auto-scroll, export
+- Preferences window with "Test Connection" button
+- Launch at Login toggle, macOS notifications
+- Automatic process management with exponential backoff restart
+- Build script compiles Swift, bundles into `.app` for `/Applications`
+
+**Fixed: Play-from-Beginning Bug:**
+- Server's `StartPositionTicks: 0` now correctly starts from beginning
+- Previously, saved local position could override "play from beginning" request
+
+**Bug Fixes:**
+1. Removed duplicate `connectToMpvIpc()` function
+2. Race condition fix with `playbackGeneration` counter
+3. Graceful shutdown now saves position and reports stop
+4. `eof-reached` handler now reports stop to server
+5. Episode list sort no longer mutates API response
+6. Fixed `currentIndex` bounds check
+7. Platform-aware IPC socket path (Unix/Windows)
+8. Fixed MPV keybind names (`NEXT`/`PREV`)
+
+**Improvements:**
+- Log messages translated from Spanish to English (enables macOS app parsing)
+- Simplified MPV arguments (delegated to user's `mpv.conf`)
+- Added `--force-media-title` for descriptive window titles
+- Better token validation and error handling
+
+### v1.4.0 — Bug Fixes, Logo, UI Overhaul
+
+**New Features:**
+- **Custom app icon** — replaces generic SF Symbol with purpose-built `AppIcon.icns`
+- **Dark mode icon variant** — About window dynamically switches based on system appearance
+- **SVG logo set** — `logo.svg`, `icon.svg`, `icon-light.svg`, `icon-dark.svg`, `logo-banner.svg`
+- **Pause state reporting** — subscribes to MPV's `pause` property, accurate `IsPaused` in progress reports
+- **Help window overhaul** — keyboard shortcuts with ⌘ equivalents, SF Symbols per section, resizable
+
+**Bug Fixes:**
+- Fixed shake animation (was using `frame.origin` instead of `layer.position`)
+- Fixed version in auth header (was hardcoded `1.3.0`)
+- Fixed memory leak in `AppDelegate.statusHandler` closure
+- Fixed `isReportingStop` flag not resetting on fresh play
+- Removed dead `getSavedPosition()` function
+- Fixed log window text view sizing
+
+**UI Improvements:**
+- All windows float above other apps
+- About window: taller, Jellyfin link, theme-aware icon
+- Menu key equivalents for all items
+
+### v1.3.0 — Setup Wizard, Help Window, Bundled Node.js
+
+**New Features:**
+- **First-run setup wizard** — 5-step guided setup with "Test Connection" button
+- **Help window** — Getting Started, Controls, Keyboard Shortcuts, Smart Resume, Troubleshooting
+- **Bundled Node.js 22 LTS** — fully self-contained app (~175MB), no system Node required
+
+**Improvements:**
+- About window redesigned with fork attribution and clickable links
+- Preferences auto-fills default values for empty fields
+- `findNodePath()` checks bundle first, falls back to system Node
+- README rewritten with separate macOS/Windows/Linux sections
 
 ---
 
