@@ -1,0 +1,43 @@
+# Configuration for GitHub Labeler Action
+# https://github.com/actions/labeler
+
+macos:
+  - changed-files:
+    - any-glob-to-any-file:
+      - 'macapp/**'
+      - '*.swift'
+
+shim:
+  - changed-files:
+    - any-glob-to-any-file:
+      - 'shim.js'
+      - 'config.example.js'
+      - 'package.json'
+      - 'package-lock.json'
+
+documentation:
+  - changed-files:
+    - any-glob-to-any-file:
+      - '*.md'
+      - 'docs/**'
+      - '.github/**'
+
+ci:
+  - changed-files:
+    - any-glob-to-any-file:
+      - '.github/workflows/**'
+      - '.github/dependabot.yml'
+
+dependencies:
+  - changed-files:
+    - any-glob-to-any-file:
+      - 'package.json'
+      - 'package-lock.json'
+
+images:
+  - changed-files:
+    - any-glob-to-any-file:
+      - 'images/**'
+      - '*.png'
+      - '*.svg'
+      - '*.icns'
