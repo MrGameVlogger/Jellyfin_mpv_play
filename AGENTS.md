@@ -116,6 +116,36 @@ This section tracks recent work for future session context. Remove or update as 
 - Reports `MediaSourceId`, `RepeatMode`, `PlaybackOrder` in all playback reports
 - Sends `SessionsStop` on shutdown
 
+**macOS app was audited against Apple HIG:**
+- All windows use standard layering (removed `.floating`)
+- Status bar icons are template images with accessibility descriptions
+- Log viewer respects system appearance (uses `.textBackgroundColor`/`.textColor`)
+- Deprecated `NSApp.activate(ignoringOtherApps:)` replaced with version-checked API
+- `LSApplicationCategoryType` added to Info.plist
+- Setup window has `.closable` style and `NSWindowDelegate` for proper close handling
+
+**macOS app bugs were fixed:**
+- Preferences save now triggers node restart (was silently ignored)
+- Setup "Skip" no longer writes empty config (was infinite loop)
+- `stopPlayback()` state protected from stale log line callbacks via `isStoppingPlayback` flag
+- `sendMpvCommand` captures socket path before background dispatch
+- `start()` stops existing process before starting new one (prevents orphans)
+- Shake animation works (`field.wantsLayer = true`)
+- `windowWillClose` double-callback prevented via `didComplete` guard
+
+**New macOS menu items:**
+- Copy Now Playing (clipboard)
+- Open at Login (toggle, synced with Preferences)
+- Open Config File (in default editor)
+- Open App Folder (Application Support)
+
+**Code cleanup:**
+- `ConfigParser.swift` extracted as shared utility (eliminates duplication)
+- Removed `icon-dark.png` hack — uses `AppIcon.icns` for all modes
+- Removed dead `NotificationPermissionDenied` notification
+- Removed `DistributedNotificationCenter` observer leak in About
+- Removed synchronous `which node` call that blocked main thread
+
 **Known issues / TODO:**
 - `PlayNext`/`PlayLast` PlayCommand values are treated as `PlayNow` (mpv has no queue concept)
 - `AudioStreamIndex`/`SubtitleStreamIndex` not reported in progress reports (would need mpv query)
