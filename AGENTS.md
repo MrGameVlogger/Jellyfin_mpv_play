@@ -21,7 +21,7 @@ No test, lint, or typecheck steps exist.
 | `config.js` | User config with credentials (gitignored) |
 | `config.example.js` | Template for `config.js` |
 | `data/` | Runtime state: auth tokens, playback positions (gitignored) |
-| `macapp/Sources/*.swift` | Native macOS menubar app (10 files) |
+| `macapp/Sources/*.swift` | Native macOS menubar app (11 files) |
 | `macapp/build.sh` | Compile + bundle + deploy to `/Applications` |
 | `macapp/Info.plist` | App version — increment before shipping |
 
@@ -79,13 +79,15 @@ Title format for `Episode detected`: `SeriesName - SxEp - EpisodeName` (parsed b
 - `deviceId` must differ from `deviceName` per Jellyfin's device registration.
 - `setupApplicationSupport()` always overwrites `shim.js` from the bundle on launch. This ensures rebuilds take effect.
 - The bundled Node.js is arm64 or x64 depending on build machine — not universal.
-- `bash -l` is avoided in `findNodePath()` — it hangs in GUI apps.
 - `processLogLine` mutates `isPlaying`, `isPaused`, `nowPlaying` — always runs on main thread (dispatched from GCD background thread in readability handler).
+- `isStoppingPlayback` flag prevents stale log lines from corrupting state after user clicks Stop. Cleared when MPV closes.
 - `pendingQueries` Map must resolve all promises before clearing — otherwise poll timer hangs forever.
-- `playbackGeneration` counter prevents stale MPV close handlers from corrupting new playback state.
 - `isPlayingNext` flag prevents double-triggering of episode transitions. Has a 10s timeout fallback in case `loadfile` silently fails.
 - `markedWatched` Set prevents duplicate "mark as watched" API calls. Cleared on each new file load.
 - MPV args are minimal. User's `~/.config/mpv/mpv.conf` handles vo, hwdec, ao, cache, etc.
+- `gh` CLI defaults to upstream repo (JohnGlaus), not the fork. Run `gh repo set-default MrGameVlogger/Jellyfin_mpv_play` or use `-R MrGameVlogger/Jellyfin_mpv_play` with release commands.
+- All windows use standard layering (no `.floating`). Status bar icons are template images — they adapt to light/dark mode automatically.
+- `ConfigParser.swift` is the shared utility for config file parsing and Application Support paths. Used by AppDelegate, NodeProcessManager, and PreferencesWindowController.
 
 ## Release workflow
 
@@ -94,3 +96,5 @@ Title format for `Episode detected`: `SeriesName - SxEp - EpisodeName` (parsed b
 3. Commit + push (after user approval)
 4. Create release zip: `ditto -c -k --sequesterRsrc --keepParent "Jellyfin MPV Play.app" "JellyfinMPVPlay-macOS-vX.Y.Z.zip"`
 5. GitHub release: `gh release create vX.Y.Z JellyfinMPVPlay-macOS-vX.Y.Z.zip --title "vX.Y.Z" --notes "..."`
+
+**Important**: `gh` may default to the upstream repo (JohnGlaus). Always use `-R MrGameVlogger/Jellyfin_mpv_play` with release commands, or run `gh repo set-default MrGameVlogger/Jellyfin_mpv_play` once.
