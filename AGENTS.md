@@ -95,16 +95,14 @@ Title format for `Episode detected`: `SeriesName - SxEp - EpisodeName` (parsed b
 2. Commit, push to a branch, and merge via PR
 3. Create and push a version tag: `git tag -a vX.Y.Z -m "vX.Y.Z" && git push origin vX.Y.Z`
 4. The CI workflow (`.github/workflows/build.yml`) automatically:
-   - Syncs version from `package.json` to `macapp/Info.plist`
-   - Updates `SECURITY.md` supported versions table
-   - Generates `CHANGELOG.md` entry from merged PRs
-   - Commits synced files back to `main`
+   - Reads version from `package.json`
+   - Generates release notes from merged PRs (categorized by feat/fix/docs/ci)
    - Builds macOS `.app` bundle (runs on `macos-latest`)
    - Builds Linux bundle with bundled Node.js (runs on `ubuntu-latest`)
    - Builds Windows bundle with bundled Node.js (runs on `windows-latest`)
-   - Creates a GitHub Release with all 3 platform artifacts
+   - Creates a GitHub Release with auto-generated notes and all 3 platform artifacts
 
-`package.json` is the single source of truth for version. `shim.js` reads it at runtime. `Info.plist` is auto-synced by CI.
+`package.json` is the single source of truth for version. `shim.js` reads it at runtime. `Info.plist` and `SECURITY.md` should be updated in the same PR as the version bump (CI generates them for release notes but cannot commit back due to branch protection).
 
 The macOS `.app` can also be built locally: `cd macapp && ./build.sh` (deploys to `/Applications`). Use `CI=true` to skip the deploy step.
 
