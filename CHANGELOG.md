@@ -2,6 +2,16 @@
 
 All notable changes to Jellyfin MPV Play are documented here.
 
+## v1.7.2
+
+### Bug Fixes
+- Fixed random `deviceId` not persisted to disk — was creating zombie sessions in Jellyfin on every restart
+- Fixed `pendingQueries` not resolved when MPV closes — could hang the poll timer forever
+- Fixed stderr handler in NodeProcessManager not buffering partial lines — corrupted log parsing
+- Fixed `.desktop` file Exec line — `dirname "$0"` returned `.` instead of script directory
+
+---
+
 ## v1.7.1
 
 ### Features

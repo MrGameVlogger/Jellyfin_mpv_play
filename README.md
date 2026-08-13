@@ -277,6 +277,12 @@ See [CHANGELOG.md](CHANGELOG.md) for full release history.
 
 ### Recent Releases
 
+**v1.7.2** — Bug fixes: deviceId persistence, pendingQueries hang, stderr buffering ([details](CHANGELOG.md#v172))
+- Fixed random deviceId creating zombie sessions on restart
+- Fixed pendingQueries not resolved on MPV close (poll timer hang)
+- Fixed stderr line buffering in NodeProcessManager
+- Fixed `.desktop` file Exec line
+
 **v1.7.1** — CI automation: auto-generated release notes from PRs ([details](CHANGELOG.md#v171))
 - Release workflow now auto-generates changelog from merged PR titles
 - Version sync: package.json is single source of truth, shim.js reads it at runtime
