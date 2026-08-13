@@ -441,6 +441,9 @@ async function handleMessage(msg) {
         console.log(`⏯️ State command received: ${command}`);
         
         if (command === 'Stop') {
+            if (currentItemId && !isReportingStop) {
+                reportPlaybackStop(currentItemId, Math.round(currentPositionSeconds * 10000000));
+            }
             killMpv();
         } else if (command === 'Pause') {
             sendMpvCommand('set_property', ['pause', true]);
