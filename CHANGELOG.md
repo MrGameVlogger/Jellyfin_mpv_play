@@ -2,6 +2,28 @@
 
 All notable changes to Jellyfin MPV Play are documented here.
 
+## v1.7.3
+
+### Bug Fixes
+- Fixed shutdown exiting before HTTP stop report completes (now waits for response)
+- Fixed WebSocket URL construction (regex prevents hostname corruption)
+- Fixed startProgressReporting not reporting progress to server (was only saving locally)
+- Fixed StatusBarController icon colors not rendering (isTemplate was blocking tint)
+- Fixed login item menu state not refreshing from external changes
+- Fixed LogWindowController lineCount drift (uses actual count instead of tracking variable)
+- Fixed NodeProcessManager stop() re-entry scheduling multiple SIGKILL timers
+- Fixed stdout/stderr encoding dropping partial byte sequences (UTF-8 → ISO Latin 1)
+- Fixed launch.sh not forwarding signals to child process
+- Fixed launch.bat path separator issues (strips trailing backslash)
+
+### Improvements
+- Extracted shared ConfigParser.testConnection() (eliminated ~80 lines of duplication)
+- Extracted StatusBarController.showAndActivate() helper
+- Extracted NodeProcessManager.resetPlaybackState() method
+- build.sh now verifies SHA256 checksum for Node.js download
+
+---
+
 ## v1.7.2
 
 ### Bug Fixes

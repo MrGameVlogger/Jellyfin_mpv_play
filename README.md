@@ -277,6 +277,12 @@ See [CHANGELOG.md](CHANGELOG.md) for full release history.
 
 ### Recent Releases
 
+**v1.7.3** — Bug fixes: shutdown race, icon colors, encoding, signal handling ([details](CHANGELOG.md#v173))
+- Fixed shutdown waiting for HTTP stop report before exiting
+- Fixed StatusBarController icon colors actually rendering
+- Fixed signal forwarding in launch.sh, path handling in launch.bat
+- Extracted shared utilities, SHA256 checksum verification
+
 **v1.7.2** — Bug fixes: deviceId persistence, pendingQueries hang, stderr buffering ([details](CHANGELOG.md#v172))
 - Fixed random deviceId creating zombie sessions on restart
 - Fixed pendingQueries not resolved on MPV close (poll timer hang)
