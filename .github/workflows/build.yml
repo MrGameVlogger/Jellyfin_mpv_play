@@ -287,19 +287,20 @@ jobs:
           cat notes.md >> /tmp/downloads.md
           mv /tmp/downloads.md notes.md
 
-          cat >> notes.md << 'EOF'
-
-### Quick Start
-**macOS:** Unzip, move to Applications, launch. The setup wizard will guide you.
-
-**Linux:** Extract, edit `config.js`, run `./launch.sh`. See the included `.desktop` file for app launcher integration.
-
-**Windows:** Extract, edit `config.js`, run `launch.bat`.
-
-All bundles include their own Node.js runtime. Only [MPV Player](https://mpv.io/installation/) is required.
-
-For full documentation, see the [README](https://github.com/MrGameVlogger/Jellyfin_mpv_play#readme).
-EOF
+          # Append quick start footer
+          {
+            echo ""
+            echo "### Quick Start"
+            echo "**macOS:** Unzip, move to Applications, launch. The setup wizard will guide you."
+            echo ""
+            echo "**Linux:** Extract, edit \`config.js\`, run \`./launch.sh\`. See the included \`.desktop\` file for app launcher integration."
+            echo ""
+            echo "**Windows:** Extract, edit \`config.js\`, run \`launch.bat\`."
+            echo ""
+            echo "All bundles include their own Node.js runtime. Only [MPV Player](https://mpv.io/installation/) is required."
+            echo ""
+            echo "For full documentation, see the [README](https://github.com/MrGameVlogger/Jellyfin_mpv_play#readme)."
+          } >> notes.md
 
           gh release delete "v${VERSION}" -R MrGameVlogger/Jellyfin_mpv_play --yes 2>/dev/null || true
 
