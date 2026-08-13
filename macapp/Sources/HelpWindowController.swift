@@ -44,7 +44,7 @@ class HelpWindowController: NSWindowController {
             if let icon = icon {
                 let img = NSImage(systemSymbolName: icon, accessibilityDescription: nil)
                 let imgView = NSImageView(image: img ?? NSImage())
-                imgView.frame = NSRect(x: 24, y: y - 2, width: 18, height: 18)
+                imgView.frame = NSRect(x: 24, y: y + 2, width: 18, height: 18)
                 imgView.contentTintColor = .systemOrange
                 containerView.addSubview(imgView)
 
@@ -89,6 +89,7 @@ class HelpWindowController: NSWindowController {
             button.frame = NSRect(x: 24, y: y, width: containerWidth - 48, height: 18)
             button.bezelStyle = .inline
             button.isBordered = false
+            button.focusRingType = .none
             button.contentTintColor = .systemBlue
             button.font = NSFont.systemFont(ofSize: 13)
             button.identifier = NSUserInterfaceItemIdentifier(url)
@@ -168,12 +169,20 @@ class HelpWindowController: NSWindowController {
         addLink("Jellyfin: jellyfin.org", url: "https://jellyfin.org")
         addSpacing(20)
 
-        // Set container height to actual content height
+        // Set container height to actual content height and shift content down
         let contentHeight = 2000 - y + 40
+        let yOffset = 2000 - contentHeight
         containerView.frame = NSRect(x: 0, y: 0, width: containerWidth, height: contentHeight)
+        for subview in containerView.subviews {
+            subview.frame.origin.y -= yOffset
+        }
 
         scrollView.documentView = containerView
         contentView.addSubview(scrollView)
+
+        // Scroll to top (macOS coordinates: high y = top)
+        let maxY = containerView.frame.height - scrollView.contentView.bounds.height
+        scrollView.documentView?.scroll(NSPoint(x: 0, y: max(0, maxY)))
     }
 
     @objc private func openLink(_ sender: NSButton) {

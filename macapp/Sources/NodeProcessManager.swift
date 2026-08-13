@@ -27,6 +27,7 @@ class NodeProcessManager {
     private var stderrData = Data()
     private var ipcSocketPath = "/tmp/mpv-ipc.sock"
     private var isStoppingPlayback = false
+    private var logFileHandle: FileHandle?
 
     init(logHandler: @escaping (String) -> Void, statusHandler: @escaping (ConnectionStatus) -> Void, notificationHandler: @escaping (String, String) -> Void, nowPlayingHandler: ((String?) -> Void)? = nil) {
         self.logHandler = logHandler
@@ -50,6 +51,7 @@ class NodeProcessManager {
 
         setupApplicationSupport()
         loadIpcSocketPath()
+        openLogFile()
 
         guard FileManager.default.fileExists(atPath: shimPath) else {
             logHandler("ERROR: shim.js not found at \(shimPath)")
@@ -203,6 +205,29 @@ class NodeProcessManager {
         process = nil
         stdoutData = Data()
         stderrData = Data()
+        closeLogFile()
+    }
+
+    private func openLogFile() {
+        let dataDir = ConfigParser.applicationSupportDir() + "/data"
+        try? FileManager.default.createDirectory(atPath: dataDir, withIntermediateDirectories: true)
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyy-MM-dd'T'HH:mm:ss'Z'"
+        formatter.timeZone = TimeZone(identifier: "UTC")
+        let filename = "jellyfin-mpv-play-\(formatter.string(from: Date())).log"
+        let logPath = (dataDir as NSString).appendingPathComponent(filename)
+        FileManager.default.createFile(atPath: logPath, contents: nil)
+        logFileHandle = FileHandle(forWritingAtPath: logPath)
+    }
+
+    private func closeLogFile() {
+        logFileHandle?.closeFile()
+        logFileHandle = nil
+    }
+
+    private func writeToLogFile(_ line: String) {
+        guard let data = (line + "\n").data(using: .utf8) else { return }
+        logFileHandle?.write(data)
     }
 
     private func loadIpcSocketPath() {
@@ -293,6 +318,7 @@ class NodeProcessManager {
         if line.hasPrefix("AV:") { return }
 
         logHandler(line)
+        writeToLogFile(line)
 
         if line.contains("WebSocket connection established") {
             statusHandler(.connected)
