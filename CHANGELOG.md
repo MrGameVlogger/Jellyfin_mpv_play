@@ -4,7 +4,7 @@ All notable changes to Jellyfin MPV Play are documented here.
 
 ## v1.7.5
 
-> **Important:** This release fixes a critical bug where **playback controls did not appear in the Jellyfin web UI**. This was a pre-existing bug since v1.5.0 — the API was sending data in the wrong format, causing the server to reject playback session registration. If you've been unable to control playback from the Jellyfin web interface, this update fixes that.
+> **Important:** This release fixes a critical bug where **playback controls did not appear in the Jellyfin web UI**. This bug was introduced in v1.7.0 during API format changes — the playback reports were incorrectly wrapped in a `playbackStartInfo`/`playbackProgressInfo` key, causing the server to reject session registration. If controls stopped working after updating from v1.6.0 or earlier, this update fixes that.
 
 ### Bug Fixes
 - **Fixed playback controls not appearing in Jellyfin web UI** — removed incorrect `playbackStartInfo`/`playbackProgressInfo` wrapper from API requests; added valid `PlaybackOrder: 'Default'` enum value
