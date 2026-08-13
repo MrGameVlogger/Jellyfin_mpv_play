@@ -6,7 +6,8 @@
 |---------|-----------|
 | 1.5.x   | Yes       |
 | 1.4.x   | No        |
-| < 1.4   | No        |
+| 1.3.x   | No        |
+| 1.2.x   | No        |
 
 ## Reporting a Vulnerability
 
