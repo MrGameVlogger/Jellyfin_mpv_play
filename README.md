@@ -3,7 +3,16 @@
 </p>
 
 <p align="center">
-  Control your <b>MPV player</b> from the <b>Jellyfin web interface</b>. Play movies and series with hardware acceleration, auto-resume, and auto-play next episode.
+  Control your <b>MPV player</b> from the <b>Jellyfin web interface</b>.<br>
+  Play movies and series with hardware acceleration, auto-resume, and auto-play next episode.
+</p>
+
+<p align="center">
+  <a href="https://github.com/MrGameVlogger/Jellyfin_mpv_play/releases/latest"><img alt="Latest Release" src="https://img.shields.io/github/v/release/MrGameVlogger/Jellyfin_mpv_play?style=flat-square&label=latest%20release"></a>
+  <a href="https://github.com/MrGameVlogger/Jellyfin_mpv_play/blob/main/LICENSE"><img alt="License" src="https://img.shields.io/github/license/MrGameVlogger/Jellyfin_mpv_play?style=flat-square"></a>
+  <img alt="Platform" src="https://img.shields.io/badge/platform-macOS%20%7C%20Windows%20%7C%20Linux-blue?style=flat-square">
+  <a href="https://github.com/MrGameVlogger/Jellyfin_mpv_play/releases/latest"><img alt="Downloads" src="https://img.shields.io/github/downloads/MrGameVlogger/Jellyfin_mpv_play/total?style=flat-square"></a>
+  <img alt="Node.js" src="https://img.shields.io/badge/Node.js-22%20LTS-brightgreen?style=flat-square&logo=node.js">
 </p>
 
 <p align="center">
@@ -12,36 +21,32 @@
 
 ---
 
-## ✨ Features
+## Features
 
-- 🎯 **Remote Control** — Play from any device on your network
-- 💾 **Smart Resume** — Remembers where you left off; "Play from beginning" in Jellyfin starts fresh
-- ⏭️ **Auto-Play Next Episode** — Binge-watch series seamlessly
-- ⚡ **Hardware Acceleration** — Smooth playback powered by MPV
-- 🔄 **Auto-Reconnect** — Handles network interruptions with exponential backoff
-- 🍎 **Native macOS App** — Menubar icon, notifications, preferences editor, log viewer, setup wizard
-- 📦 **Self-Contained Bundles** — All platforms bundle Node.js 22 LTS; just install MPV and go
-- 🐧 **Linux Bundle** — Download, configure, and run with a single script
-- 🪟 **Windows Bundle** — Download, configure, and run with a double-click
-- ❓ **Built-in Help** — Reference guide accessible from the menu bar (macOS)
+- **Remote Control** — Play from any device on your network
+- **Smart Resume** — Remembers where you left off; "Play from beginning" in Jellyfin starts fresh
+- **Auto-Play Next Episode** — Binge-watch series seamlessly
+- **Hardware Acceleration** — Smooth playback powered by MPV
+- **Auto-Reconnect** — Handles network interruptions with exponential backoff
+- **Native macOS App** — Menubar icon, notifications, preferences editor, log viewer, setup wizard
+- **Self-Contained Bundles** — All platforms bundle Node.js 22 LTS; just install MPV and go
+- **Built-in Help** — Reference guide accessible from the menu bar (macOS)
 
 ---
 
-## 📋 What You Need
+## Downloads
 
-| Platform | Requirements |
-|----------|-------------|
-| 🍎 **macOS** | [MPV Player](https://mpv.io/installation/) + the `.app` (download or build) · Jellyfin server |
-| 🪟 **Windows** | [MPV Player](https://mpv.io/installation/) + the `.zip` bundle · Jellyfin server |
-| 🐧 **Linux** | [MPV Player](https://mpv.io/installation/) + the `.tar.gz` bundle · Jellyfin server |
+<a href="https://github.com/MrGameVlogger/Jellyfin_mpv_play/releases/latest"><img alt="macOS" src="https://img.shields.io/badge/macOS-.app-blue?style=for-the-badge&logo=apple"></a>
+<a href="https://github.com/MrGameVlogger/Jellyfin_mpv_play/releases/latest"><img alt="Linux" src="https://img.shields.io/badge/Linux-.tar.gz-yellow?style=for-the-badge&logo=linux"></a>
+<a href="https://github.com/MrGameVlogger/Jellyfin_mpv_play/releases/latest"><img alt="Windows" src="https://img.shields.io/badge/Windows-.zip-blue?style=for-the-badge&logo=windows"></a>
 
-> All bundles include their own Node.js runtime — no separate Node.js installation needed.
+All bundles include their own Node.js runtime. Only [MPV Player](https://mpv.io/installation/) is required.
 
 ---
 
-## 🚀 Quick Start
+## Quick Start
 
-### 🍎 macOS
+### macOS
 
 1. **Install MPV** via Homebrew:
    ```bash
@@ -67,9 +72,9 @@
    - Confirm MPV path and device settings
    - Done!
 
-   > 💡 Config is saved to `~/Library/Application Support/JellyfinMpvPlay/config.js`. You can edit it manually or from the Preferences menu.
+   > Config is saved to `~/Library/Application Support/JellyfinMpvPlay/config.js`. You can edit it manually or from the Preferences menu.
 
-### 🪟 Windows
+### Windows
 
 1. **Install MPV** — download from [mpv.io/installation](https://mpv.io/installation/) and add to your PATH
 
@@ -91,7 +96,7 @@
 
 5. **Run** — double-click `launch.bat`
 
-### 🐧 Linux
+### Linux
 
 1. **Install MPV:**
    ```bash
@@ -128,17 +133,17 @@
    ./launch.sh
    ```
 
-   > 💡 To add to your app launcher, copy `jellyfin-mpv-play.desktop` to `~/.local/share/applications/` and update the `Exec` path.
+   > To add to your app launcher, copy `jellyfin-mpv-play.desktop` to `~/.local/share/applications/` and update the `Exec` path.
 
 ---
 
-## 🎮 How to Use
+## How to Use
 
 1. **Start the app** — macOS: click the menu bar icon · Windows: double-click `launch.bat` · Linux: run `./launch.sh`
 2. **Open Jellyfin** in your web browser
 3. **Pick something to watch** — any movie or episode
-4. **Click "Play on"** — the cast icon (📺) or "Play on" button
-5. **Enjoy!** — MPV opens automatically and starts playing 🎉
+4. **Click "Play on"** — the cast icon or "Play on" button
+5. **Enjoy!** — MPV opens automatically and starts playing
 
 <table>
   <tr>
@@ -153,7 +158,7 @@
 
 ---
 
-## ⌨️ Keyboard Shortcuts
+## Keyboard Shortcuts
 
 While watching in MPV:
 
@@ -164,9 +169,9 @@ While watching in MPV:
 
 ---
 
-## 🔄 Auto-Start (Optional)
+## Auto-Start (Optional)
 
-### 🍎 macOS
+### macOS
 
 The easiest way: click the menu bar icon → **Open at Login**.
 
@@ -175,7 +180,7 @@ Or manually:
 2. Click the **+** button
 3. Navigate to `/Applications` and select `Jellyfin MPV Play.app`
 
-### 🪟 Windows
+### Windows
 
 **Option A: Use the bundle** — edit `launch.bat` to add it to your Startup folder, or create a shortcut.
 
@@ -199,11 +204,11 @@ Set WshShell = Nothing
 1. Press `Win + R`, type `shell:startup`, press Enter
 2. Create a shortcut to `start.vbs` in the Startup folder
 
-> ⚠️ **Change the paths** to match your installation folder
+> **Change the paths** to match your installation folder
 
 ---
 
-## 🛠️ Troubleshooting
+## Troubleshooting
 
 | Problem | Solution |
 |---------|----------|
@@ -218,7 +223,7 @@ Set WshShell = Nothing
 
 ---
 
-## 📁 Project Structure
+## Project Structure
 
 ```
 Jellyfin_mpv_play/
@@ -243,177 +248,52 @@ Jellyfin_mpv_play/
 ├── node_modules/            # Dependencies (gitignored)
 ├── config.example.js        # Configuration template
 ├── config.js                # Your config — never commit! (gitignored)
-├── shim.js                  # Main Node.js application (~1200 lines)
+├── shim.js                  # Main Node.js application (~1250 lines)
 ├── package.json
 └── README.md
 ```
 
 ---
 
-## 🔒 Security
+## Security
 
-- ⚠️ **Never share `config.js`** — it contains your password
-- 🔐 Your password is only used to authenticate with Jellyfin
-- 💾 Tokens and playback positions are stored locally in the `data/` folder
-- 📁 `config.js` and `data/` are gitignored — they stay on your machine
-
----
-
-## 📝 Changelog
-
-### v1.7.0 — Security, Stability, Bug Fixes
-
-**Security:**
-- API key redacted from stream URL logs
-- Token file created with owner-only permissions (0o600)
-- Added uncaughtException/unhandledRejection crash handlers
-
-**Bug Fixes:**
-- ConfigParser regex rewritten (escaped quotes broke config parsing)
-- Audio/subtitle commands now sent after MPV IPC connects
-- Backward episode navigation no longer marks current as watched
-- StatusBarController NSObject inheritance and togglePause state fixes
-- SF Symbol fix for macOS 13 (was rendering broken icon)
-- Setup wizard: closing without completing no longer starts shim with invalid config
-- Setup wizard: preserves user edits across back-navigation
-- Setup wizard: architecture-aware mpvPath defaults
-- NodeProcessManager: title extraction, togglePause, findNodePath, sendMpvCommand fixes
-- launch.sh: error handling, symlink resolution
-- launch.bat: path quoting, encoding
-
-**Improvements:**
-- Shared ConfigParser.escapeConfigValue() utility
-- Removed redundant dispatch and stale version fallback
-- Application termination waits for cleanup
-
-### v1.6.0 — Cross-Platform Bundles, CI Build Workflow
-
-**New Features:**
-- **Linux bundle** — self-contained `.tar.gz` with bundled Node.js 22 LTS; just install MPV and run `./launch.sh`
-- **Windows bundle** — self-contained `.zip` with bundled Node.js 22 LTS; just install MPV and run `launch.bat`
-- **Linux desktop integration** — `.desktop` file included for app launcher support
-- **CI/CD workflow** — GitHub Actions automatically builds and releases all 3 platform bundles on version tags
-- **First-run config creation** — launchers auto-copy `config.example.js` to `config.js` on first run
-
-**Improvements:**
-- Updated `config.example.js` with platform-specific `mpvPath` examples
-- Updated `macapp/build.sh` to skip `/Applications` deploy in CI environments
-- Added `.gitattributes` for consistent line endings (CRLF for `.bat`, LF for `.sh`)
-
-### v1.5.0 — Apple HIG Compliance, Bug Fixes, New Features
-
-**New Features:**
-- **Playback control from Jellyfin** — full `GeneralCommand` handler for volume, mute, audio/subtitle tracks, repeat mode, shuffle, fullscreen
-- **Playstate commands** — PlayPause, NextTrack, PreviousTrack, Rewind (−10s), FastForward (+10s)
-- **Series page play** — queries Jellyfin's NextUp API to find the correct episode
-- **Copy Now Playing** — copies current title to clipboard
-- **Open at Login** — toggle directly from menu bar dropdown
-- **Open Config File** — opens `config.js` in default editor
-- **Open App Folder** — opens Application Support directory in Finder
-
-**Auto-Play Overhaul:**
-- Fixed auto-play next episode — now uses IPC poll timer (queries mpv every 1s) instead of unreliable `eof-reached` events
-- Episode transitions reuse the running MPV process via `loadfile` IPC command (no more window flash)
-- Double-trigger prevention with `isPlayingNext` flag and 10s timeout
-- Duplicate watched marking prevented with `markedWatched` Set
-
-**Bug Fixes:**
-- Fixed poll timer hanging forever when IPC disconnects (pending promises now resolved)
-- Fixed `connectToMpvIpc` retries racing with new playback (generation check added)
-- Fixed `reportPlaybackStop` failure leaving `isReportingStop` stuck true
-- Fixed `loadNextEpisode` not clearing progress interval (stale position saves)
-- Fixed `shutdown()` not reporting playback stop to server
-- Fixed stale `currentDuration` from previous episode after IPC query failure
-- Fixed `isPlayingNext` never resetting if `loadfile` send silently fails (10s timeout)
-- Preferences save now triggers node restart (was silently ignored)
-- Setup "Skip" no longer writes empty config (was causing infinite setup loop)
-- Stop playback state protected from stale log line callbacks
-- Shake animation now works (added `field.wantsLayer = true`)
-- IPC socket cleanup on shutdown and MPV exit
-- Pending IPC queries resolved on cleanup (prevents poll timer hang)
-
-**Apple HIG Compliance:**
-- All windows now respect standard macOS window layering (removed `.floating`)
-- Status bar icons use template images and adapt to light/dark menu bar
-- Replaced deprecated `NSApp.activate(ignoringOtherApps:)` with version-checked API
-- Log viewer respects system appearance instead of forcing dark theme
-- Added `LSApplicationCategoryType` to Info.plist
-
-**Code Quality:**
-- Extracted shared `ConfigParser` utility (eliminates duplication across 3 files)
-- Thread safety: `processLogLine` dispatched to main thread
-- `shim.js`: Progress reports now include `RepeatMode`, `PlaybackOrder`, `MediaSourceId`
-- `shim.js`: Shutdown sends `SessionsStop` message before closing WebSocket
-
-### v1.4.0 — Bug Fixes, Logo, UI Overhaul
-
-**New Features:**
-- **Custom app icon** — replaces generic SF Symbol with purpose-built `AppIcon.icns`
-- **Dark mode icon variant** — About window dynamically switches based on system appearance
-- **SVG logo set** — `logo.svg`, `icon.svg`, `icon-light.svg`, `icon-dark.svg`, `logo-banner.svg`
-- **Pause state reporting** — subscribes to MPV's `pause` property, accurate `IsPaused` in progress reports
-- **Help window overhaul** — keyboard shortcuts with ⌘ equivalents, SF Symbols per section, resizable
-
-**Bug Fixes:**
-- Fixed shake animation (was using `frame.origin` instead of `layer.position`)
-- Fixed version in auth header (was hardcoded `1.3.0`)
-- Fixed memory leak in `AppDelegate.statusHandler` closure
-- Fixed `isReportingStop` flag not resetting on fresh play
-- Removed dead `getSavedPosition()` function
-- Fixed log window text view sizing
-
-**UI Improvements:**
-- All windows float above other apps
-- About window: taller, Jellyfin link, theme-aware icon
-- Menu key equivalents for all items
-
-### v1.3.0 — Setup Wizard, Help Window, Bundled Node.js
-
-**New Features:**
-- **First-run setup wizard** — 5-step guided setup with "Test Connection" button
-- **Help window** — Getting Started, Controls, Keyboard Shortcuts, Smart Resume, Troubleshooting
-- **Bundled Node.js 22 LTS** — fully self-contained app (~175MB), no system Node required
-
-**Improvements:**
-- About window redesigned with fork attribution and clickable links
-- Preferences auto-fills default values for empty fields
-- `findNodePath()` checks bundle first, falls back to system Node
-- README rewritten with separate macOS/Windows/Linux sections
-
-### v1.2.1 — Native macOS App, Play-from-Beginning Fix, 8 Bug Fixes
-
-**New: Native macOS Menu Bar App:**
-- Status bar icon with color-coded states (disconnected/connected/playing)
-- Now Playing display, Pause/Resume and Stop controls
-- Log viewer with syntax coloring, auto-scroll, export
-- Preferences window with "Test Connection" button
-- Launch at Login toggle, macOS notifications
-- Automatic process management with exponential backoff restart
-- Build script compiles Swift, bundles into `.app` for `/Applications`
-
-**Fixed: Play-from-Beginning Bug:**
-- Server's `StartPositionTicks: 0` now correctly starts from beginning
-- Previously, saved local position could override "play from beginning" request
-
-**Bug Fixes:**
-1. Removed duplicate `connectToMpvIpc()` function
-2. Race condition fix with `playbackGeneration` counter
-3. Graceful shutdown now saves position and reports stop
-4. `eof-reached` handler now reports stop to server
-5. Episode list sort no longer mutates API response
-6. Fixed `currentIndex` bounds check
-7. Platform-aware IPC socket path (Unix/Windows)
-8. Fixed MPV keybind names (`NEXT`/`PREV`)
-
-**Improvements:**
-- Log messages translated from Spanish to English (enables macOS app parsing)
-- Simplified MPV arguments (delegated to user's `mpv.conf`)
-- Added `--force-media-title` for descriptive window titles
-- Better token validation and error handling
+- **Never share `config.js`** — it contains your password
+- Your password is only used to authenticate with Jellyfin
+- Tokens and playback positions are stored locally in the `data/` folder
+- `config.js` and `data/` are gitignored — they stay on your machine
 
 ---
 
-## 🤝 Contributing
+## Changelog
+
+See [CHANGELOG.md](CHANGELOG.md) for full release history.
+
+### Recent Releases
+
+**v1.7.0** — Security, stability, and 20 bug fixes ([details](CHANGELOG.md#v170--security-stability-bug-fixes))
+- API key redaction, token file permissions, crash handlers
+- ConfigParser regex, audio/subtitle timing, backward navigation, SF Symbols, setup wizard fixes
+
+**v1.6.0** — Cross-platform bundles and CI workflow ([details](CHANGELOG.md#v160--cross-platform-bundles-ci-build-workflow))
+- Self-contained Linux and Windows bundles with bundled Node.js
+- GitHub Actions auto-builds releases for all 3 platforms
+
+**v1.5.0** — Apple HIG compliance and major feature release ([details](CHANGELOG.md#v150--apple-hig-compliance-bug-fixes-new-features))
+- Full playback control from Jellyfin, auto-play overhaul, 13 bug fixes
+
+<details>
+<summary><b>Older releases</b></summary>
+
+**v1.4.0** — Bug fixes, logo, UI overhaul ([details](CHANGELOG.md#v140--bug-fixes-logo-ui-overhaul))
+
+**v1.3.0** — Setup wizard, help window, bundled Node.js ([details](CHANGELOG.md#v130--setup-wizard-help-window-bundled-nodejs))
+
+**v1.2.1** — Native macOS app, play-from-beginning fix, 8 bug fixes ([details](CHANGELOG.md#v121--native-macos-app-play-from-beginning-fix-8-bug-fixes))
+</details>
+
+---
+
+## Contributing
 
 Found a bug? Have a suggestion?
 
@@ -424,13 +304,13 @@ This is a fork of [JohnGlaus/Jellyfin_mpv_play](https://github.com/JohnGlaus/Jel
 
 ---
 
-## 📄 License
+## License
 
-MIT License — Feel free to use and modify!
+MIT License — Feel free to use and modify! See [LICENSE](LICENSE).
 
 ---
 
-## ❓ FAQ
+## FAQ
 
 **Q: Does this work on macOS?**
 A: Yes. Tested on macOS with Homebrew MPV. Use `/opt/homebrew/bin/mpv` (Apple Silicon) or `/usr/local/bin/mpv` (Intel) as your `mpvPath`. The native macOS app bundles Node.js 22 LTS — no separate installation needed.
@@ -455,7 +335,7 @@ A: Download the latest release, extract to a new folder, and copy your `config.j
 
 ---
 
-**Made with ❤️ for the Jellyfin community**
-
-⭐ **Star this repo** if you find it useful!
-
+<p align="center">
+  Made with ❤️ for the Jellyfin community<br>
+  <a href="https://github.com/MrGameVlogger/Jellyfin_mpv_play/stargazers">⭐ Star this repo</a> if you find it useful!
+</p>
