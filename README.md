@@ -259,6 +259,31 @@ Jellyfin_mpv_play/
 
 ## 📝 Changelog
 
+### v1.7.0 — Security, Stability, Bug Fixes
+
+**Security:**
+- API key redacted from stream URL logs
+- Token file created with owner-only permissions (0o600)
+- Added uncaughtException/unhandledRejection crash handlers
+
+**Bug Fixes:**
+- ConfigParser regex rewritten (escaped quotes broke config parsing)
+- Audio/subtitle commands now sent after MPV IPC connects
+- Backward episode navigation no longer marks current as watched
+- StatusBarController NSObject inheritance and togglePause state fixes
+- SF Symbol fix for macOS 13 (was rendering broken icon)
+- Setup wizard: closing without completing no longer starts shim with invalid config
+- Setup wizard: preserves user edits across back-navigation
+- Setup wizard: architecture-aware mpvPath defaults
+- NodeProcessManager: title extraction, togglePause, findNodePath, sendMpvCommand fixes
+- launch.sh: error handling, symlink resolution
+- launch.bat: path quoting, encoding
+
+**Improvements:**
+- Shared ConfigParser.escapeConfigValue() utility
+- Removed redundant dispatch and stale version fallback
+- Application termination waits for cleanup
+
 ### v1.6.0 — Cross-Platform Bundles, CI Build Workflow
 
 **New Features:**
