@@ -5,7 +5,6 @@ data/
 BK/
 jellyfin_token_*.json
 playback_positions_*.json
-*.bat
 *.vbs
 *.app
 .DS_Store

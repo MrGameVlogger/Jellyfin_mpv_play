@@ -20,7 +20,10 @@ documentation:
     - any-glob-to-any-file:
       - '*.md'
       - 'docs/**'
-      - '.github/**'
+      - '.github/ISSUE_TEMPLATE/**'
+      - '.github/pull_request_template.md'
+      - '.github/copilot-instructions.md'
+      - '.github/skills/**'
 
 ci:
   - changed-files:
@@ -33,6 +36,16 @@ dependencies:
     - any-glob-to-any-file:
       - 'package.json'
       - 'package-lock.json'
+
+linux:
+  - changed-files:
+    - any-glob-to-any-file:
+      - 'linux/**'
+
+windows:
+  - changed-files:
+    - any-glob-to-any-file:
+      - 'windows/**'
 
 images:
   - changed-files:

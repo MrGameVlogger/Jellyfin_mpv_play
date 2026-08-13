@@ -77,21 +77,25 @@ swiftc \
 echo "Build complete: $APP_BUNDLE"
 echo "Run with: open \"$APP_BUNDLE\""
 
-# Deploy to /Applications
-DEPLOY_PATH="/Applications/$APP_NAME.app"
-APP_PID=$(pgrep -f "$APP_BUNDLE/Contents/MacOS/$APP_NAME" 2>/dev/null || true)
-if [ -n "$APP_PID" ]; then
-    kill "$APP_PID" 2>/dev/null || true
-    for i in $(seq 1 10); do
-        kill -0 "$APP_PID" 2>/dev/null || break
-        sleep 0.5
-    done
-    kill -9 "$APP_PID" 2>/dev/null || true
-fi
-rm -rf "$DEPLOY_PATH"
-if cp -R "$APP_BUNDLE" "$DEPLOY_PATH" 2>/dev/null; then
-    echo "Deployed to: $DEPLOY_PATH"
+# Deploy to /Applications (skip in CI)
+if [ -n "$CI" ]; then
+    echo "CI environment detected, skipping deploy to /Applications."
 else
-    echo "WARNING: Could not deploy to /Applications (permission denied). Run with sudo or copy manually:"
-    echo "  cp -R \"$APP_BUNDLE\" \"$DEPLOY_PATH\""
+    DEPLOY_PATH="/Applications/$APP_NAME.app"
+    APP_PID=$(pgrep -f "$APP_BUNDLE/Contents/MacOS/$APP_NAME" 2>/dev/null || true)
+    if [ -n "$APP_PID" ]; then
+        kill "$APP_PID" 2>/dev/null || true
+        for i in $(seq 1 10); do
+            kill -0 "$APP_PID" 2>/dev/null || break
+            sleep 0.5
+        done
+        kill -9 "$APP_PID" 2>/dev/null || true
+    fi
+    rm -rf "$DEPLOY_PATH"
+    if cp -R "$APP_BUNDLE" "$DEPLOY_PATH" 2>/dev/null; then
+        echo "Deployed to: $DEPLOY_PATH"
+    else
+        echo "WARNING: Could not deploy to /Applications (permission denied). Run with sudo or copy manually:"
+        echo "  cp -R \"$APP_BUNDLE\" \"$DEPLOY_PATH\""
+    fi
 fi

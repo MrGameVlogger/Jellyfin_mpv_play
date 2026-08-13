@@ -1,0 +1,221 @@
+name: Build & Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+env:
+  NODE_VERSION: '22.23.1'
+
+jobs:
+  get-version:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: version
+        run: |
+          VERSION=$(grep -A1 'CFBundleShortVersionString' macapp/Info.plist | grep '<string>' | sed 's/.*<string>\(.*\)<\/string>.*/\1/')
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "Detected version: $VERSION"
+
+  build-linux:
+    needs: get-version
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Cache Node.js
+        uses: actions/cache@v4
+        with:
+          path: .node-cache
+          key: node-linux-x64-${{ env.NODE_VERSION }}
+
+      - name: Download Node.js
+        run: |
+          mkdir -p .node-cache
+          TARBALL=".node-cache/node-v${NODE_VERSION}-linux-x64.tar.gz"
+          if [ ! -f "$TARBALL" ]; then
+            curl -L "https://nodejs.org/dist/v${NODE_VERSION}/node-v${NODE_VERSION}-linux-x64.tar.gz" -o "$TARBALL"
+          fi
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Assemble bundle
+        run: |
+          NAME="JellyfinMPVPlay-Linux-v${{ needs.get-version.outputs.version }}"
+          mkdir -p "$NAME/node" "$NAME/images"
+
+          # Extract Node.js
+          tar -xzf ".node-cache/node-v${NODE_VERSION}-linux-x64.tar.gz" -C .node-cache
+          cp -R .node-cache/node-v${NODE_VERSION}-linux-x64/bin "$NAME/node/"
+          cp -R .node-cache/node-v${NODE_VERSION}-linux-x64/lib "$NAME/node/"
+          rm -rf "$NAME/node/lib/node_modules/npm" \
+                 "$NAME/node/lib/node_modules/corepack" \
+                 "$NAME/node/bin/npm" \
+                 "$NAME/node/bin/npx" \
+                 "$NAME/node/bin/corepack" 2>/dev/null || true
+
+          # Copy app files
+          cp shim.js "$NAME/"
+          cp config.example.js "$NAME/"
+          cp -R node_modules "$NAME/"
+          cp -R linux/* "$NAME/"
+          cp images/icon.svg "$NAME/images/"
+
+          chmod +x "$NAME/launch.sh"
+
+          # Create archive
+          tar -czf "${NAME}.tar.gz" "$NAME"
+          echo "BUNDLE=${NAME}.tar.gz" >> "$GITHUB_ENV"
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: linux-bundle
+          path: ${{ env.BUNDLE }}
+
+  build-windows:
+    needs: get-version
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Cache Node.js
+        uses: actions/cache@v4
+        with:
+          path: .node-cache
+          key: node-win-x64-${{ env.NODE_VERSION }}
+
+      - name: Download Node.js
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path .node-cache | Out-Null
+          $zip = ".node-cache/node-v${{ env.NODE_VERSION }}-win-x64.zip"
+          if (-not (Test-Path $zip)) {
+            Invoke-WebRequest -Uri "https://nodejs.org/dist/v${{ env.NODE_VERSION }}/node-v${{ env.NODE_VERSION }}-win-x64.zip" -OutFile $zip
+          }
+          Write-Output "NODE_ZIP=$zip" >> $env:GITHUB_ENV
+
+      - name: Install dependencies
+        shell: pwsh
+        run: npm ci
+
+      - name: Assemble bundle
+        shell: pwsh
+        run: |
+          $ver = "${{ needs.get-version.outputs.version }}"
+          $name = "JellyfinMPVPlay-Windows-v$ver"
+
+          New-Item -ItemType Directory -Force -Path "$name/node" | Out-Null
+
+          # Extract Node.js
+          Expand-Archive -Path "${{ env.NODE_ZIP }}" -DestinationPath .node-cache -Force
+          $nodeDir = ".node-cache/node-v${{ env.NODE_VERSION }}-win-x64"
+          Copy-Item "$nodeDir/node.exe" "$name/node/"
+          Copy-Item "$nodeDir/*.dll" "$name/node/"
+
+          # Copy app files
+          Copy-Item shim.js "$name/"
+          Copy-Item config.example.js "$name/"
+          Copy-Item -Recurse node_modules "$name/"
+          Copy-Item -Recurse windows/* "$name/"
+
+          # Create archive
+          Compress-Archive -Path "$name" -DestinationPath "$name.zip"
+          Write-Output "BUNDLE=$name.zip" >> $env:GITHUB_ENV
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-bundle
+          path: ${{ env.BUNDLE }}
+
+  build-macos:
+    needs: get-version
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build macOS app
+        run: |
+          cd macapp
+          ./build.sh
+
+      - name: Create archive
+        run: |
+          NAME="JellyfinMPVPlay-macOS-v${{ needs.get-version.outputs.version }}"
+          ditto -c -k --sequesterRsrc --keepParent "Jellyfin MPV Play.app" "${NAME}.zip"
+          echo "BUNDLE=${NAME}.zip" >> "$GITHUB_ENV"
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: macos-bundle
+          path: ${{ env.BUNDLE }}
+
+  release:
+    needs: [get-version, build-linux, build-windows, build-macos]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Create release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VERSION: ${{ needs.get-version.outputs.version }}
+        run: |
+          mkdir -p release-files
+          find artifacts -type f \( -name '*.tar.gz' -o -name '*.zip' \) -exec cp {} release-files/ \;
+          echo "Release files:"
+          ls -lh release-files/
+
+          cat > notes.md << 'EOF'
+          ## Jellyfin MPV Play v__VERSION__
+
+          ### Downloads
+          | Platform | File |
+          |----------|------|
+          | macOS | `JellyfinMPVPlay-macOS-v__VERSION__.zip` |
+          | Linux | `JellyfinMPVPlay-Linux-v__VERSION__.tar.gz` |
+          | Windows | `JellyfinMPVPlay-Windows-v__VERSION__.zip` |
+
+          ### Requirements
+          - **MPV Player** must be installed separately
+          - macOS bundle includes its own Node.js runtime
+          - Linux/Windows bundles include their own Node.js runtime
+
+          ### Quick Start
+          **macOS:** Unzip, move to Applications, launch. The setup wizard will guide you.
+
+          **Linux:** Extract, edit `config.js`, run `./launch.sh`. See the included `.desktop` file for app launcher integration.
+
+          **Windows:** Extract, edit `config.js`, run `launch.bat`.
+
+          For more details, see the [README](https://github.com/MrGameVlogger/Jellyfin_mpv_play#readme).
+          EOF
+          sed -i "s/__VERSION__/$VERSION/g" notes.md
+
+          # Delete existing release if re-running (keep the tag)
+          gh release delete "v${VERSION}" -R MrGameVlogger/Jellyfin_mpv_play --yes 2>/dev/null || true
+
+          gh release create "v${VERSION}" \
+            -R MrGameVlogger/Jellyfin_mpv_play \
+            --title "v${VERSION}" \
+            --notes-file notes.md \
+            --verify-tag \
+            release-files/*
