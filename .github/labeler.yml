@@ -5,7 +5,7 @@ macos:
   - changed-files:
     - any-glob-to-any-file:
       - 'macapp/**'
-      - '*.swift'
+      - '**/*.swift'
 
 shim:
   - changed-files:
@@ -51,6 +51,6 @@ images:
   - changed-files:
     - any-glob-to-any-file:
       - 'images/**'
-      - '*.png'
-      - '*.svg'
-      - '*.icns'
+      - '**/*.png'
+      - '**/*.svg'
+      - '**/*.icns'

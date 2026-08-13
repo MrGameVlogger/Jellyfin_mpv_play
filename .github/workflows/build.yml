@@ -8,8 +8,13 @@ on:
 permissions:
   contents: write
 
+# Prevent concurrent release builds from clobbering each other
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
 env:
-  NODE_VERSION: '22.23.1'
+  NODE_VERSION: '22.23.1'  # Must match macapp/build.sh NODE_VERSION
 
 jobs:
   get-version:
@@ -186,7 +191,15 @@ jobs:
 
           # Extract version-specific section from CHANGELOG.md
           # Gets everything from "## vX.Y.Z" up to the next "## v" header
-          awk "/^## v${VERSION}/{found=1; next} found && /^## v/{exit} found" CHANGELOG.md > notes.md
+          # Escape dots in version for regex (1.6.0 -> 1\.6\.0)
+          VER_ESCAPED="${VERSION//./\\.}"
+          awk "/^## v${VER_ESCAPED}/{found=1; next} found && /^## v/{exit} found" CHANGELOG.md > notes.md
+
+          # Validate changelog section was found
+          if [ ! -s notes.md ]; then
+            echo "WARNING: No changelog section found for v${VERSION} in CHANGELOG.md"
+            echo "## Jellyfin MPV Play v${VERSION}" > notes.md
+          fi
 
           # Append download table and quick start
           cat >> notes.md << 'EOF'

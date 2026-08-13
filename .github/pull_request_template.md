@@ -21,4 +21,4 @@
 - [ ] Code compiles / runs without errors
 - [ ] No secrets or credentials in the diff
 - [ ] README updated (if applicable)
-- [ ] Version bumped in `macapp/Info.plist` (if applicable)
+- [ ] Version bumped in `macapp/Info.plist` **and** `package.json` (if applicable)
