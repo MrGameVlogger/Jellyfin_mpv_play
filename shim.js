@@ -16,7 +16,7 @@ const CONFIG = {
     deviceName: userConfig.deviceName,
     deviceId: userConfig.deviceId || `mpv-${crypto.randomBytes(8).toString('hex')}`,
     
-    clientVersion: '2.0.0',
+    clientVersion: '1.6.0',
     ipcSocketPath: userConfig.ipcSocketPath || (process.platform === 'win32' ? '\\\\.\\pipe\\mpv-ipc' : '/tmp/mpv-ipc.sock'),
     mpvLoadDelayMs: 100
 };
@@ -44,6 +44,8 @@ let keepAliveInterval = null;
 let pendingStreamUrl = null;
 let pendingStartSeconds = 0;
 let pendingTitle = null;
+let pendingAudioStreamIndex = undefined;
+let pendingSubtitleStreamIndex = undefined;
 let playbackGeneration = 0;
 let isMpvPaused = false;
 let isMuted = false;
@@ -202,7 +204,7 @@ async function connectWebSocket() {
             }, 30000);
             
             if (reconnectInterval) {
-                clearInterval(reconnectInterval);
+                clearTimeout(reconnectInterval);
                 reconnectInterval = null;
             }
         });
@@ -254,9 +256,9 @@ function scheduleReconnect() {
     
     console.log(`🔄 Scheduling automatic reconnection in ${delaySeconds} seconds (Attempt ${reconnectAttempts})...`);
     
-    reconnectInterval = setInterval(async () => {
+    reconnectInterval = setTimeout(async () => {
         if (ws && ws.readyState === WebSocket.OPEN) {
-            clearInterval(reconnectInterval);
+            clearTimeout(reconnectInterval);
             reconnectInterval = null;
             return;
         }
@@ -280,13 +282,13 @@ function scheduleReconnect() {
                     await connectWebSocket();
                 } else {
                     console.error('❌ Reauthentication failed. Waiting for next attempt.');
-                    clearInterval(reconnectInterval);
+                    clearTimeout(reconnectInterval);
                     reconnectInterval = null;
                     scheduleReconnect();
                 }
             } else {
                 console.log(`⚠️ Server unavailable or network down. Retrying in ${delaySeconds}s...`);
-                clearInterval(reconnectInterval);
+                clearTimeout(reconnectInterval);
                 reconnectInterval = null;
                 scheduleReconnect();
             }
@@ -403,12 +405,12 @@ async function handleMessage(msg) {
             }
             
             if (data.AudioStreamIndex !== undefined) {
-                sendMpvCommand('set_property', ['aid', data.AudioStreamIndex]);
+                pendingAudioStreamIndex = data.AudioStreamIndex;
             }
             if (data.SubtitleStreamIndex !== undefined) {
-                sendMpvCommand('set_property', ['sid', data.SubtitleStreamIndex === -1 ? 'no' : data.SubtitleStreamIndex]);
+                pendingSubtitleStreamIndex = data.SubtitleStreamIndex === -1 ? 'no' : data.SubtitleStreamIndex;
             }
-            
+
             playMedia(targetId, finalStartPosition).catch(err => {
                 console.error('⚠️ Error playing media:', err.message);
             });
@@ -567,6 +569,8 @@ async function playMedia(itemId, startTicks) {
 
     currentItemId = itemId;
     currentPositionSeconds = startTicks / 10000000;
+    pendingAudioStreamIndex = undefined;
+    pendingSubtitleStreamIndex = undefined;
     currentEpisodeInfo = await getEpisodeInfo(itemId);
 
     if (gen !== playbackGeneration) return;
@@ -708,6 +712,13 @@ function connectToMpvIpc(gen) {
                     console.log('📡 Sending LOADFILE command...');
                     sendMpvCommand('loadfile', [pendingStreamUrl, 'replace']); 
                     console.log('    ✅ Load command sent.');
+
+                    if (pendingAudioStreamIndex !== undefined) {
+                        sendMpvCommand('set_property', ['aid', pendingAudioStreamIndex]);
+                    }
+                    if (pendingSubtitleStreamIndex !== undefined) {
+                        sendMpvCommand('set_property', ['sid', pendingSubtitleStreamIndex]);
+                    }
                 }
             }, CONFIG.mpvLoadDelayMs);
 
@@ -945,14 +956,16 @@ function handleMpvEvent(event) {
     }
 }
 
-async function loadNextEpisode(nextEpId) {
+async function loadNextEpisode(nextEpId, markCurrentWatched = true) {
     stopProgressPoll();
     for (const [, q] of pendingQueries) q.resolve(null);
     pendingQueries.clear();
     if (progressInterval) { clearInterval(progressInterval); progressInterval = null; }
 
-    if (!isReportingStop && currentItemId) {
+    if (markCurrentWatched && !isReportingStop && currentItemId) {
         markItemAsWatched(currentItemId);
+        reportPlaybackStop(currentItemId, Math.round(currentPositionSeconds * 10000000));
+    } else if (!markCurrentWatched && currentItemId && !isReportingStop) {
         reportPlaybackStop(currentItemId, Math.round(currentPositionSeconds * 10000000));
     }
     isReportingStop = false;
@@ -1067,7 +1080,7 @@ function playPreviousEpisode() {
     console.log(`◀️ Starting previous episode: ${prevTitle}`);
 
     if (ipcClient && !ipcClient.destroyed && mpvProcess) {
-        loadNextEpisode(prevEp.Id).catch(err => {
+        loadNextEpisode(prevEp.Id, false).catch(err => {
             console.error('⚠️ Error loading previous episode:', err.message);
             isPlayingNext = false;
         });
@@ -1142,6 +1155,7 @@ function reportPlaybackProgress(itemId, positionTicks) {
 
     axios.post(`${CONFIG.serverUrl}/Sessions/Playing/Progress`, data, { headers })
         .catch(e => {
+            console.error('⚠️ Failed to report playback progress:', e.message);
         });
 }
 
@@ -1179,7 +1193,7 @@ function shutdown(signal) {
     stopProgressPoll();
     for (const [, q] of pendingQueries) q.resolve(null);
     pendingQueries.clear();
-    if (reconnectInterval) { clearInterval(reconnectInterval); reconnectInterval = null; }
+    if (reconnectInterval) { clearTimeout(reconnectInterval); reconnectInterval = null; }
     if (keepAliveInterval) { clearInterval(keepAliveInterval); keepAliveInterval = null; }
     if (progressInterval) { clearInterval(progressInterval); progressInterval = null; }
     

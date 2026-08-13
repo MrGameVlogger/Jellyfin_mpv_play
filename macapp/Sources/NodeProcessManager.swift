@@ -129,6 +129,10 @@ class NodeProcessManager {
     }
 
     func stop(completion: (() -> Void)? = nil) {
+        guard !isShuttingDown || completion != nil else {
+            completion?()
+            return
+        }
         isShuttingDown = true
         let ipcPath = ipcSocketPath
         if let process = process, process.isRunning {
@@ -151,7 +155,9 @@ class NodeProcessManager {
                     kill(pid_t(proc.processIdentifier), SIGKILL)
                 }
                 DispatchQueue.main.async {
-                    self.cleanupPipes()
+                    if self.process === proc {
+                        self.cleanupPipes()
+                    }
                 }
             }
         } else {
@@ -315,6 +321,19 @@ class NodeProcessManager {
         }
         if let range = line.range(of: "--force-media-title=") {
             let after = String(line[range.upperBound...])
+            if after.hasPrefix("\"") {
+                let withoutQuote = String(after.dropFirst())
+                if let endQuote = withoutQuote.range(of: "\"") {
+                    return String(withoutQuote[..<endQuote.lowerBound])
+                }
+                return withoutQuote.trimmingCharacters(in: .whitespaces)
+            } else if after.hasPrefix("'") {
+                let withoutQuote = String(after.dropFirst())
+                if let endQuote = withoutQuote.range(of: "'") {
+                    return String(withoutQuote[..<endQuote.lowerBound])
+                }
+                return withoutQuote.trimmingCharacters(in: .whitespaces)
+            }
             if let end = after.range(of: " ") {
                 return String(after[..<end.lowerBound])
             }
