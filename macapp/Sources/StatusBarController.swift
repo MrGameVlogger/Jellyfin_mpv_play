@@ -64,6 +64,10 @@ class StatusBarController: NSObject, NSMenuDelegate {
         showLogsItem.target = self
         menu.addItem(showLogsItem)
 
+        let copyLogItem = NSMenuItem(title: "Copy Log to Clipboard", action: #selector(copyLog), keyEquivalent: "c")
+        copyLogItem.target = self
+        menu.addItem(copyLogItem)
+
         let preferencesItem = NSMenuItem(title: "Preferences", action: #selector(showPreferences), keyEquivalent: ",")
         preferencesItem.target = self
         menu.addItem(preferencesItem)
@@ -193,6 +197,10 @@ class StatusBarController: NSObject, NSMenuDelegate {
 
     @objc private func showLogs() {
         showAndActivate(logWindowController)
+    }
+
+    @objc private func copyLog() {
+        logWindowController.copyFullLog()
     }
 
     @objc private func showPreferences() {
