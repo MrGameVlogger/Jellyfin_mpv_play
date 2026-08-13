@@ -2,6 +2,13 @@
 
 All notable changes to Jellyfin MPV Play are documented here.
 
+## v1.7.4
+
+### Bug Fixes
+- Fixed emoji encoding corruption in log output (was garbled after v1.7.3 encoding change)
+
+---
+
 ## v1.7.3
 
 ### Bug Fixes

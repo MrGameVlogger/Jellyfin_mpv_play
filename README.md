@@ -277,6 +277,8 @@ See [CHANGELOG.md](CHANGELOG.md) for full release history.
 
 ### Recent Releases
 
+**v1.7.4** — Fix: emoji encoding corruption in log output ([details](CHANGELOG.md#v174))
+
 **v1.7.3** — Bug fixes: shutdown race, icon colors, encoding, signal handling ([details](CHANGELOG.md#v173))
 - Fixed shutdown waiting for HTTP stop report before exiting
 - Fixed StatusBarController icon colors actually rendering
