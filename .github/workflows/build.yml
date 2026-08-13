@@ -74,8 +74,10 @@ jobs:
           [ -n "$FEAT" ] && ENTRY="${ENTRY}### Features\n${FEAT}\n"
           [ -n "$FIX" ] && ENTRY="${ENTRY}### Bug Fixes\n${FIX}\n"
           [ -n "$DOCS" ] && ENTRY="${ENTRY}### Documentation\n${DOCS}\n"
-          [ -n "$CI_CHG" ] && ENTRY="${ENTRY}### CI/Infrastructure\n${CI_CHG}\n"
           [ -n "$OTHER" ] && ENTRY="${ENTRY}### Other Changes\n${OTHER}\n"
+          if [ -n "$CI_CHG" ]; then
+            ENTRY="${ENTRY}<details>\n<summary><b>CI/Infrastructure</b></summary>\n\n${CI_CHG}\n</details>\n\n"
+          fi
 
           mkdir -p sync-output
           echo -e "$ENTRY" > sync-output/changelog-entry.md
