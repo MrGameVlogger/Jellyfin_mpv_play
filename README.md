@@ -277,9 +277,10 @@ See [CHANGELOG.md](CHANGELOG.md) for full release history.
 
 ### Recent Releases
 
-**v1.7.5** — Bug fixes: playback controls, help window, UI polish ([details](CHANGELOG.md#v175))
-- Fixed playback controls not appearing in Jellyfin web UI
-- Fixed help window content clipped and scroll position
+**v1.7.5** — **Critical fix: playback controls in Jellyfin web UI** ([details](CHANGELOG.md#v175))
+- **Fixed playback controls not appearing in Jellyfin web UI** (pre-existing bug since v1.5.0)
+- Fixed duplicate progress reporting, help window, preferences alignment, dark mode icon
+- Logs now saved to Application Support with timestamps
 - About window dark mode icon, preferences alignment, log file saving
 
 **v1.7.4** — Fix: emoji encoding corruption in log output ([details](CHANGELOG.md#v174))
