@@ -48,7 +48,7 @@ class PreferencesWindowController: NSWindowController {
             labelView.alignment = .right
             contentView.addSubview(labelView)
 
-            fields[i].frame = NSRect(x: 130, y: 330 - i * 40, width: 310, height: 24)
+            fields[i].frame = NSRect(x: 130, y: 332 - i * 40, width: 310, height: 24)
             contentView.addSubview(fields[i])
         }
 
@@ -63,7 +63,7 @@ class PreferencesWindowController: NSWindowController {
         contentView.addSubview(testButton)
 
         statusLabel = NSTextField(labelWithString: "")
-        statusLabel.frame = NSRect(x: 270, y: 70, width: 270, height: 32)
+        statusLabel.frame = NSRect(x: 270, y: 76, width: 270, height: 20)
         statusLabel.font = NSFont.systemFont(ofSize: 12)
         contentView.addSubview(statusLabel)
 
