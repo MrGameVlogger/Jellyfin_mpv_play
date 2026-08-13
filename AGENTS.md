@@ -111,6 +111,7 @@ The macOS `.app` can also be built locally: `cd macapp && ./build.sh` (deploys t
 - **Branch protection**: `main` requires PRs (force pushes and deletions blocked)
 - **Merge strategy**: Squash merge (`--squash`) — one commit per PR
 - **PR workflow**: Create branch → commit → push → `gh pr create` → `gh pr merge --squash` → delete branch
+- **⚠️ NEVER push directly to `main`** — always create a branch and open a PR, even for docs or small fixes. The branch protection allows maintainer bypass but this should not be used.
 - **Dependabot**: Weekly npm dependency updates on Mondays
 - **Auto-labeler**: PRs auto-labeled by file paths (macos, shim, documentation, ci, dependencies, images, linux, windows)
 - **Signed commits and tags**: SSH signing configured in global git config — all commits and tags should be signed
