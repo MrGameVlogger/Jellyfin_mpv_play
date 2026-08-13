@@ -124,6 +124,8 @@ class StatusBarController: NSObject {
             pauseItem.isEnabled = true
             stopItem.isEnabled = true
             copyNowPlayingItem.isEnabled = true
+            // Reset pause state for new playback
+            isPausedState = false
             pauseItem.title = "Pause"
             setStatusIcon("play.circle.fill", color: .systemOrange, tooltip: "Jellyfin MPV Play — \(title)")
         } else {
@@ -163,8 +165,7 @@ class StatusBarController: NSObject {
     @objc private func togglePause() {
         guard nodeProcessManager.isPlaying else { return }
         nodeProcessManager.togglePause()
-        isPausedState.toggle()
-        pauseItem.title = isPausedState ? "Resume" : "Pause"
+        // Don't toggle local state here — it's updated by pauseStateHandler callback from processLogLine
     }
 
     @objc private func stopPlayback() {

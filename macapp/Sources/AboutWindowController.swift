@@ -29,7 +29,7 @@ class AboutWindowController: NSWindowController {
         title.font = NSFont.boldSystemFont(ofSize: 20)
         contentView.addSubview(title)
 
-        let version = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.3.1"
+        let version = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "unknown"
         let build = Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? "1"
         let versionLabel = NSTextField(labelWithString: "Version \(version) (build \(build))")
         versionLabel.frame = NSRect(x: 0, y: 223, width: 420, height: 18)

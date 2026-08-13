@@ -42,6 +42,8 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
     func applicationWillTerminate(_ notification: Notification) {
         nodeProcessManager.stop()
+        // Give the stop handler time to clean up IPC socket and report stop to server
+        Thread.sleep(forTimeInterval: 1)
     }
 
     func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
