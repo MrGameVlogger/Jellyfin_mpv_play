@@ -48,6 +48,7 @@ if [ ! -f "$SCRIPT_DIR/shim.js" ]; then
 fi
 
 set +e
+cd "$SCRIPT_DIR"
 "$NODE_BIN" "$SCRIPT_DIR/shim.js"
 EXIT_CODE=$?
 set -e

@@ -28,6 +28,13 @@ jobs:
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
           echo "Detected version: $VERSION"
 
+          # Validate tag matches package.json
+          TAG="${GITHUB_REF#refs/tags/v}"
+          if [ "$TAG" != "$VERSION" ]; then
+            echo "ERROR: Tag v${TAG} does not match package.json version ${VERSION}"
+            exit 1
+          fi
+
   generate-notes:
     needs: get-version
     runs-on: ubuntu-latest
@@ -82,8 +89,10 @@ jobs:
           mkdir -p sync-output
           echo -e "$ENTRY" > sync-output/changelog-entry.md
 
-          # Sync Info.plist version
-          sed "s|<string>[0-9]*\.[0-9]*\.[0-9]*</string>|<string>${VERSION}</string>|g" macapp/Info.plist > sync-output/Info.plist
+          # Sync Info.plist version (only CFBundleVersion and CFBundleShortVersionString)
+          cp macapp/Info.plist sync-output/Info.plist
+          sed -i "/CFBundleVersion/{n;s|<string>[0-9.]*</string>|<string>${VERSION}</string>|}" sync-output/Info.plist
+          sed -i "/CFBundleShortVersionString/{n;s|<string>[0-9.]*</string>|<string>${VERSION}</string>|}" sync-output/Info.plist
 
           # Update SECURITY.md
           MAJOR_MINOR="${VERSION%.*}"
@@ -278,17 +287,17 @@ jobs:
 
           cat >> notes.md << 'EOF'
 
-          ### Quick Start
-          **macOS:** Unzip, move to Applications, launch. The setup wizard will guide you.
+### Quick Start
+**macOS:** Unzip, move to Applications, launch. The setup wizard will guide you.
 
-          **Linux:** Extract, edit `config.js`, run `./launch.sh`. See the included `.desktop` file for app launcher integration.
+**Linux:** Extract, edit `config.js`, run `./launch.sh`. See the included `.desktop` file for app launcher integration.
 
-          **Windows:** Extract, edit `config.js`, run `launch.bat`.
+**Windows:** Extract, edit `config.js`, run `launch.bat`.
 
-          All bundles include their own Node.js runtime. Only [MPV Player](https://mpv.io/installation/) is required.
+All bundles include their own Node.js runtime. Only [MPV Player](https://mpv.io/installation/) is required.
 
-          For full documentation, see the [README](https://github.com/MrGameVlogger/Jellyfin_mpv_play#readme).
-          EOF
+For full documentation, see the [README](https://github.com/MrGameVlogger/Jellyfin_mpv_play#readme).
+EOF
 
           gh release delete "v${VERSION}" -R MrGameVlogger/Jellyfin_mpv_play --yes 2>/dev/null || true
 

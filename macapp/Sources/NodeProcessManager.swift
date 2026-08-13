@@ -186,6 +186,7 @@ class NodeProcessManager {
         stderrPipe = nil
         process = nil
         stdoutBuffer = ""
+        stderrBuffer = ""
     }
 
     private func loadIpcSocketPath() {
