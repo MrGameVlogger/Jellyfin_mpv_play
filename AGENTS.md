@@ -101,54 +101,11 @@ Title format for `Episode detected`: `SeriesName - SxEp - EpisodeName` (parsed b
 
 **⚠️ Never delete releases to reorder them** — GitHub release assets (zip files, etc.) are permanently deleted when a release is deleted. If you need to reorder releases, use the GitHub API to update `published_at` dates instead. Always download assets before deleting a release.
 
-## Recent changes (v1.5.0 session)
+## GitHub workflow
 
-This section tracks recent work for future session context. Remove or update as needed.
-
-**Auto-play was completely rewritten:**
-- Old: relied on `eof-reached` IPC event (never fires with `--keep-open=yes`)
-- New: poll timer queries `time-pos`/`duration` via IPC every 1s, triggers at `pos >= dur - 1`
-- Episode transitions use `loadNextEpisode()` which reuses the MPV process via `loadfile` IPC command
-- `playMedia()` still spawns fresh MPV (used for initial play and when IPC is down)
-
-**Jellyfin API compliance was overhauled:**
-- Handles all 9 `PlaystateCommand` types
-- Full `GeneralCommand` handler (volume, mute, audio/subtitle tracks, etc.)
-- `SupportedCommands` uses correct `GeneralCommandType` enum names (wrong names cause 400 errors)
-- Reports `MediaSourceId`, `RepeatMode`, `PlaybackOrder` in all playback reports
-- Sends `SessionsStop` on shutdown
-
-**macOS app was audited against Apple HIG:**
-- All windows use standard layering (removed `.floating`)
-- Status bar icons are template images with accessibility descriptions
-- Log viewer respects system appearance (uses `.textBackgroundColor`/`.textColor`)
-- Deprecated `NSApp.activate(ignoringOtherApps:)` replaced with version-checked API
-- `LSApplicationCategoryType` added to Info.plist
-- Setup window has `.closable` style and `NSWindowDelegate` for proper close handling
-
-**macOS app bugs were fixed:**
-- Preferences save now triggers node restart (was silently ignored)
-- Setup "Skip" no longer writes empty config (was infinite loop)
-- `stopPlayback()` state protected from stale log line callbacks via `isStoppingPlayback` flag
-- `sendMpvCommand` captures socket path before background dispatch
-- `start()` stops existing process before starting new one (prevents orphans)
-- Shake animation works (`field.wantsLayer = true`)
-- `windowWillClose` double-callback prevented via `didComplete` guard
-
-**New macOS menu items:**
-- Copy Now Playing (clipboard)
-- Open at Login (toggle, synced with Preferences)
-- Open Config File (in default editor)
-- Open App Folder (Application Support)
-
-**Code cleanup:**
-- `ConfigParser.swift` extracted as shared utility (eliminates duplication)
-- Removed `icon-dark.png` hack — uses `AppIcon.icns` for all modes
-- Removed dead `NotificationPermissionDenied` notification
-- Removed `DistributedNotificationCenter` observer leak in About
-- Removed synchronous `which node` call that blocked main thread
-
-**Known issues / TODO:**
-- `PlayNext`/`PlayLast` PlayCommand values are treated as `PlayNow` (mpv has no queue concept)
-- `AudioStreamIndex`/`SubtitleStreamIndex` not reported in progress reports (would need mpv query)
-- Thread safety: `processLogLine` now dispatched to main thread, but `togglePause()`/`stopPlayback()` still called from main thread without synchronization with background state changes
+- **Branch protection**: `main` requires PRs (force pushes and deletions blocked)
+- **Merge strategy**: Squash merge (`--squash`) — one commit per PR
+- **PR workflow**: Create branch → commit → push → `gh pr create` → `gh pr merge --squash` → delete branch
+- **Dependabot**: Weekly npm dependency updates on Mondays
+- **Auto-labeler**: PRs auto-labeled by file paths (macos, shim, documentation, dependencies, images)
+- **Signed commits and tags**: SSH signing configured — all commits and tags should be signed
