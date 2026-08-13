@@ -77,7 +77,7 @@ function loadToken() {
 
 function saveToken(authResponse) {
     try {
-        fs.writeFileSync(TOKEN_FILE, JSON.stringify(authResponse, null, 2));
+        fs.writeFileSync(TOKEN_FILE, JSON.stringify(authResponse, null, 2), { mode: 0o600 });
         accessToken = authResponse.AccessToken;
         userId = authResponse.User?.Id;
         console.log('💾 Token saved successfully');
@@ -589,7 +589,7 @@ async function playMedia(itemId, startTicks) {
 
     console.log('🍿 Launching MPV (Idle Mode)...');
     console.log(`    Item ID: ${itemId}`);
-    console.log(`    Stream URL: ${pendingStreamUrl}`);
+    console.log(`    Stream URL: ${CONFIG.serverUrl}/Videos/${itemId}/stream?static=true&api_key=***`);
     console.log(`    MPV Path: ${CONFIG.mpvPath}`);
 
     const titleText = currentEpisodeInfo.isSeries 
@@ -731,8 +731,7 @@ function connectToMpvIpc(gen) {
             sendMpvCommand('keybind', ['PREV', 'script-message jellyfin-prev']);
             sendMpvCommand('keybind', ['>', 'script-message jellyfin-next']);
             sendMpvCommand('keybind', ['<', 'script-message jellyfin-prev']);
-            
-            console.log('⌨️ Keys bound');
+            console.log('⌨️ Keys bound (NEXT/PREV/>/< overridden for Jellyfin remote control)');
         });
 
         ipcClient.on('data', (data) => {
@@ -1215,6 +1214,14 @@ function shutdown(signal) {
 
 process.on('SIGINT', () => shutdown('SIGINT'));
 process.on('SIGTERM', () => shutdown('SIGTERM'));
+process.on('uncaughtException', (err) => {
+    console.error('❌ Uncaught exception:', err);
+    shutdown('uncaughtException');
+});
+process.on('unhandledRejection', (reason) => {
+    console.error('❌ Unhandled rejection:', reason);
+    shutdown('unhandledRejection');
+});
 
 async function main() {
     console.log('\n🚀 Starting Jellyfin MPV Shim...\n');

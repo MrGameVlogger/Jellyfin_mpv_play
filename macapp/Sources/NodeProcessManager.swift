@@ -214,7 +214,12 @@ class NodeProcessManager {
                 }
             }
 
-            guard connected == 0 else { return }
+            guard connected == 0 else {
+                DispatchQueue.main.async { [weak self] in
+                    self?.logHandler("WARN: Failed to connect to MPV IPC socket")
+                }
+                return
+            }
 
             let json = "\(command)\n"
             guard let data = json.data(using: .utf8) else { return }
@@ -225,7 +230,12 @@ class NodeProcessManager {
                     guard let ptr = buf.baseAddress?.advanced(by: totalSent) else { return -1 }
                     return send(sock, ptr, data.count - totalSent, 0)
                 }
-                if result <= 0 { break }
+                if result <= 0 {
+                    DispatchQueue.main.async { [weak self] in
+                        self?.logHandler("WARN: Failed to send MPV IPC command")
+                    }
+                    break
+                }
                 totalSent += result
             }
         }
@@ -233,8 +243,8 @@ class NodeProcessManager {
 
     func togglePause() {
         guard !isStoppingPlayback else { return }
-        isPaused.toggle()
-        sendMpvCommand("{\"command\": [\"set_property\", \"pause\", \(isPaused)]}")
+        // Send toggle command — actual state is updated by processLogLine via pauseStateHandler
+        sendMpvCommand("{\"command\": [\"set_property\", \"pause\", \(!isPaused)]}")
     }
 
     func stopPlayback() {
