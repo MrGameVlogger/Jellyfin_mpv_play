@@ -27,9 +27,9 @@ class HelpWindowController: NSWindowController {
         scrollView.drawsBackground = false
 
         let containerWidth = scrollView.contentView.bounds.width
-        let containerView = NSView(frame: NSRect(x: 0, y: 0, width: containerWidth, height: 1100))
+        let containerView = NSView(frame: NSRect(x: 0, y: 0, width: containerWidth, height: 2000))
 
-        var y: CGFloat = 1060
+        var y: CGFloat = 1960
 
         func addDivider() {
             let line = NSBox()
@@ -167,6 +167,10 @@ class HelpWindowController: NSWindowController {
         addLink("MPV: mpv.io", url: "https://mpv.io")
         addLink("Jellyfin: jellyfin.org", url: "https://jellyfin.org")
         addSpacing(20)
+
+        // Set container height to actual content height
+        let contentHeight = 2000 - y + 40
+        containerView.frame = NSRect(x: 0, y: 0, width: containerWidth, height: contentHeight)
 
         scrollView.documentView = containerView
         contentView.addSubview(scrollView)
