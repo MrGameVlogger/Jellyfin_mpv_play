@@ -9,7 +9,7 @@ module.exports = {
     password: '',
     
     // Full path to MPV executable
-    // macOS:   '/opt/homebrew/bin/mpv'
+    // macOS:   '/opt/homebrew/bin/mpv' (Apple Silicon) or '/usr/local/bin/mpv' (Intel)
     // Linux:   '/usr/bin/mpv' (or just 'mpv' if in PATH)
     // Windows: 'C:\\Program Files\\mpv\\mpv.exe' (or just 'mpv' if in PATH)
     mpvPath: '/opt/homebrew/bin/mpv',
