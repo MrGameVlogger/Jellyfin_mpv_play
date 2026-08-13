@@ -1,19 +1,36 @@
 {
   "name": "jellyfin-mpv-play",
   "version": "1.5.0",
-  "description": "Play Jellyfin content in MPV directly from your browser",
+  "description": "Control MPV from Jellyfin's web interface. Play movies and series with hardware acceleration, auto-resume, and auto-play next episode.",
   "main": "shim.js",
   "scripts": {
     "start": "node shim.js"
   },
-  "keywords": ["jellyfin", "mpv", "media", "player", "streaming", "shim"],
+  "keywords": [
+    "jellyfin",
+    "mpv",
+    "media-player",
+    "streaming",
+    "video-player",
+    "home-theater",
+    "macos",
+    "menubar-app"
+  ],
   "author": "JohnGlaus",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/MrGameVlogger/Jellyfin_mpv_play.git"
+  },
+  "bugs": {
+    "url": "https://github.com/MrGameVlogger/Jellyfin_mpv_play/issues"
+  },
+  "homepage": "https://github.com/MrGameVlogger/Jellyfin_mpv_play#readme",
   "dependencies": {
-    "axios": "^1.13.2",
-    "ws": "^8.18.3"
+    "axios": "^1.19.0",
+    "ws": "^8.21.3"
   },
   "engines": {
-    "node": ">=14.0.0"
+    "node": ">=18.0.0"
   }
 }
