@@ -30,8 +30,8 @@
 | Platform | Requirements |
 |----------|-------------|
 | 🍎 **macOS** | [MPV Player](https://mpv.io/installation/) + the `.app` (download or build) · Jellyfin server |
-| 🪟 **Windows** | [Node.js v18+ · [MPV Player](https://mpv.io/installation/) · Jellyfin server |
-| 🐧 **Linux** | [Node.js v18+ · [MPV Player](https://mpv.io/installation/) · Jellyfin server |
+| 🪟 **Windows** | [Node.js v18+](https://nodejs.org/) · [MPV Player](https://mpv.io/installation/) · Jellyfin server |
+| 🐧 **Linux** | [Node.js v18+](https://nodejs.org/) · [MPV Player](https://mpv.io/installation/) · Jellyfin server |
 
 ---
 

@@ -107,5 +107,5 @@ Title format for `Episode detected`: `SeriesName - SxEp - EpisodeName` (parsed b
 - **Merge strategy**: Squash merge (`--squash`) — one commit per PR
 - **PR workflow**: Create branch → commit → push → `gh pr create` → `gh pr merge --squash` → delete branch
 - **Dependabot**: Weekly npm dependency updates on Mondays
-- **Auto-labeler**: PRs auto-labeled by file paths (macos, shim, documentation, dependencies, images)
-- **Signed commits and tags**: SSH signing configured — all commits and tags should be signed
+- **Auto-labeler**: PRs auto-labeled by file paths (macos, shim, documentation, ci, dependencies, images)
+- **Signed commits and tags**: SSH signing configured in global git config — all commits and tags should be signed
