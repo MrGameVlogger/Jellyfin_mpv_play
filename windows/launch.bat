@@ -2,8 +2,9 @@
 setlocal
 
 set "SCRIPT_DIR=%~dp0"
-set "CONFIG_FILE=%SCRIPT_DIR%config.js"
-set "EXAMPLE_CONFIG=%SCRIPT_DIR%config.example.js"
+if "%SCRIPT_DIR:~-1%"=="\" set "SCRIPT_DIR=%SCRIPT_DIR:~0,-1%"
+set "CONFIG_FILE=%SCRIPT_DIR%\config.js"
+set "EXAMPLE_CONFIG=%SCRIPT_DIR%\config.example.js"
 
 if not exist "%CONFIG_FILE%" (
     if exist "%EXAMPLE_CONFIG%" (
@@ -32,7 +33,7 @@ if errorlevel 1 (
     exit /b 1
 )
 
-set "NODE_BIN=%SCRIPT_DIR%node\node.exe"
+set "NODE_BIN=%SCRIPT_DIR%\node\node.exe"
 if not exist "%NODE_BIN%" (
     echo ERROR: Bundled Node.js not found at "%NODE_BIN%" >&2
     echo Bundle may be corrupted. Please re-download. >&2
@@ -40,14 +41,14 @@ if not exist "%NODE_BIN%" (
     exit /b 1
 )
 
-if not exist "%SCRIPT_DIR%shim.js" (
+if not exist "%SCRIPT_DIR%\shim.js" (
     echo ERROR: shim.js not found in "%SCRIPT_DIR%" >&2
     echo Bundle may be corrupted. Please re-download. >&2
     pause
     exit /b 1
 )
 
-"%NODE_BIN%" "%SCRIPT_DIR%shim.js"
+"%NODE_BIN%" "%SCRIPT_DIR%\shim.js"
 if errorlevel 1 (
     echo.
     echo Shim exited with an error.

@@ -49,4 +49,46 @@ enum ConfigParser {
             .replacingOccurrences(of: "\r", with: "\\r")
             .replacingOccurrences(of: "\t", with: "\\t")
     }
+
+    static func testConnection(server: String, username: String, password: String, deviceId: String = "test", deviceName: String = "Jellyfin MPV Play", completion: @escaping (Bool, String) -> Void) {
+        let trimmedServer = server.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
+        guard !trimmedServer.isEmpty, !username.isEmpty, !password.isEmpty else {
+            completion(false, "Fill in all fields")
+            return
+        }
+
+        guard let url = URL(string: "\(trimmedServer)/Users/AuthenticateByName"),
+              let scheme = url.scheme?.lowercased(),
+              (scheme == "http" || scheme == "https") else {
+            completion(false, "Invalid URL (use http:// or https://)")
+            return
+        }
+
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.addValue("application/json", forHTTPHeaderField: "Content-Type")
+        let version = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0.0"
+        let authHeader = "MediaBrowser Client=\"Jellyfin MPV Play\", Device=\"\(deviceName)\", DeviceId=\"\(deviceId)\", Version=\"\(version)\""
+        request.addValue(authHeader, forHTTPHeaderField: "X-Emby-Authorization")
+        let body: [String: Any] = ["Username": username, "Pw": password]
+        request.httpBody = try? JSONSerialization.data(withJSONObject: body)
+
+        URLSession.shared.dataTask(with: request) { data, response, error in
+            DispatchQueue.main.async {
+                if let error = error {
+                    completion(false, "Failed: \(error.localizedDescription)")
+                    return
+                }
+                guard let httpResponse = response as? HTTPURLResponse else {
+                    completion(false, "Invalid response")
+                    return
+                }
+                if httpResponse.statusCode == 200 {
+                    completion(true, "Connected!")
+                } else {
+                    completion(false, "Failed: HTTP \(httpResponse.statusCode)")
+                }
+            }
+        }.resume()
+    }
 }

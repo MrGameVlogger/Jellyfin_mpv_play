@@ -1,7 +1,7 @@
 import Cocoa
 import ServiceManagement
 
-class StatusBarController: NSObject {
+class StatusBarController: NSObject, NSMenuDelegate {
     private var statusItem: NSStatusItem!
     private var nodeProcessManager: NodeProcessManager
     private var logWindowController: LogWindowController
@@ -13,6 +13,7 @@ class StatusBarController: NSObject {
     private var pauseItem: NSMenuItem!
     private var stopItem: NSMenuItem!
     private var copyNowPlayingItem: NSMenuItem!
+    private var loginItem: NSMenuItem!
     private var isPausedState = false
 
     init(nodeProcessManager: NodeProcessManager, logWindowController: LogWindowController) {
@@ -77,10 +78,12 @@ class StatusBarController: NSObject {
 
         menu.addItem(.separator())
 
-        let loginItem = NSMenuItem(title: "Open at Login", action: #selector(toggleOpenAtLogin), keyEquivalent: "")
+        loginItem = NSMenuItem(title: "Open at Login", action: #selector(toggleOpenAtLogin), keyEquivalent: "")
         loginItem.target = self
         loginItem.state = SMAppService.mainApp.status == .enabled ? .on : .off
         menu.addItem(loginItem)
+
+        menu.delegate = self
 
         let openConfigItem = NSMenuItem(title: "Open Config File", action: #selector(openConfigFile), keyEquivalent: "")
         openConfigItem.target = self
@@ -154,11 +157,25 @@ class StatusBarController: NSObject {
     private func setStatusIcon(_ symbolName: String, color: NSColor, tooltip: String) {
         guard let button = statusItem.button else { return }
         if let image = NSImage(systemSymbolName: symbolName, accessibilityDescription: tooltip) {
-            image.isTemplate = true
+            image.isTemplate = false
             button.image = image
         }
         button.contentTintColor = color
         button.toolTip = tooltip
+    }
+
+    private func showAndActivate(_ controller: NSWindowController) {
+        controller.showWindow(nil)
+        controller.window?.makeKeyAndOrderFront(nil)
+        if #available(macOS 14.0, *) {
+            NSApp.activate()
+        } else {
+            NSApp.activate(ignoringOtherApps: true)
+        }
+    }
+
+    func menuWillOpen(_ menu: NSMenu) {
+        loginItem.state = SMAppService.mainApp.status == .enabled ? .on : .off
     }
 
     @objc private func togglePause() {
@@ -175,13 +192,7 @@ class StatusBarController: NSObject {
     }
 
     @objc private func showLogs() {
-        logWindowController.showWindow(nil)
-        logWindowController.window?.makeKeyAndOrderFront(nil)
-        if #available(macOS 14.0, *) {
-            NSApp.activate()
-        } else {
-            NSApp.activate(ignoringOtherApps: true)
-        }
+        showAndActivate(logWindowController)
     }
 
     @objc private func showPreferences() {
@@ -195,12 +206,8 @@ class StatusBarController: NSObject {
                 }
             }
         }
-        preferencesWindowController?.showWindow(nil)
-        preferencesWindowController?.window?.makeKeyAndOrderFront(nil)
-        if #available(macOS 14.0, *) {
-            NSApp.activate()
-        } else {
-            NSApp.activate(ignoringOtherApps: true)
+        if let controller = preferencesWindowController {
+            showAndActivate(controller)
         }
     }
 
@@ -208,12 +215,8 @@ class StatusBarController: NSObject {
         if aboutWindowController == nil {
             aboutWindowController = AboutWindowController()
         }
-        aboutWindowController?.showWindow(nil)
-        aboutWindowController?.window?.makeKeyAndOrderFront(nil)
-        if #available(macOS 14.0, *) {
-            NSApp.activate()
-        } else {
-            NSApp.activate(ignoringOtherApps: true)
+        if let controller = aboutWindowController {
+            showAndActivate(controller)
         }
     }
 
@@ -221,12 +224,8 @@ class StatusBarController: NSObject {
         if helpWindowController == nil {
             helpWindowController = HelpWindowController()
         }
-        helpWindowController?.showWindow(nil)
-        helpWindowController?.window?.makeKeyAndOrderFront(nil)
-        if #available(macOS 14.0, *) {
-            NSApp.activate()
-        } else {
-            NSApp.activate(ignoringOtherApps: true)
+        if let controller = helpWindowController {
+            showAndActivate(controller)
         }
     }
 

@@ -1149,6 +1149,7 @@ function startProgressReporting(itemId) {
         const currentTicks = Math.round(currentPositionSeconds * 10000000);
         if (currentPositionSeconds > 10) {
             savePlaybackPosition(currentItemId, currentTicks);
+            reportPlaybackProgress(currentItemId, currentTicks);
         }
     }, 10000);
 }

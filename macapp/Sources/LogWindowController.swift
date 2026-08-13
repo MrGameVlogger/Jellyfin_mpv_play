@@ -5,7 +5,6 @@ class LogWindowController: NSWindowController {
     private var scrollView: NSScrollView!
     private var autoScroll = true
     private var autoScrollButton: NSButton!
-    private var lineCount = 0
 
     convenience init() {
         let window = NSWindow(
@@ -69,21 +68,18 @@ class LogWindowController: NSWindowController {
             ]
         )
         textView.textStorage?.append(attributedString)
-        lineCount += 1
 
         if autoScroll {
             textView.scrollRangeToVisible(NSRange(location: (textView.string as NSString).length, length: 0))
         }
 
-        if lineCount > 1000 {
+        let currentLineCount = textView.string.components(separatedBy: .newlines).count
+        if currentLineCount > 1000 {
             let nsString = textView.string as NSString
             let halfLength = nsString.length / 2
             let range = nsString.range(of: "\n", options: [], range: NSRange(location: 0, length: halfLength))
             if range.location != NSNotFound {
-                let deletedText = nsString.substring(to: range.location + 1)
-                let deletedLines = deletedText.components(separatedBy: "\n").count - 1
                 textView.textStorage?.deleteCharacters(in: NSRange(location: 0, length: range.location + 1))
-                lineCount -= deletedLines
             }
         }
     }
@@ -103,7 +99,6 @@ class LogWindowController: NSWindowController {
 
     @objc private func clearLog() {
         textView.string = ""
-        lineCount = 0
     }
 
     @objc private func toggleAutoScroll() {

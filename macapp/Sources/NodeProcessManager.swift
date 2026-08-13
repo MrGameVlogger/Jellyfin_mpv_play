@@ -77,7 +77,7 @@ class NodeProcessManager {
 
         stdoutPipe.fileHandleForReading.readabilityHandler = { [weak self] handle in
             let data = handle.availableData
-            guard !data.isEmpty, let str = String(data: data, encoding: .utf8) else { return }
+            guard !data.isEmpty, let str = String(data: data, encoding: .isoLatin1) else { return }
             DispatchQueue.main.async { [weak self] in
                 guard let self = self else { return }
                 self.stdoutBuffer += str
@@ -91,7 +91,7 @@ class NodeProcessManager {
 
         stderrPipe.fileHandleForReading.readabilityHandler = { [weak self] handle in
             let data = handle.availableData
-            guard !data.isEmpty, let str = String(data: data, encoding: .utf8) else { return }
+            guard !data.isEmpty, let str = String(data: data, encoding: .isoLatin1) else { return }
             DispatchQueue.main.async { [weak self] in
                 guard let self = self else { return }
                 self.stderrBuffer += str
@@ -266,13 +266,17 @@ class NodeProcessManager {
 
     func stopPlayback() {
         isStoppingPlayback = true
+        resetPlaybackState()
+        sendMpvCommand("{\"command\": [\"quit\"]}")
+    }
+
+    private func resetPlaybackState() {
         isPlaying = false
         isPaused = false
         nowPlaying = nil
         nowPlayingHandler?(nil)
         pauseStateHandler?(false)
         statusHandler(.connected)
-        sendMpvCommand("{\"command\": [\"quit\"]}")
     }
 
     private func processLogLine(_ line: String) {
@@ -313,20 +317,10 @@ class NodeProcessManager {
             pauseStateHandler?(false)
         } else if line.contains("No more episodes") {
             isStoppingPlayback = false
-            isPlaying = false
-            isPaused = false
-            nowPlaying = nil
-            nowPlayingHandler?(nil)
-            pauseStateHandler?(false)
-            statusHandler(.connected)
+            resetPlaybackState()
         } else if line.contains("Closing application") || line.contains("MPV closed") || line.contains("Process terminated") {
             isStoppingPlayback = false
-            isPlaying = false
-            isPaused = false
-            nowPlaying = nil
-            nowPlayingHandler?(nil)
-            pauseStateHandler?(false)
-            statusHandler(.connected)
+            resetPlaybackState()
         } else if line.contains("ERROR") || line.contains("❌") || line.contains("FATAL") {
             notificationHandler("Error", line)
         }

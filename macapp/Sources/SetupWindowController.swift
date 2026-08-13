@@ -341,7 +341,7 @@ class SetupWindowController: NSWindowController, NSWindowDelegate {
     }
 
     @objc private func testConnection() {
-        let server = serverField.stringValue.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
+        let server = serverField.stringValue
         let user = usernameField.stringValue
         let pass = passwordField.stringValue
 
@@ -355,45 +355,11 @@ class SetupWindowController: NSWindowController, NSWindowDelegate {
         statusLabel.stringValue = "Testing..."
         statusLabel.textColor = .labelColor
 
-        guard let url = URL(string: "\(server)/Users/AuthenticateByName"),
-              let scheme = url.scheme?.lowercased(),
-              (scheme == "http" || scheme == "https") else {
-            statusLabel.stringValue = "Invalid URL"
-            statusLabel.textColor = .systemRed
-            testButton.isEnabled = true
-            return
+        ConfigParser.testConnection(server: server, username: user, password: pass, deviceId: "setup-test", deviceName: "Setup") { [weak self] success, message in
+            self?.testButton.isEnabled = true
+            self?.statusLabel.stringValue = message
+            self?.statusLabel.textColor = success ? .systemGreen : .systemRed
         }
-
-        var request = URLRequest(url: url)
-        request.httpMethod = "POST"
-        request.addValue("application/json", forHTTPHeaderField: "Content-Type")
-        let authHeader = "MediaBrowser Client=\"Jellyfin MPV Play\", Device=\"Setup\", DeviceId=\"setup-test\", Version=\"\(Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0.0")\""
-        request.addValue(authHeader, forHTTPHeaderField: "X-Emby-Authorization")
-        let body: [String: Any] = ["Username": user, "Pw": pass]
-        request.httpBody = try? JSONSerialization.data(withJSONObject: body)
-
-        URLSession.shared.dataTask(with: request) { [weak self] data, response, error in
-            DispatchQueue.main.async {
-                self?.testButton.isEnabled = true
-                if let error = error {
-                    self?.statusLabel.stringValue = "Failed: \(error.localizedDescription)"
-                    self?.statusLabel.textColor = .systemRed
-                    return
-                }
-                guard let httpResponse = response as? HTTPURLResponse else {
-                    self?.statusLabel.stringValue = "Invalid response"
-                    self?.statusLabel.textColor = .systemRed
-                    return
-                }
-                if httpResponse.statusCode == 200 {
-                    self?.statusLabel.stringValue = "Connected!"
-                    self?.statusLabel.textColor = .systemGreen
-                } else {
-                    self?.statusLabel.stringValue = "Failed: HTTP \(httpResponse.statusCode)"
-                    self?.statusLabel.textColor = .systemRed
-                }
-            }
-        }.resume()
     }
 
     private func saveAndFinish() {

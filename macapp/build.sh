@@ -51,6 +51,20 @@ mkdir -p "$NODE_TMP"
 
 echo "Downloading $NODE_URL..."
 curl -fL "$NODE_URL" -o "$NODE_TMP/$NODE_TAR"
+
+# Verify SHA256 checksum
+CHECKSUM_URL="https://nodejs.org/dist/v$NODE_VERSION/SHASUMS256.txt"
+EXPECTED=$(curl -sL "$CHECKSUM_URL" | grep "$NODE_TAR" | awk '{print $1}')
+ACTUAL=$(shasum -a 256 "$NODE_TMP/$NODE_TAR" | awk '{print $1}')
+if [ "$EXPECTED" != "$ACTUAL" ]; then
+    echo "ERROR: Node.js checksum mismatch!" >&2
+    echo "  Expected: $EXPECTED" >&2
+    echo "  Actual:   $ACTUAL" >&2
+    rm -rf "$NODE_TMP"
+    exit 1
+fi
+echo "Checksum verified."
+
 echo "Extracting..."
 tar -xzf "$NODE_TMP/$NODE_TAR" -C "$NODE_TMP"
 mv "$NODE_TMP/node-v$NODE_VERSION-darwin-$NODE_ARCH" "$NODE_DIR"
