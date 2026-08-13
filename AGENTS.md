@@ -91,14 +91,20 @@ Title format for `Episode detected`: `SeriesName - SxEp - EpisodeName` (parsed b
 
 ## Release workflow
 
-1. Increment version in `macapp/Info.plist` **and** `package.json`
+1. Increment version in `package.json` (use `npm version X.Y.Z`)
 2. Commit, push to a branch, and merge via PR
 3. Create and push a version tag: `git tag -a vX.Y.Z -m "vX.Y.Z" && git push origin vX.Y.Z`
 4. The CI workflow (`.github/workflows/build.yml`) automatically:
+   - Syncs version from `package.json` to `macapp/Info.plist`
+   - Updates `SECURITY.md` supported versions table
+   - Generates `CHANGELOG.md` entry from merged PRs
+   - Commits synced files back to `main`
    - Builds macOS `.app` bundle (runs on `macos-latest`)
    - Builds Linux bundle with bundled Node.js (runs on `ubuntu-latest`)
    - Builds Windows bundle with bundled Node.js (runs on `windows-latest`)
    - Creates a GitHub Release with all 3 platform artifacts
+
+`package.json` is the single source of truth for version. `shim.js` reads it at runtime. `Info.plist` is auto-synced by CI.
 
 The macOS `.app` can also be built locally: `cd macapp && ./build.sh` (deploys to `/Applications`). Use `CI=true` to skip the deploy step.
 

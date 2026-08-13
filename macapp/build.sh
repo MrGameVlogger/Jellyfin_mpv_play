@@ -30,6 +30,7 @@ cp "$BUILD_DIR/AppIcon.icns" "$RESOURCES_DIR/AppIcon.icns"
 # Bundle JS files into Resources
 echo "Bundling JS files..."
 cp "$PROJECT_DIR/shim.js" "$RESOURCES_DIR/shim.js"
+cp "$PROJECT_DIR/package.json" "$RESOURCES_DIR/package.json"
 cp "$PROJECT_DIR/config.example.js" "$RESOURCES_DIR/config.example.js"
 cp -R "$PROJECT_DIR/node_modules" "$RESOURCES_DIR/node_modules"
 
