@@ -8,6 +8,11 @@ set "EXAMPLE_CONFIG=%SCRIPT_DIR%config.example.js"
 if not exist "%CONFIG_FILE%" (
     if exist "%EXAMPLE_CONFIG%" (
         copy "%EXAMPLE_CONFIG%" "%CONFIG_FILE%" >nul
+        if errorlevel 1 (
+            echo ERROR: Failed to create config.js >&2
+            pause
+            exit /b 1
+        )
         echo First run: created config.js from config.example.js
         echo Please edit "%CONFIG_FILE%" with your Jellyfin server details and MPV path, then run this again.
         pause

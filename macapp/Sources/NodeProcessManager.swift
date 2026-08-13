@@ -18,6 +18,7 @@ class NodeProcessManager {
     private var restartCount = 0
     private var maxRestarts = 5
     private var isShuttingDown = false
+    private var shutdownCompletion: (() -> Void)?
     private(set) var nowPlaying: String?
     var nowPlayingHandler: ((String?) -> Void)?
     var pauseStateHandler: ((Bool) -> Void)?
@@ -140,21 +141,25 @@ class NodeProcessManager {
     }
 
     func stop(completion: (() -> Void)? = nil) {
-        guard !isShuttingDown || completion != nil else {
+        if isShuttingDown {
+            if let completion = completion {
+                let existing = shutdownCompletion
+                shutdownCompletion = { existing?(); completion() }
+            }
             return
         }
         isShuttingDown = true
+        shutdownCompletion = completion
         let ipcPath = ipcSocketPath
         if let process = process, process.isRunning {
             let proc = process
-            let existingHandler = proc.terminationHandler
-            proc.terminationHandler = { arg in
+            proc.terminationHandler = { [weak self] arg in
                 if FileManager.default.fileExists(atPath: ipcPath) {
                     try? FileManager.default.removeItem(atPath: ipcPath)
                 }
                 DispatchQueue.main.async {
-                    existingHandler?(arg)
-                    completion?()
+                    self?.shutdownCompletion?()
+                    self?.shutdownCompletion = nil
                 }
             }
             proc.terminate()
@@ -174,7 +179,8 @@ class NodeProcessManager {
             if FileManager.default.fileExists(atPath: ipcPath) {
                 try? FileManager.default.removeItem(atPath: ipcPath)
             }
-            completion?()
+            shutdownCompletion?()
+            shutdownCompletion = nil
             cleanupPipes()
         }
     }

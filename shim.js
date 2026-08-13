@@ -190,7 +190,7 @@ async function connectWebSocket() {
         ws = null;
     }
     
-    const wsUrl = `${CONFIG.serverUrl.replace('http', 'ws')}/socket?api_key=${accessToken}&deviceId=${CONFIG.deviceId}`;
+    const wsUrl = CONFIG.serverUrl.replace(/^http/, 'ws') + `/socket?api_key=${accessToken}&deviceId=${CONFIG.deviceId}`;
     
     console.log('🔌 Connecting to Jellyfin...');
     
@@ -1216,18 +1216,33 @@ function shutdown(signal) {
     
     if (currentItemId && currentPositionSeconds > 0) {
         savePlaybackPosition(currentItemId, Math.round(currentPositionSeconds * 10000000));
-        if (!isReportingStop) {
-            reportPlaybackStop(currentItemId, Math.round(currentPositionSeconds * 10000000));
+    }
+
+    const doExit = () => {
+        killMpv();
+        if (ws && ws.readyState === WebSocket.OPEN) {
+            try { ws.send(JSON.stringify({ MessageType: 'SessionsStop' })); } catch (e) {}
         }
+        if (ws) ws.close();
+        setTimeout(() => process.exit(0), 500);
+    };
+
+    if (currentItemId && !isReportingStop) {
+        isReportingStop = true;
+        const headers = getAuthHeaders();
+        const data = {
+            ItemId: currentItemId,
+            PositionTicks: Math.round(currentPositionSeconds * 10000000),
+            IsPaused: false,
+            PlayMethod: 'DirectPlay',
+            PlaySessionId: playSessionId
+        };
+        axios.post(`${CONFIG.serverUrl}/Sessions/Playing/Stopped`, data, { headers })
+            .catch(() => {})
+            .finally(doExit);
+    } else {
+        doExit();
     }
-    
-    isReportingStop = true;
-    killMpv();
-    if (ws && ws.readyState === WebSocket.OPEN) {
-        try { ws.send(JSON.stringify({ MessageType: 'SessionsStop' })); } catch (e) {}
-    }
-    if (ws) ws.close();
-    setTimeout(() => process.exit(0), 500);
 }
 
 process.on('SIGINT', () => shutdown('SIGINT'));

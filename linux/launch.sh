@@ -49,7 +49,10 @@ fi
 
 set +e
 cd "$SCRIPT_DIR"
-"$NODE_BIN" "$SCRIPT_DIR/shim.js"
+"$NODE_BIN" "$SCRIPT_DIR/shim.js" &
+NODE_PID=$!
+trap 'kill $NODE_PID 2>/dev/null' INT TERM
+wait $NODE_PID
 EXIT_CODE=$?
 set -e
 if [ $EXIT_CODE -ne 0 ]; then
