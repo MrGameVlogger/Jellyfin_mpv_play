@@ -133,53 +133,14 @@ class PreferencesWindowController: NSWindowController {
         statusLabel.stringValue = "Testing..."
         statusLabel.textColor = .labelColor
 
-        let urlString = serverUrlField.stringValue.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
-        let username = usernameField.stringValue
-        let password = passwordField.stringValue
-
-        guard let url = URL(string: "\(urlString)/Users/AuthenticateByName"),
-              let scheme = url.scheme?.lowercased(),
-              (scheme == "http" || scheme == "https") else {
-            statusLabel.stringValue = "Invalid URL (use http:// or https://)"
-            statusLabel.textColor = .systemRed
-            testButton.isEnabled = true
-            return
-        }
-
-        var request = URLRequest(url: url)
-        request.httpMethod = "POST"
-        request.addValue("application/json", forHTTPHeaderField: "Content-Type")
         let deviceId = deviceIdField.stringValue.isEmpty ? "test-device" : deviceIdField.stringValue
         let deviceName = deviceNameField.stringValue.isEmpty ? "Jellyfin MPV Play" : deviceNameField.stringValue
-        let version = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0.0"
-        let authHeader = "MediaBrowser Client=\"Jellyfin MPV Play\", Device=\"\(deviceName)\", DeviceId=\"\(deviceId)\", Version=\"\(version)\""
-        request.addValue(authHeader, forHTTPHeaderField: "X-Emby-Authorization")
 
-        let body: [String: Any] = ["Username": username, "Pw": password]
-        request.httpBody = try? JSONSerialization.data(withJSONObject: body)
-
-        URLSession.shared.dataTask(with: request) { [weak self] data, response, error in
-            DispatchQueue.main.async {
-                self?.testButton.isEnabled = true
-                if let error = error {
-                    self?.statusLabel.stringValue = "Failed: \(error.localizedDescription)"
-                    self?.statusLabel.textColor = .systemRed
-                    return
-                }
-                guard let httpResponse = response as? HTTPURLResponse else {
-                    self?.statusLabel.stringValue = "Invalid response"
-                    self?.statusLabel.textColor = .systemRed
-                    return
-                }
-                if httpResponse.statusCode == 200 {
-                    self?.statusLabel.stringValue = "Connected!"
-                    self?.statusLabel.textColor = .systemGreen
-                } else {
-                    self?.statusLabel.stringValue = "Failed: HTTP \(httpResponse.statusCode)"
-                    self?.statusLabel.textColor = .systemRed
-                }
-            }
-        }.resume()
+        ConfigParser.testConnection(server: serverUrlField.stringValue, username: usernameField.stringValue, password: passwordField.stringValue, deviceId: deviceId, deviceName: deviceName) { [weak self] success, message in
+            self?.testButton.isEnabled = true
+            self?.statusLabel.stringValue = message
+            self?.statusLabel.textColor = success ? .systemGreen : .systemRed
+        }
     }
 
     @objc private func saveConfig() {
