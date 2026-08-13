@@ -792,6 +792,9 @@ function connectToMpvIpc(gen) {
                 setTimeout(attemptConnection, retryDelay);
             } else if (connectionAttempts >= maxAttempts) {
                 console.error('❌ Maximum IPC connection attempts reached');
+                if (currentItemId && !isReportingStop) {
+                    reportPlaybackStop(currentItemId, Math.round(currentPositionSeconds * 10000000));
+                }
                 killMpv();
             }
         });
