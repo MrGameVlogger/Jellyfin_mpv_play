@@ -631,6 +631,7 @@ async function playMedia(itemId, startTicks) {
         
         console.log(`✅ MPV started with PID: ${mpvProcess.pid}`);
 
+        reportPlaybackStart(itemId, startTicks);
         startProgressReporting(itemId);
 
         setTimeout(() => {
@@ -921,11 +922,6 @@ function handleMpvEvent(event) {
         markedWatched.clear();
         startProgressPoll();
         
-        // Report playback start now that file is actually loaded
-        if (currentItemId) {
-            reportPlaybackStart(currentItemId, Math.round(currentPositionSeconds * 10000000));
-        }
-        
         if (pendingTitle) {
             sendMpvCommand('set_property', ['force-media-title', pendingTitle]);
             sendMpvCommand('set_property', ['title', pendingTitle]);
@@ -1117,25 +1113,31 @@ function reportPlaybackStart(itemId, positionTicks) {
     const headers = getAuthHeaders();
     
     const data = {
-        playbackStartInfo: {
-            ItemId: itemId,
-            PositionTicks: positionTicks,
-            IsPaused: false,
-            IsMuted: isMuted,
-            VolumeLevel: volumeLevel,
-            PlayMethod: 'DirectPlay',
-            PlaySessionId: playSessionId,
-            CanSeek: true,
-            RepeatMode: 'RepeatNone',
-            MediaSourceId: itemId
-        }
+        ItemId: itemId,
+        MediaSourceId: itemId,
+        PositionTicks: positionTicks,
+        IsPaused: false,
+        IsMuted: isMuted,
+        VolumeLevel: volumeLevel,
+        PlayMethod: 'DirectPlay',
+        PlaySessionId: playSessionId,
+        CanSeek: true,
+        RepeatMode: 'RepeatNone',
+        PlaybackOrder: 'Default',
+        AudioStreamIndex: pendingAudioStreamIndex,
+        SubtitleStreamIndex: pendingSubtitleStreamIndex
     };
 
     console.log('📡 Reporting playback start...');
     
     axios.post(`${CONFIG.serverUrl}/Sessions/Playing`, data, { headers })
+        .then(() => {
+            console.log('✅ Playback start reported');
+        })
         .catch(e => {
-            console.error('⚠️ Error reporting start:', e.message);
+            const status = e.response?.status || 'unknown';
+            const body = e.response?.data ? JSON.stringify(e.response.data) : e.message;
+            console.error(`⚠️ Error reporting start (${status}):`, body);
         });
 }
 
@@ -1162,18 +1164,17 @@ function reportPlaybackProgress(itemId, positionTicks) {
     const headers = getAuthHeaders();
     
     const data = {
-        playbackProgressInfo: {
-            ItemId: itemId,
-            PositionTicks: positionTicks,
-            IsPaused: isMpvPaused,
-            IsMuted: isMuted,
-            VolumeLevel: volumeLevel,
-            PlayMethod: 'DirectPlay',
-            PlaySessionId: playSessionId,
-            CanSeek: true,
-            RepeatMode: 'RepeatNone',
-            MediaSourceId: itemId
-        }
+        ItemId: itemId,
+        MediaSourceId: itemId,
+        PositionTicks: positionTicks,
+        IsPaused: isMpvPaused,
+        IsMuted: isMuted,
+        VolumeLevel: volumeLevel,
+        PlayMethod: 'DirectPlay',
+        PlaySessionId: playSessionId,
+        CanSeek: true,
+        RepeatMode: 'RepeatNone',
+        PlaybackOrder: 'Default'
     };
 
     axios.post(`${CONFIG.serverUrl}/Sessions/Playing/Progress`, data, { headers })
@@ -1193,9 +1194,9 @@ function reportPlaybackStop(itemId, positionTicks) {
     
     const data = {
         ItemId: itemId,
+        MediaSourceId: itemId,
         PositionTicks: positionTicks,
-        PlaySessionId: playSessionId,
-        MediaSourceId: itemId
+        PlaySessionId: playSessionId
     };
 
     console.log(`📡 Reporting playback stop (position: ${(positionTicks / 10000000).toFixed(2)}s)...`);
