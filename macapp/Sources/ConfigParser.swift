@@ -3,10 +3,11 @@ import Foundation
 enum ConfigParser {
     static func extractValue(from content: String, key: String) -> String {
         let escapedKey = NSRegularExpression.escapedPattern(for: key)
-        let pattern = "\(escapedKey):\\s*['\"]([^'\"]*)['\"]"
+        // Match: key: 'value' or key: "value", allowing escaped quotes inside
+        let pattern = "\(escapedKey):\\s*(['\"])([^'\"]*(?:\\\\.[^'\"]*)*)\\1"
         guard let regex = try? NSRegularExpression(pattern: pattern),
               let match = regex.firstMatch(in: content, range: NSRange(content.startIndex..., in: content)),
-              let range = Range(match.range(at: 1), in: content) else {
+              let range = Range(match.range(at: 2), in: content) else {
             return ""
         }
         return unescapeConfigValue(String(content[range]))

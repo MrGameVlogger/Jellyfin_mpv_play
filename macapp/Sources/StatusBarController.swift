@@ -18,6 +18,7 @@ class StatusBarController: NSObject {
     init(nodeProcessManager: NodeProcessManager, logWindowController: LogWindowController) {
         self.nodeProcessManager = nodeProcessManager
         self.logWindowController = logWindowController
+        super.init()
         setupStatusItem()
         setupNowPlayingObserver()
     }

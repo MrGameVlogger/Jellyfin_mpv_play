@@ -136,7 +136,6 @@ class NodeProcessManager {
 
     func stop(completion: (() -> Void)? = nil) {
         guard !isShuttingDown || completion != nil else {
-            completion?()
             return
         }
         isShuttingDown = true

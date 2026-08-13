@@ -201,7 +201,7 @@ jobs:
             echo "## Jellyfin MPV Play v${VERSION}" > notes.md
           fi
 
-          # Append download table and quick start
+          # Append quick start footer
           cat >> notes.md << 'EOF'
 
           ---
