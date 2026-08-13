@@ -5,7 +5,7 @@
 | Version | Supported |
 |---------|-----------|
 | 1.7.x   | Yes       |
-| 1.6.x   | Yes       |
+| 1.6.x   | No        |
 | 1.5.x   | No        |
 | 1.4.x   | No        |
 | 1.3.x   | No        |

@@ -18,12 +18,6 @@ All notable changes to Jellyfin MPV Play are documented here.
 - CI auto-generates release notes from merged PR titles (categorized by feat/fix/docs/ci)
 - `package.json` is now the single source of truth for version; `shim.js` reads it at runtime
 
-### Bug Fixes
-- Fixed `pendingQueries` not being resolved when MPV closes (could hang poll timer)
-- Fixed random `deviceId` not being persisted (created zombie sessions on restart)
-- Fixed stderr handler in NodeProcessManager not buffering partial lines
-- Fixed `.desktop` file Exec line — `dirname "$0"` returned `.` instead of script directory
-
 ### Documentation
 - Fixed duplicate step numbering in macOS Quick Start
 - Added v1.7.1 to recent releases

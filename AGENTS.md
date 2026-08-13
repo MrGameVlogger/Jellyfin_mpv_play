@@ -102,7 +102,7 @@ Title format for `Episode detected`: `SeriesName - SxEp - EpisodeName` (parsed b
    - Builds Windows bundle with bundled Node.js (runs on `windows-latest`)
    - Creates a GitHub Release with auto-generated notes and all 3 platform artifacts
 
-`package.json` is the single source of truth for version. `shim.js` reads it at runtime. `Info.plist` and `SECURITY.md` should be updated in the same PR as the version bump (CI generates them for release notes but cannot commit back due to branch protection).
+`package.json` is the single source of truth for version. `shim.js` reads it at runtime. `Info.plist` and `SECURITY.md` are auto-synced by CI into release artifacts (not committed back to repo). Update `CHANGELOG.md` before tagging a release.
 
 The macOS `.app` can also be built locally: `cd macapp && ./build.sh` (deploys to `/Applications`). Use `CI=true` to skip the deploy step.
 

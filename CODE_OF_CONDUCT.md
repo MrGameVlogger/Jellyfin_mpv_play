@@ -34,7 +34,7 @@ This Code of Conduct applies within all community spaces, and also applies when 
 
 ## Enforcement
 
-Instances of abusive, harassing, or otherwise unacceptable behavior may be reported to the community leaders responsible for enforcement via [GitHub Issues](https://github.com/MrGameVlogger/Jellyfin_mpv_play/issues) or [GitHub's private vulnerability reporting](https://github.com/MrGameVlogger/Jellyfin_mpv_play/security/advisories/new).
+Instances of abusive, harassing, or otherwise unacceptable behavior may be reported to the community leaders responsible for enforcement via [GitHub's private vulnerability reporting](https://github.com/MrGameVlogger/Jellyfin_mpv_play/security/advisories/new).
 
 All complaints will be reviewed and investigated promptly and fairly.
 

@@ -10,5 +10,7 @@ playback_positions_*.json
 .DS_Store
 *.zip
 *.tar.gz
+*.tgz
+.env
 .node-tmp/
 .node-cache/
