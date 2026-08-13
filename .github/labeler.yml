@@ -12,8 +12,6 @@ shim:
     - any-glob-to-any-file:
       - 'shim.js'
       - 'config.example.js'
-      - 'package.json'
-      - 'package-lock.json'
 
 documentation:
   - changed-files:
@@ -30,6 +28,7 @@ ci:
     - any-glob-to-any-file:
       - '.github/workflows/**'
       - '.github/dependabot.yml'
+      - '.github/codeql/**'
 
 dependencies:
   - changed-files:
