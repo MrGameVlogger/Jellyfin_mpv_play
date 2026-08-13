@@ -195,22 +195,14 @@ class PreferencesWindowController: NSWindowController {
             return
         }
 
-        func escape(_ s: String) -> String {
-            return s
-                .replacingOccurrences(of: "\\", with: "\\\\")
-                .replacingOccurrences(of: "'", with: "\\'")
-                .replacingOccurrences(of: "\n", with: "\\n")
-                .replacingOccurrences(of: "\r", with: "\\r")
-                .replacingOccurrences(of: "\t", with: "\\t")
-        }
         let config = """
         module.exports = {
-            serverUrl: '\(escape(serverUrlField.stringValue))',
-            username: '\(escape(usernameField.stringValue))',
-            password: '\(escape(passwordField.stringValue))',
-            mpvPath: '\(escape(mpvPathField.stringValue))',
-            deviceName: '\(escape(deviceNameField.stringValue))',
-            deviceId: '\(escape(deviceIdField.stringValue))'
+            serverUrl: '\(ConfigParser.escapeConfigValue(serverUrlField.stringValue))',
+            username: '\(ConfigParser.escapeConfigValue(usernameField.stringValue))',
+            password: '\(ConfigParser.escapeConfigValue(passwordField.stringValue))',
+            mpvPath: '\(ConfigParser.escapeConfigValue(mpvPathField.stringValue))',
+            deviceName: '\(ConfigParser.escapeConfigValue(deviceNameField.stringValue))',
+            deviceId: '\(ConfigParser.escapeConfigValue(deviceIdField.stringValue))'
         };
         """
         let dedented = config.components(separatedBy: "\n").map { $0.trimmingCharacters(in: .whitespaces) }.joined(separator: "\n")

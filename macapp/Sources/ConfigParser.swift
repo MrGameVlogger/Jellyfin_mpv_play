@@ -39,4 +39,13 @@ enum ConfigParser {
     static func loadConfigContent() -> String? {
         return try? String(contentsOfFile: configPath(), encoding: .utf8)
     }
+
+    static func escapeConfigValue(_ s: String) -> String {
+        return s
+            .replacingOccurrences(of: "\\", with: "\\\\")
+            .replacingOccurrences(of: "'", with: "\\'")
+            .replacingOccurrences(of: "\n", with: "\\n")
+            .replacingOccurrences(of: "\r", with: "\\r")
+            .replacingOccurrences(of: "\t", with: "\\t")
+    }
 }

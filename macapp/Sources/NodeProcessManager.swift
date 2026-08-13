@@ -54,8 +54,14 @@ class NodeProcessManager {
             return
         }
 
+        let nodePath = findNodePath()
+        guard !nodePath.isEmpty else {
+            logHandler("ERROR: Node.js not found. Install Node.js or ensure it's bundled.")
+            return
+        }
+
         let process = Process()
-        process.executableURL = URL(fileURLWithPath: findNodePath())
+        process.executableURL = URL(fileURLWithPath: nodePath)
         process.arguments = [shimPath]
         process.currentDirectoryURL = URL(fileURLWithPath: appSupport)
         var env = ProcessInfo.processInfo.environment
@@ -406,6 +412,6 @@ class NodeProcessManager {
             }
         }
         logHandler("ERROR: node not found in bundle or system")
-        return "node"
+        return ""
     }
 }

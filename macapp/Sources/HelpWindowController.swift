@@ -112,7 +112,7 @@ class HelpWindowController: NSWindowController {
         addDivider()
 
         // ── Menu Bar ──
-        addSection("Menu Bar Controls", icon: "menubar.arrow.up.rectangle")
+        addSection("Menu Bar Controls", icon: "menubar.rectangle")
         addText("Click the menu bar icon to access these shortcuts:", color: .secondaryLabelColor)
         addSpacing(4)
         addKeybind("⌘P", "Pause / Resume playback")
