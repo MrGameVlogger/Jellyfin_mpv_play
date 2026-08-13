@@ -2,6 +2,25 @@
 
 All notable changes to Jellyfin MPV Play are documented here.
 
+## v1.7.5
+
+### Bug Fixes
+- Fixed playback controls not appearing in Jellyfin web UI (API wrapper was wrong)
+- Fixed duplicate progress reporting causing 400 errors
+- Fixed help window content clipped by hardcoded container height
+- Fixed help window opening scrolled to bottom
+- Fixed preferences window label/field alignment
+- Fixed About window link buttons showing focus ring
+- Fixed About window icon not adapting to dark mode
+
+### Improvements
+- About window now uses dark/light icon variant based on system appearance
+- Help window link buttons no longer show focus ring
+- Logs saved to ~/Library/Application Support/JellyfinMpvPlay/data/ with timestamps
+- Icon SVGs bundled in app resources
+
+---
+
 ## v1.7.4
 
 ### Bug Fixes
