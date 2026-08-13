@@ -9,11 +9,11 @@ if not exist "%CONFIG_FILE%" (
     if exist "%EXAMPLE_CONFIG%" (
         copy "%EXAMPLE_CONFIG%" "%CONFIG_FILE%" >nul
         echo First run: created config.js from config.example.js
-        echo Please edit %CONFIG_FILE% with your Jellyfin server details and MPV path, then run this again.
+        echo Please edit "%CONFIG_FILE%" with your Jellyfin server details and MPV path, then run this again.
         pause
         exit /b 0
     ) else (
-        echo ERROR: config.example.js not found. Bundle may be corrupted.
+        echo ERROR: config.example.js not found. Bundle may be corrupted. >&2
         pause
         exit /b 1
     )
@@ -21,16 +21,23 @@ if not exist "%CONFIG_FILE%" (
 
 where mpv >nul 2>nul
 if errorlevel 1 (
-    echo ERROR: mpv is not installed or not in PATH.
-    echo Download MPV from https://mpv.io/installation and add it to your PATH.
+    echo ERROR: mpv is not installed or not in PATH. >&2
+    echo Download MPV from https://mpv.io/installation and add it to your PATH. >&2
     pause
     exit /b 1
 )
 
 set "NODE_BIN=%SCRIPT_DIR%node\node.exe"
 if not exist "%NODE_BIN%" (
-    echo ERROR: Bundled Node.js not found at %NODE_BIN%
-    echo Bundle may be corrupted. Please re-download.
+    echo ERROR: Bundled Node.js not found at "%NODE_BIN%" >&2
+    echo Bundle may be corrupted. Please re-download. >&2
+    pause
+    exit /b 1
+)
+
+if not exist "%SCRIPT_DIR%shim.js" (
+    echo ERROR: shim.js not found in "%SCRIPT_DIR%" >&2
+    echo Bundle may be corrupted. Please re-download. >&2
     pause
     exit /b 1
 )

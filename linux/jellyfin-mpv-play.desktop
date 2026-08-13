@@ -1,6 +1,7 @@
 [Desktop Entry]
 Name=Jellyfin MPV Play
 Comment=Play media from Jellyfin using MPV
+Version=1.0
 Exec=bash -c 'DIR="$(cd "$(dirname "$0")" && pwd)"; exec "$DIR/launch.sh"' _ %k
 Icon=jellyfin-mpv-play
 Terminal=true

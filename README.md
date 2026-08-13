@@ -51,7 +51,9 @@
 2. **Download** the latest release from [Releases](https://github.com/MrGameVlogger/Jellyfin_mpv_play/releases), or build from source:
    ```bash
    git clone https://github.com/MrGameVlogger/Jellyfin_mpv_play.git
-   cd Jellyfin_mpv_play/macapp
+   cd Jellyfin_mpv_play
+   npm install
+   cd macapp
    ./build.sh
    ```
    The build compiles the Swift app, downloads Node.js 22 LTS, and bundles everything into a self-contained `.app` (~175MB) deployed to `/Applications`.

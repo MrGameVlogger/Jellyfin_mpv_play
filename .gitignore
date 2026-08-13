@@ -10,3 +10,4 @@ playback_positions_*.json
 .DS_Store
 *.zip
 .node-tmp/
+.node-cache/
