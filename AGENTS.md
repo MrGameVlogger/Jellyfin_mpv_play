@@ -91,11 +91,16 @@ Title format for `Episode detected`: `SeriesName - SxEp - EpisodeName` (parsed b
 
 ## Release workflow
 
-1. Increment version in `macapp/Info.plist`
-2. `cd macapp && ./build.sh` (deploys to `/Applications`)
-3. Commit + push (after user approval)
-4. Create release zip: `ditto -c -k --sequesterRsrc --keepParent "Jellyfin MPV Play.app" "JellyfinMPVPlay-macOS-vX.Y.Z.zip"`
-5. GitHub release: `gh release create vX.Y.Z JellyfinMPVPlay-macOS-vX.Y.Z.zip --title "vX.Y.Z" --notes "..."`
+1. Increment version in `macapp/Info.plist` **and** `package.json`
+2. Commit + push
+3. Create and push a version tag: `git tag -a vX.Y.Z -m "vX.Y.Z" && git push origin vX.Y.Z`
+4. The CI workflow (`.github/workflows/build.yml`) automatically:
+   - Builds macOS `.app` bundle (runs on `macos-latest`)
+   - Builds Linux bundle with bundled Node.js (runs on `ubuntu-latest`)
+   - Builds Windows bundle with bundled Node.js (runs on `windows-latest`)
+   - Creates a GitHub Release with all 3 platform artifacts
+
+The macOS `.app` can also be built locally: `cd macapp && ./build.sh` (deploys to `/Applications`). Use `CI=true` to skip the deploy step.
 
 **Important**: `gh` may default to the upstream repo (JohnGlaus). Always use `-R MrGameVlogger/Jellyfin_mpv_play` with release commands, or run `gh repo set-default MrGameVlogger/Jellyfin_mpv_play` once.
 
@@ -107,5 +112,5 @@ Title format for `Episode detected`: `SeriesName - SxEp - EpisodeName` (parsed b
 - **Merge strategy**: Squash merge (`--squash`) — one commit per PR
 - **PR workflow**: Create branch → commit → push → `gh pr create` → `gh pr merge --squash` → delete branch
 - **Dependabot**: Weekly npm dependency updates on Mondays
-- **Auto-labeler**: PRs auto-labeled by file paths (macos, shim, documentation, ci, dependencies, images)
+- **Auto-labeler**: PRs auto-labeled by file paths (macos, shim, documentation, ci, dependencies, images, linux, windows)
 - **Signed commits and tags**: SSH signing configured in global git config — all commits and tags should be signed
