@@ -9,7 +9,7 @@
 
 <p align="center">
   <a href="https://github.com/MrGameVlogger/Jellyfin_mpv_play/releases/latest"><img alt="Latest Release" src="https://img.shields.io/github/v/release/MrGameVlogger/Jellyfin_mpv_play?style=flat-square&label=latest%20release"></a>
-  <a href="https://github.com/MrGameVlogger/Jellyfin_mpv_play/blob/main/LICENSE"><img alt="License" src="https://img.shields.io/github/license/MrGameVlogger/Jellyfin_mpv_play?style=flat-square"></a>
+  <a href="https://github.com/MrGameVlogger/Jellyfin_mpv_play/blob/main/LICENSE"><img alt="License: MIT" src="https://img.shields.io/badge/license-MIT-green?style=flat-square"></a>
   <img alt="Platform" src="https://img.shields.io/badge/platform-macOS%20%7C%20Windows%20%7C%20Linux-blue?style=flat-square">
   <a href="https://github.com/MrGameVlogger/Jellyfin_mpv_play/releases/latest"><img alt="Downloads" src="https://img.shields.io/github/downloads/MrGameVlogger/Jellyfin_mpv_play/total?style=flat-square"></a>
   <img alt="Node.js" src="https://img.shields.io/badge/Node.js-22%20LTS-brightgreen?style=flat-square&logo=node.js">
@@ -63,7 +63,13 @@ All bundles include their own Node.js runtime. Only [MPV Player](https://mpv.io/
    ```
    The build compiles the Swift app, downloads Node.js 22 LTS, and bundles everything into a self-contained `.app` (~175MB) deployed to `/Applications`.
 
-3. **Launch** — if you built from source, the app is already deployed to `/Applications`. Otherwise drag `Jellyfin MPV Play.app` there, then right-click → Open (first launch only, to bypass Gatekeeper)
+3. **Remove quarantine** (required for downloaded apps):
+   ```bash
+   xattr -cr "/Applications/Jellyfin MPV Play.app"
+   ```
+   macOS marks downloaded apps with a quarantine flag. Without removing it, you'll get a "damaged or can't be opened" error.
+
+4. **Launch** — if you built from source, the app is already deployed to `/Applications`. Otherwise drag `Jellyfin MPV Play.app` there, then right-click → Open (first launch only, to bypass Gatekeeper)
 
 4. **Set up** — the app walks you through a setup wizard on first launch:
    - Welcome overview
@@ -212,6 +218,7 @@ Set WshShell = Nothing
 
 | Problem | Solution |
 |---------|----------|
+| **macOS: "app is damaged/can't be opened"** | Run `xattr -cr "/Applications/Jellyfin MPV Play.app"` to remove the quarantine flag |
 | **"config.js file not found"** | Run the launcher once to auto-create `config.js`, then edit with your details |
 | **MPV doesn't open** | Check `mpvPath` in config. Test: `mpv --version` in terminal |
 | **Device doesn't appear in Jellyfin** | Verify `serverUrl`, username, password. Ensure same network |
