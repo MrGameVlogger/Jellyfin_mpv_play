@@ -71,7 +71,7 @@ All bundles include their own Node.js runtime. Only [MPV Player](https://mpv.io/
 
 4. **Launch** — if you built from source, the app is already deployed to `/Applications`. Otherwise drag `Jellyfin MPV Play.app` there, then right-click → Open (first launch only, to bypass Gatekeeper)
 
-4. **Set up** — the app walks you through a setup wizard on first launch:
+5. **Set up** — the app walks you through a setup wizard on first launch:
    - Welcome overview
    - Enter your Jellyfin server URL
    - Enter your username and password (with a Test Connection button)
@@ -276,6 +276,10 @@ Jellyfin_mpv_play/
 See [CHANGELOG.md](CHANGELOG.md) for full release history.
 
 ### Recent Releases
+
+**v1.7.1** — CI automation: auto-generated release notes from PRs ([details](CHANGELOG.md#v171))
+- Release workflow now auto-generates changelog from merged PR titles
+- Version sync: package.json is single source of truth, shim.js reads it at runtime
 
 **v1.7.0** — Security, stability, and 20 bug fixes ([details](CHANGELOG.md#v170--security-stability-bug-fixes))
 - API key redaction, token file permissions, crash handlers

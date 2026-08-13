@@ -23,6 +23,7 @@ class NodeProcessManager {
     var pauseStateHandler: ((Bool) -> Void)?
     private var isPaused = false
     private var stdoutBuffer = ""
+    private var stderrBuffer = ""
     private var ipcSocketPath = "/tmp/mpv-ipc.sock"
     private var isStoppingPlayback = false
 
@@ -91,9 +92,13 @@ class NodeProcessManager {
             let data = handle.availableData
             guard !data.isEmpty, let str = String(data: data, encoding: .utf8) else { return }
             DispatchQueue.main.async { [weak self] in
-                for line in str.components(separatedBy: .newlines) where !line.isEmpty {
-                    self?.logHandler("STDERR: \(line)")
-                    self?.processLogLine("STDERR: \(line)")
+                guard let self = self else { return }
+                self.stderrBuffer += str
+                let lines = self.stderrBuffer.components(separatedBy: .newlines)
+                self.stderrBuffer = lines.last ?? ""
+                for line in lines.dropLast() where !line.isEmpty {
+                    self.logHandler("STDERR: \(line)")
+                    self.processLogLine("STDERR: \(line)")
                 }
             }
         }
