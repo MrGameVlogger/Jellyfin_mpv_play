@@ -569,8 +569,6 @@ async function playMedia(itemId, startTicks) {
 
     currentItemId = itemId;
     currentPositionSeconds = startTicks / 10000000;
-    pendingAudioStreamIndex = undefined;
-    pendingSubtitleStreamIndex = undefined;
     currentEpisodeInfo = await getEpisodeInfo(itemId);
 
     if (gen !== playbackGeneration) return;
@@ -715,9 +713,11 @@ function connectToMpvIpc(gen) {
 
                     if (pendingAudioStreamIndex !== undefined) {
                         sendMpvCommand('set_property', ['aid', pendingAudioStreamIndex]);
+                        pendingAudioStreamIndex = undefined;
                     }
                     if (pendingSubtitleStreamIndex !== undefined) {
                         sendMpvCommand('set_property', ['sid', pendingSubtitleStreamIndex]);
+                        pendingSubtitleStreamIndex = undefined;
                     }
                 }
             }, CONFIG.mpvLoadDelayMs);

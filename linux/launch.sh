@@ -47,8 +47,10 @@ if [ ! -f "$SCRIPT_DIR/shim.js" ]; then
     exit 1
 fi
 
+set +e
 "$NODE_BIN" "$SCRIPT_DIR/shim.js"
 EXIT_CODE=$?
+set -e
 if [ $EXIT_CODE -ne 0 ]; then
     echo "" >&2
     echo "Shim exited with error code $EXIT_CODE" >&2
