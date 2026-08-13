@@ -39,9 +39,22 @@ jobs:
         run: |
           VERSION="${{ needs.get-version.outputs.version }}"
 
-          PRS=$(gh pr list -R MrGameVlogger/Jellyfin_mpv_play --state merged --limit 100 --json number,title,mergedAt --jq "
-            .[] | select(.mergedAt != null) | \"\(.number)|\(.title)\"
-          " 2>/dev/null || echo "")
+          # Get the date of the most recent release (to filter PRs)
+          LAST_RELEASE_DATE=$(gh release list -R MrGameVlogger/Jellyfin_mpv_play --limit 1 --json publishedAt -q '.[0].publishedAt' 2>/dev/null || echo "")
+          echo "Last release date: $LAST_RELEASE_DATE"
+
+          # Get merged PRs since last release
+          if [ -n "$LAST_RELEASE_DATE" ]; then
+            PRS=$(gh pr list -R MrGameVlogger/Jellyfin_mpv_play --state merged --limit 100 --json number,title,mergedAt --jq "
+              .[] | select(.mergedAt != null and .mergedAt > \"$LAST_RELEASE_DATE\") | \"\(.number)|\(.title)\"
+            " 2>/dev/null || echo "")
+          else
+            PRS=$(gh pr list -R MrGameVlogger/Jellyfin_mpv_play --state merged --limit 100 --json number,title,mergedAt --jq "
+              .[] | select(.mergedAt != null) | \"\(.number)|\(.title)\"
+            " 2>/dev/null || echo "")
+          fi
+
+          echo "Found PRs: $PRS"
 
           FEAT=""; FIX=""; DOCS=""; CI_CHG=""; OTHER=""
           while IFS='|' read -r num title; do
