@@ -268,6 +268,12 @@ jobs:
             echo "## Jellyfin MPV Play v${VERSION}" > notes.md
           fi
 
+          # Prepend Downloads table
+          DOWNLOADS="### Downloads\n| Platform | File |\n|----------|------|\n| macOS | \`JellyfinMPVPlay-macOS-v${VERSION}.zip\` |\n| Linux | \`JellyfinMPVPlay-Linux-v${VERSION}.tar.gz\` |\n| Windows | \`JellyfinMPVPlay-Windows-v${VERSION}.zip\` |\n"
+          echo -e "$DOWNLOADS" > /tmp/downloads.md
+          cat notes.md >> /tmp/downloads.md
+          mv /tmp/downloads.md notes.md
+
           cat >> notes.md << 'EOF'
 
           ### Quick Start
