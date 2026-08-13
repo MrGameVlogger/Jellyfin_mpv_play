@@ -34,6 +34,7 @@ let ipcCommandId = 1;
 let playSessionId = null;
 let currentPositionSeconds = 0;
 let isReportingStop = false;
+let progressReported = false;
 let accessToken = null;
 let userId = null;
 let ws = null;
@@ -586,6 +587,7 @@ async function playMedia(itemId, startTicks) {
 
     currentItemId = itemId;
     currentPositionSeconds = startTicks / 10000000;
+    progressReported = false;
     currentEpisodeInfo = await getEpisodeInfo(itemId);
 
     if (gen !== playbackGeneration) return;
@@ -1128,8 +1130,12 @@ function reportPlaybackStart(itemId, positionTicks) {
     };
 
     console.log('📡 Reporting playback start...');
+    console.log('    Data:', JSON.stringify(data, null, 2));
     
     axios.post(`${CONFIG.serverUrl}/Sessions/Playing`, data, { headers })
+        .then(response => {
+            console.log('✅ Playback start reported:', response.status);
+        })
         .catch(e => {
             const status = e.response?.status || 'unknown';
             const body = e.response?.data ? JSON.stringify(e.response.data) : e.message;
@@ -1175,6 +1181,13 @@ function reportPlaybackProgress(itemId, positionTicks) {
     };
 
     axios.post(`${CONFIG.serverUrl}/Sessions/Playing/Progress`, data, { headers })
+        .then(response => {
+            // Only log first successful progress to avoid spam
+            if (!progressReported) {
+                console.log('✅ Progress reporting working:', response.status);
+                progressReported = true;
+            }
+        })
         .catch(e => {
             const status = e.response?.status || 'unknown';
             const body = e.response?.data ? JSON.stringify(e.response.data) : e.message;
