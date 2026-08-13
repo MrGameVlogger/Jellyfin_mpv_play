@@ -25,12 +25,128 @@ jobs:
       - uses: actions/checkout@v7
       - id: version
         run: |
-          VERSION=$(grep -A1 'CFBundleShortVersionString' macapp/Info.plist | grep '<string>' | sed 's/.*<string>\(.*\)<\/string>.*/\1/')
+          VERSION=$(node -p "require('./package.json').version")
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
           echo "Detected version: $VERSION"
 
-  build-linux:
+  sync-version:
     needs: get-version
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Sync version to Info.plist
+        run: |
+          VERSION="${{ needs.get-version.outputs.version }}"
+          sed -i "s|<string>[0-9]*\.[0-9]*\.[0-9]*</string>|<string>${VERSION}</string>|g" macapp/Info.plist
+          echo "Synced Info.plist to version $VERSION"
+
+      - name: Update SECURITY.md supported versions
+        run: |
+          VERSION="${{ needs.get-version.outputs.version }}"
+          MAJOR_MINOR="${VERSION%.*}"
+
+          # Add new version as supported, mark previous "Yes" as "No"
+          awk -v ver="${MAJOR_MINOR}.x" '
+          /\| Version \| Supported \|/ {
+              print; getline; print
+              print "| " ver "   | Yes       |"
+              next
+          }
+          /\| Yes/ && !done {
+              gsub(/\| Yes/, "| No")
+              done = 1
+          }
+          { print }
+          ' SECURITY.md > SECURITY.md.tmp && mv SECURITY.md.tmp SECURITY.md
+
+          echo "Updated SECURITY.md with v${MAJOR_MINOR}.x as supported"
+
+      - name: Generate CHANGELOG.md from PRs
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          VERSION="${{ needs.get-version.outputs.version }}"
+
+          # Find previous release tag
+          PREV_TAG=$(gh release list -R MrGameVlogger/Jellyfin_mpv_play --limit 2 --json tagName -q '.[1].tagName' 2>/dev/null || echo "")
+          if [ -z "$PREV_TAG" ]; then
+            echo "No previous release found, generating from all PRs"
+            RANGE=""
+          else
+            echo "Previous release: $PREV_TAG"
+            RANGE="$PREV_TAG..HEAD"
+          fi
+
+          # Get merged PRs since last release
+          PRS=$(gh pr list -R MrGameVlogger/Jellyfin_mpv_play --state merged --limit 100 --json number,title,mergedAt --jq "
+            .[] | select(.mergedAt != null) | \"\(.number)|\(.title)\"
+          " 2>/dev/null || echo "")
+
+          # Categorize PRs
+          FEAT=""
+          FIX=""
+          DOCS=""
+          CI=""
+          OTHER=""
+
+          while IFS='|' read -r num title; do
+            [ -z "$num" ] && continue
+            entry="- ${title} ([#${num}](https://github.com/MrGameVlogger/Jellyfin_mpv_play/pull/${num}))"
+            case "$title" in
+              feat:*|Feat:*) FEAT="${FEAT}${entry}\n" ;;
+              fix:*|Fix:*) FIX="${FIX}${entry}\n" ;;
+              docs:*|Docs:*) DOCS="${DOCS}${entry}\n" ;;
+              ci:*|Ci:*) CI="${CI}${entry}\n" ;;
+              release:*|Release:*) ;; # Skip release commits
+              *) OTHER="${OTHER}${entry}\n" ;;
+            esac
+          done <<< "$PRS"
+
+          # Build changelog section
+          NEW_ENTRY="## v${VERSION} — Release\n\n"
+          [ -n "$FEAT" ] && NEW_ENTRY="${NEW_ENTRY}### Features\n${FEAT}\n"
+          [ -n "$FIX" ] && NEW_ENTRY="${NEW_ENTRY}### Bug Fixes\n${FIX}\n"
+          [ -n "$DOCS" ] && NEW_ENTRY="${NEW_ENTRY}### Documentation\n${DOCS}\n"
+          [ -n "$CI" ] && NEW_ENTRY="${NEW_ENTRY}### CI/Infrastructure\n${CI}\n"
+          [ -n "$OTHER" ] && NEW_ENTRY="${NEW_ENTRY}### Other Changes\n${OTHER}\n"
+
+          # Prepend to existing CHANGELOG.md (keep old entries)
+          if [ -f CHANGELOG.md ]; then
+            # Remove the header and insert new entry
+            awk '/^## v/{found=1} found{print}' CHANGELOG.md > /tmp/old_entries.md
+            {
+              echo "# Changelog"
+              echo ""
+              echo "All notable changes to Jellyfin MPV Play are documented here."
+              echo ""
+              echo -e "$NEW_ENTRY"
+              echo "---"
+              echo ""
+              cat /tmp/old_entries.md
+            } > CHANGELOG.md
+          else
+            {
+              echo "# Changelog"
+              echo ""
+              echo "All notable changes to Jellyfin MPV Play are documented here."
+              echo ""
+              echo -e "$NEW_ENTRY"
+            } > CHANGELOG.md
+          fi
+
+          echo "Generated CHANGELOG.md entry for v${VERSION}"
+
+      - name: Commit synced files
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add macapp/Info.plist SECURITY.md CHANGELOG.md
+          git diff --cached --quiet || git commit -m "ci: auto-sync version, changelog, security for v${{ needs.get-version.outputs.version }}"
+          git push
+
+  build-linux:
+    needs: [get-version, sync-version]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -69,6 +185,7 @@ jobs:
 
           # Copy app files
           cp shim.js "$NAME/"
+          cp package.json "$NAME/"
           cp config.example.js "$NAME/"
           cp -R node_modules "$NAME/"
           cp -R linux/* "$NAME/"
@@ -87,7 +204,7 @@ jobs:
           path: ${{ env.BUNDLE }}
 
   build-windows:
-    needs: get-version
+    needs: [get-version, sync-version]
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v7
@@ -128,6 +245,7 @@ jobs:
 
           # Copy app files
           Copy-Item shim.js "$name/"
+          Copy-Item package.json "$name/"
           Copy-Item config.example.js "$name/"
           Copy-Item -Recurse node_modules "$name/"
           Copy-Item -Recurse windows/* "$name/"
@@ -143,7 +261,7 @@ jobs:
           path: ${{ env.BUNDLE }}
 
   build-macos:
-    needs: get-version
+    needs: [get-version, sync-version]
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v7
@@ -190,8 +308,6 @@ jobs:
           ls -lh release-files/
 
           # Extract version-specific section from CHANGELOG.md
-          # Gets everything from "## vX.Y.Z" up to the next "## v" header
-          # Escape dots in version for regex (e.g. 1.7.0 -> 1\.7\.0)
           VER_ESCAPED="${VERSION//./\\.}"
           awk "/^## v${VER_ESCAPED}/{found=1; next} found && /^## v/{exit} found" CHANGELOG.md > notes.md
 

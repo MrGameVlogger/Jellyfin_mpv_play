@@ -7,6 +7,7 @@ const fs = require('fs');
 const path = require('path');
 
 const userConfig = require('./config.js');
+const pkg = require('./package.json');
 
 const CONFIG = {
     serverUrl: userConfig.serverUrl,
@@ -16,7 +17,7 @@ const CONFIG = {
     deviceName: userConfig.deviceName,
     deviceId: userConfig.deviceId || `mpv-${crypto.randomBytes(8).toString('hex')}`,
     
-    clientVersion: '1.7.0',
+    clientVersion: pkg.version,
     ipcSocketPath: userConfig.ipcSocketPath || (process.platform === 'win32' ? '\\\\.\\pipe\\mpv-ipc' : '/tmp/mpv-ipc.sock'),
     mpvLoadDelayMs: 100
 };

@@ -370,6 +370,11 @@ class NodeProcessManager {
         try? FileManager.default.removeItem(atPath: shimDest)
         try? FileManager.default.copyItem(atPath: bundledShim, toPath: shimDest)
 
+        let pkgDest = appSupport + "/package.json"
+        let bundledPkg = bundleResources + "/package.json"
+        try? FileManager.default.removeItem(atPath: pkgDest)
+        try? FileManager.default.copyItem(atPath: bundledPkg, toPath: pkgDest)
+
         let configFile = appSupport + "/config.js"
         if !FileManager.default.fileExists(atPath: configFile) {
             let exampleConfig = bundleResources + "/config.example.js"
