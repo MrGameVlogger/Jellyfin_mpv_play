@@ -1,0 +1,18 @@
+name: "CodeQL Config"
+
+disable-default-queries: false
+
+paths:
+  - "shim.js"
+  - "config.example.js"
+
+paths-ignore:
+  - "macapp/**"
+  - "linux/**"
+  - "windows/**"
+  - "node_modules/**"
+  - "images/**"
+
+packs:
+  javascript:
+    - codeql/javascript-queries
