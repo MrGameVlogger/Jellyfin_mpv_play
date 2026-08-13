@@ -277,6 +277,10 @@ See [CHANGELOG.md](CHANGELOG.md) for full release history.
 
 ### Recent Releases
 
+**v1.7.6** — Bug fixes: stop reporting ([details](CHANGELOG.md#v176))
+- Fixed playback stop not reported when Stop command comes from Jellyfin web UI
+- Fixed playback stop not reported when MPV IPC connection fails
+
 **v1.7.5** — **Critical fix: playback controls in Jellyfin web UI** ([details](CHANGELOG.md#v175))
 - **Fixed playback controls broken since v1.7.0** (API format regression)
 - Fixed duplicate progress reporting, help window, preferences alignment, dark mode icon
