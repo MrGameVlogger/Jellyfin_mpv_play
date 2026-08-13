@@ -184,20 +184,14 @@ jobs:
           echo "Release files:"
           ls -lh release-files/
 
-          cat > notes.md << 'EOF'
-          ## Jellyfin MPV Play v__VERSION__
+          # Extract version-specific section from CHANGELOG.md
+          # Gets everything from "## vX.Y.Z" up to the next "## v" header
+          awk "/^## v${VERSION}/{found=1; next} found && /^## v/{exit} found" CHANGELOG.md > notes.md
 
-          ### Downloads
-          | Platform | File |
-          |----------|------|
-          | macOS | `JellyfinMPVPlay-macOS-v__VERSION__.zip` |
-          | Linux | `JellyfinMPVPlay-Linux-v__VERSION__.tar.gz` |
-          | Windows | `JellyfinMPVPlay-Windows-v__VERSION__.zip` |
+          # Append download table and quick start
+          cat >> notes.md << 'EOF'
 
-          ### Requirements
-          - **MPV Player** must be installed separately
-          - macOS bundle includes its own Node.js runtime
-          - Linux/Windows bundles include their own Node.js runtime
+          ---
 
           ### Quick Start
           **macOS:** Unzip, move to Applications, launch. The setup wizard will guide you.
@@ -206,9 +200,10 @@ jobs:
 
           **Windows:** Extract, edit `config.js`, run `launch.bat`.
 
-          For more details, see the [README](https://github.com/MrGameVlogger/Jellyfin_mpv_play#readme).
+          All bundles include their own Node.js runtime. Only [MPV Player](https://mpv.io/installation/) is required.
+
+          For full documentation, see the [README](https://github.com/MrGameVlogger/Jellyfin_mpv_play#readme).
           EOF
-          sed -i "s/__VERSION__/$VERSION/g" notes.md
 
           # Delete existing release if re-running (keep the tag)
           gh release delete "v${VERSION}" -R MrGameVlogger/Jellyfin_mpv_play --yes 2>/dev/null || true
