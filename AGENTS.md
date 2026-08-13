@@ -92,7 +92,7 @@ Title format for `Episode detected`: `SeriesName - SxEp - EpisodeName` (parsed b
 ## Release workflow
 
 1. Increment version in `macapp/Info.plist` **and** `package.json`
-2. Commit + push
+2. Commit, push to a branch, and merge via PR
 3. Create and push a version tag: `git tag -a vX.Y.Z -m "vX.Y.Z" && git push origin vX.Y.Z`
 4. The CI workflow (`.github/workflows/build.yml`) automatically:
    - Builds macOS `.app` bundle (runs on `macos-latest`)
