@@ -2,6 +2,50 @@
 
 All notable changes to Jellyfin MPV Play are documented here.
 
+## v1.7.0 — Security, Stability, Bug Fixes
+
+### Downloads
+| Platform | File |
+|----------|------|
+| macOS | `JellyfinMPVPlay-macOS-v1.7.0.zip` |
+| Linux | `JellyfinMPVPlay-Linux-v1.7.0.tar.gz` |
+| Windows | `JellyfinMPVPlay-Windows-v1.7.0.zip` |
+
+### Security
+- **API key redaction** — stream URL no longer logged with `api_key` parameter
+- **Token file permissions** — auth token file created with 0o600 (owner-only read/write)
+- **Crash handlers** — added `uncaughtException`/`unhandledRejection` handlers for graceful shutdown
+
+### Bug Fixes
+- **ConfigParser regex rewritten** — escaped quotes in config values (e.g. `it\'s`) no longer truncate or corrupt the parsed value
+- **Audio/subtitle stream commands** — now sent after MPV IPC connects, not before (were silently failing)
+- **Backward episode navigation** — no longer marks current episode as watched when going to previous episode
+- **StatusBarController** — added NSObject inheritance (menu item actions were broken at runtime)
+- **StatusBarController togglePause** — fixed double-toggle causing pause state desync with MPV
+- **SF Symbol compatibility** — replaced `menubar.arrow.up.rectangle` (requires macOS 14) with `menubar.rectangle` (macOS 11+)
+- **Setup wizard** — closing window without completing no longer starts shim with invalid config
+- **Setup wizard** — device name/ID and mpvPath values preserved when navigating back
+- **Setup wizard** — default mpvPath now detects Apple Silicon vs Intel architecture
+- **NodeProcessManager title extraction** — handles quoted titles with spaces correctly
+- **NodeProcessManager togglePause** — sends predicted next state, not stale local state
+- **NodeProcessManager findNodePath** — returns empty string on failure instead of bare "node"
+- **NodeProcessManager sendMpvCommand** — logs IPC connect/send failures instead of silently returning
+- **NotificationManager** — logs when notification permission is denied
+- **launch.sh** — error handling code now actually runs (was blocked by `set -e`)
+- **launch.sh** — follows symlinks to resolve script directory
+- **launch.bat** — paths with special characters handled correctly
+- **clientVersion** — synced with package.json version (was hardcoded `2.0.0`)
+- **reportPlaybackProgress** — errors now logged instead of silently swallowed
+- **scheduleReconnect** — changed from `setInterval` to `setTimeout` to prevent double-fire
+
+### Improvements
+- **Shared config escaping** — `ConfigParser.escapeConfigValue()` replaces duplicate `escape()` functions
+- **Redundant dispatch removed** — `nowPlayingHandler` no longer double-dispatches to main queue
+- **Stale version fallback removed** — About window shows "unknown" instead of hardcoded "1.3.1"
+- **Application termination** — `applicationWillTerminate` waits for cleanup before exiting
+
+---
+
 ## v1.6.0 — Cross-Platform Bundles, CI Build Workflow
 
 ### Downloads

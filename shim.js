@@ -16,7 +16,7 @@ const CONFIG = {
     deviceName: userConfig.deviceName,
     deviceId: userConfig.deviceId || `mpv-${crypto.randomBytes(8).toString('hex')}`,
     
-    clientVersion: '1.6.0',
+    clientVersion: '1.7.0',
     ipcSocketPath: userConfig.ipcSocketPath || (process.platform === 'win32' ? '\\\\.\\pipe\\mpv-ipc' : '/tmp/mpv-ipc.sock'),
     mpvLoadDelayMs: 100
 };
