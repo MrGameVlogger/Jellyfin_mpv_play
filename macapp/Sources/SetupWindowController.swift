@@ -90,8 +90,7 @@ class SetupWindowController: NSWindowController, NSWindowDelegate {
 
     func windowWillClose(_ notification: Notification) {
         if !didComplete {
-            didComplete = true
-            onComplete?()
+            // Don't start the shim if setup wasn't completed — config may be missing or incomplete
         }
     }
 

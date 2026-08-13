@@ -49,7 +49,7 @@ rm -rf "$NODE_TMP"
 mkdir -p "$NODE_TMP"
 
 echo "Downloading $NODE_URL..."
-curl -L "$NODE_URL" -o "$NODE_TMP/$NODE_TAR"
+curl -fL "$NODE_URL" -o "$NODE_TMP/$NODE_TAR"
 echo "Extracting..."
 tar -xzf "$NODE_TMP/$NODE_TAR" -C "$NODE_TMP"
 mv "$NODE_TMP/node-v$NODE_VERSION-darwin-$NODE_ARCH" "$NODE_DIR"

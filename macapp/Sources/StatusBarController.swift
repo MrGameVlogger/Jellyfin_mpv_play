@@ -1,7 +1,7 @@
 import Cocoa
 import ServiceManagement
 
-class StatusBarController {
+class StatusBarController: NSObject {
     private var statusItem: NSStatusItem!
     private var nodeProcessManager: NodeProcessManager
     private var logWindowController: LogWindowController
