@@ -20,7 +20,11 @@ class AboutWindowController: NSWindowController {
 
         let iconView = NSImageView(frame: NSRect(x: 180, y: 275, width: 60, height: 60))
         iconView.imageScaling = .scaleProportionallyUpOrDown
-        iconView.image = NSImage(named: "AppIcon")
+        let isDark = contentView.effectiveAppearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
+        let iconBundlePath = Bundle.main.resourcePath ?? ""
+        let iconFilename = isDark ? "icon-dark.svg" : "icon-light.svg"
+        let iconPath = (iconBundlePath as NSString).appendingPathComponent(iconFilename)
+        iconView.image = NSImage(contentsOfFile: iconPath) ?? NSImage(named: "AppIcon")
         contentView.addSubview(iconView)
 
         let title = NSTextField(labelWithString: "Jellyfin MPV Play")
@@ -70,6 +74,7 @@ class AboutWindowController: NSWindowController {
         linkButton.frame = NSRect(x: 120, y: 75, width: 70, height: 24)
         linkButton.bezelStyle = .inline
         linkButton.isBordered = false
+        linkButton.focusRingType = .none
         linkButton.contentTintColor = .systemBlue
         contentView.addSubview(linkButton)
 
@@ -77,6 +82,7 @@ class AboutWindowController: NSWindowController {
         jellyfinButton.frame = NSRect(x: 190, y: 75, width: 70, height: 24)
         jellyfinButton.bezelStyle = .inline
         jellyfinButton.isBordered = false
+        jellyfinButton.focusRingType = .none
         jellyfinButton.contentTintColor = .systemBlue
         contentView.addSubview(jellyfinButton)
 
@@ -84,6 +90,7 @@ class AboutWindowController: NSWindowController {
         mpvButton.frame = NSRect(x: 260, y: 75, width: 50, height: 24)
         mpvButton.bezelStyle = .inline
         mpvButton.isBordered = false
+        mpvButton.focusRingType = .none
         mpvButton.contentTintColor = .systemBlue
         contentView.addSubview(mpvButton)
 
