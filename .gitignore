@@ -9,5 +9,6 @@ playback_positions_*.json
 *.app
 .DS_Store
 *.zip
+*.tar.gz
 .node-tmp/
 .node-cache/

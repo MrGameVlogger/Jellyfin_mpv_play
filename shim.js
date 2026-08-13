@@ -15,7 +15,7 @@ const CONFIG = {
     password: userConfig.password,
     mpvPath: userConfig.mpvPath,
     deviceName: userConfig.deviceName,
-    deviceId: userConfig.deviceId || `mpv-${crypto.randomBytes(8).toString('hex')}`,
+    deviceId: userConfig.deviceId || generateOrLoadDeviceId(),
     
     clientVersion: pkg.version,
     ipcSocketPath: userConfig.ipcSocketPath || (process.platform === 'win32' ? '\\\\.\\pipe\\mpv-ipc' : '/tmp/mpv-ipc.sock'),
@@ -56,6 +56,22 @@ let currentDuration = 0;
 let progressPollTimer = null;
 const pendingQueries = new Map();
 const markedWatched = new Set();
+
+function generateOrLoadDeviceId() {
+    const idFile = path.join(__dirname, 'data', '.device-id');
+    try {
+        if (fs.existsSync(idFile)) {
+            return fs.readFileSync(idFile, 'utf8').trim();
+        }
+    } catch {}
+    const id = `mpv-${crypto.randomBytes(8).toString('hex')}`;
+    try {
+        const dataDir = path.join(__dirname, 'data');
+        if (!fs.existsSync(dataDir)) fs.mkdirSync(dataDir);
+        fs.writeFileSync(idFile, id);
+    } catch {}
+    return id;
+}
 
 function loadToken() {
     try {
@@ -667,6 +683,7 @@ async function playMedia(itemId, startTicks) {
             }
             mpvProcess = null;
             stopProgressPoll();
+            for (const [, q] of pendingQueries) q.resolve(null);
             pendingQueries.clear();
             if (progressInterval) { clearInterval(progressInterval); progressInterval = null; }
             if (ipcClient) { ipcClient.destroy(); ipcClient = null; }
