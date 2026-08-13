@@ -15,12 +15,13 @@ This is a Node.js shim (`shim.js`) that connects to Jellyfin via WebSocket and c
 - **Log line contracts**: stdout is parsed by the macOS app's `processLogLine()`. Changing log message patterns (e.g., "Episode detected:", "File loaded by MPV") will silently break the macOS app. Flag any changes to console.log strings that match known patterns.
 - **IPC communication**: Changes to MPV IPC commands or the poll timer logic need careful review — race conditions and hanging promises are common failure modes.
 - **Jellyfin API compliance**: `SupportedCommands` must use exact `GeneralCommandType` enum names. Wrong names cause 400 errors from the server.
-- **State flags**: `isStoppingPlayback`, `isPlayingNext`, `markedWatched`, `pendingQueries` are critical for preventing race conditions. Changes to these need careful review.
+- **State flags**: `isPlayingNext`, `markedWatched`, `pendingQueries` are critical for preventing race conditions. Changes to these need careful review.
 
 ### macapp/ (Swift)
 
 - **Thread safety**: `processLogLine` runs on the main thread (dispatched from background). UI updates must happen on main thread.
-- **Config parsing**: `ConfigParser.swift` is shared across AppDelegate, NodeProcessManager, and PreferencesWindowController. Changes affect all three.
+- **State flags**: `isStoppingPlayback` prevents stale log lines from corrupting state after user clicks Stop.
+- **Config parsing**: `ConfigParser.swift` is shared across AppDelegate, NodeProcessManager, PreferencesWindowController, and StatusBarController. Changes affect all four.
 - **Window management**: All windows use standard layering (no `.floating`). Status bar icons are template images for light/dark mode.
 
 ### General
