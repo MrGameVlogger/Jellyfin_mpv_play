@@ -1113,17 +1113,18 @@ function reportPlaybackStart(itemId, positionTicks) {
     const headers = getAuthHeaders();
     
     const data = {
-        ItemId: itemId,
-        PositionTicks: positionTicks,
-        IsPaused: false,
-        IsMuted: isMuted,
-        VolumeLevel: volumeLevel,
-        PlayMethod: 'DirectPlay',
-        PlaySessionId: playSessionId,
-        CanSeek: true,
-        RepeatMode: 'RepeatNone',
-        PlaybackOrder: 'Sequential',
-        MediaSourceId: itemId
+        playbackStartInfo: {
+            ItemId: itemId,
+            PositionTicks: positionTicks,
+            IsPaused: false,
+            IsMuted: isMuted,
+            VolumeLevel: volumeLevel,
+            PlayMethod: 'DirectPlay',
+            PlaySessionId: playSessionId,
+            CanSeek: true,
+            RepeatMode: 'RepeatNone',
+            MediaSourceId: itemId
+        }
     };
 
     console.log('📡 Reporting playback start...');
@@ -1159,17 +1160,18 @@ function reportPlaybackProgress(itemId, positionTicks) {
     const headers = getAuthHeaders();
     
     const data = {
-        ItemId: itemId,
-        PositionTicks: positionTicks,
-        IsPaused: isMpvPaused,
-        IsMuted: isMuted,
-        VolumeLevel: volumeLevel,
-        PlayMethod: 'DirectPlay',
-        PlaySessionId: playSessionId,
-        CanSeek: true,
-        RepeatMode: 'RepeatNone',
-        PlaybackOrder: 'Sequential',
-        MediaSourceId: itemId
+        playbackProgressInfo: {
+            ItemId: itemId,
+            PositionTicks: positionTicks,
+            IsPaused: isMpvPaused,
+            IsMuted: isMuted,
+            VolumeLevel: volumeLevel,
+            PlayMethod: 'DirectPlay',
+            PlaySessionId: playSessionId,
+            CanSeek: true,
+            RepeatMode: 'RepeatNone',
+            MediaSourceId: itemId
+        }
     };
 
     axios.post(`${CONFIG.serverUrl}/Sessions/Playing/Progress`, data, { headers })
