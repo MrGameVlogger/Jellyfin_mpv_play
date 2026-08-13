@@ -35,7 +35,7 @@ This compiles the Swift sources, bundles Node.js 22 LTS, and deploys to `/Applic
 
 ```
 Jellyfin_mpv_play/
-├── shim.js                  # Main Node.js application (~1200 lines)
+├── shim.js                  # Main Node.js application (~1250 lines)
 ├── config.example.js        # Configuration template
 ├── package.json
 ├── macapp/
