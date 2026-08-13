@@ -106,9 +106,7 @@ class StatusBarController: NSObject {
 
     private func setupNowPlayingObserver() {
         nodeProcessManager.nowPlayingHandler = { [weak self] title in
-            DispatchQueue.main.async {
-                self?.updateNowPlaying(title)
-            }
+            self?.updateNowPlaying(title)
         }
         nodeProcessManager.pauseStateHandler = { [weak self] isPaused in
             DispatchQueue.main.async {

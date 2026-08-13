@@ -5,7 +5,14 @@ class NotificationManager: NSObject, UNUserNotificationCenterDelegate {
     override init() {
         super.init()
         UNUserNotificationCenter.current().delegate = self
-        UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound]) { _, _ in }
+        UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound]) { granted, error in
+            if !granted {
+                NSLog("JellyfinMPVPlay: Notification permission denied")
+            }
+            if let error = error {
+                NSLog("JellyfinMPVPlay: Notification authorization error: \(error)")
+            }
+        }
     }
 
     func showNotification(title: String, message: String) {

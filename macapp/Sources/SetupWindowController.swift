@@ -125,7 +125,7 @@ class SetupWindowController: NSWindowController, NSWindowDelegate {
             ("play.circle", "Play movies and series from Jellyfin"),
             ("arrow.right.circle", "Auto-play next episode"),
             ("clock.arrow.circlepath", "Resume where you left off"),
-            ("menubar.arrow.up.rectangle", "Runs from your menu bar")
+            ("menubar.rectangle", "Runs from your menu bar")
         ]
 
         for (i, (icon, text)) in features.enumerated() {
@@ -212,8 +212,18 @@ class SetupWindowController: NSWindowController, NSWindowDelegate {
         pathLabel.alignment = .right
         containerView.addSubview(pathLabel)
 
+        var sysinfo = utsname()
+        uname(&sysinfo)
+        let machine = String(bytes: Data(bytes: &sysinfo.machine, count: Int(_SYS_NAMELEN)), encoding: .utf8) ?? ""
+        let defaultMpvPath = machine.contains("arm64") ? "/opt/homebrew/bin/mpv" : "/usr/local/bin/mpv"
+
+        // Preserve user edits across back-navigation
+        let savedMpvPath = mpvPathField?.stringValue ?? ""
+        let savedDeviceName = deviceNameField?.stringValue ?? ""
+        let savedDeviceId = deviceIdField?.stringValue ?? ""
+
         mpvPathField = NSTextField(frame: NSRect(x: 190, y: 150, width: 220, height: 24))
-        mpvPathField.stringValue = "/opt/homebrew/bin/mpv"
+        mpvPathField.stringValue = savedMpvPath.isEmpty ? defaultMpvPath : savedMpvPath
         containerView.addSubview(mpvPathField)
 
         let browseButton = NSButton(title: "Browse...", target: self, action: #selector(browseMpv))
@@ -227,7 +237,7 @@ class SetupWindowController: NSWindowController, NSWindowDelegate {
         containerView.addSubview(deviceNameLabel)
 
         deviceNameField = NSTextField(frame: NSRect(x: 190, y: 110, width: 250, height: 24))
-        deviceNameField.stringValue = "Mac"
+        deviceNameField.stringValue = savedDeviceName.isEmpty ? "Mac" : savedDeviceName
         containerView.addSubview(deviceNameField)
 
         let deviceIdLabel = NSTextField(labelWithString: "Device ID:")
@@ -236,7 +246,7 @@ class SetupWindowController: NSWindowController, NSWindowDelegate {
         containerView.addSubview(deviceIdLabel)
 
         deviceIdField = NSTextField(frame: NSRect(x: 190, y: 70, width: 250, height: 24))
-        deviceIdField.stringValue = "mac-mpv"
+        deviceIdField.stringValue = savedDeviceId.isEmpty ? "mac-mpv" : savedDeviceId
         containerView.addSubview(deviceIdField)
 
         let helpLabel = NSTextField(labelWithString: "Device name appears in Jellyfin's device list. Device ID must be unique.")
@@ -253,7 +263,7 @@ class SetupWindowController: NSWindowController, NSWindowDelegate {
         nextButton.keyEquivalent = "\r"
 
         let tips = [
-            ("The app runs from your menu bar (top right)", "menubar.arrow.up.rectangle"),
+            ("The app runs from your menu bar (top right)", "menubar.rectangle"),
             ("Open Jellyfin in your browser and use 'Play on' to start watching", "play.circle"),
             ("Use Preferences to update settings later", "gearshape"),
             ("Check the Help menu for tips and troubleshooting", "questionmark.circle")
@@ -387,14 +397,6 @@ class SetupWindowController: NSWindowController, NSWindowDelegate {
     }
 
     private func saveAndFinish() {
-        func escape(_ s: String) -> String {
-            s.replacingOccurrences(of: "\\", with: "\\\\")
-             .replacingOccurrences(of: "'", with: "\\'")
-             .replacingOccurrences(of: "\n", with: "\\n")
-             .replacingOccurrences(of: "\r", with: "\\r")
-             .replacingOccurrences(of: "\t", with: "\\t")
-        }
-
         let server = serverField?.stringValue ?? ""
         let user = usernameField?.stringValue ?? ""
         let pass = passwordField?.stringValue ?? ""
@@ -404,12 +406,12 @@ class SetupWindowController: NSWindowController, NSWindowDelegate {
 
         let config = """
         module.exports = {
-            serverUrl: '\(escape(server))',
-            username: '\(escape(user))',
-            password: '\(escape(pass))',
-            mpvPath: '\(escape(mpv))',
-            deviceName: '\(escape(name))',
-            deviceId: '\(escape(id))'
+            serverUrl: '\(ConfigParser.escapeConfigValue(server))',
+            username: '\(ConfigParser.escapeConfigValue(user))',
+            password: '\(ConfigParser.escapeConfigValue(pass))',
+            mpvPath: '\(ConfigParser.escapeConfigValue(mpv))',
+            deviceName: '\(ConfigParser.escapeConfigValue(name))',
+            deviceId: '\(ConfigParser.escapeConfigValue(id))'
         };
         """
 
