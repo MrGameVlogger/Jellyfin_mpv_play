@@ -204,8 +204,6 @@ jobs:
           # Append quick start footer
           cat >> notes.md << 'EOF'
 
-          ---
-
           ### Quick Start
           **macOS:** Unzip, move to Applications, launch. The setup wizard will guide you.
 
