@@ -1130,7 +1130,9 @@ function reportPlaybackStart(itemId, positionTicks) {
     
     axios.post(`${CONFIG.serverUrl}/Sessions/Playing`, data, { headers })
         .catch(e => {
-            console.error('⚠️ Error reporting start:', e.message);
+            const status = e.response?.status || 'unknown';
+            const body = e.response?.data ? JSON.stringify(e.response.data) : e.message;
+            console.error(`⚠️ Error reporting start (${status}):`, body);
         });
 }
 
@@ -1172,7 +1174,9 @@ function reportPlaybackProgress(itemId, positionTicks) {
 
     axios.post(`${CONFIG.serverUrl}/Sessions/Playing/Progress`, data, { headers })
         .catch(e => {
-            console.error('⚠️ Failed to report playback progress:', e.message);
+            const status = e.response?.status || 'unknown';
+            const body = e.response?.data ? JSON.stringify(e.response.data) : e.message;
+            console.error(`⚠️ Failed to report progress (${status}):`, body);
         });
 }
 

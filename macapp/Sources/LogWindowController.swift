@@ -109,6 +109,12 @@ class LogWindowController: NSWindowController {
         }
     }
 
+    func copyFullLog() {
+        let pasteboard = NSPasteboard.general
+        pasteboard.clearContents()
+        pasteboard.setString(textView.string, forType: .string)
+    }
+
     @objc private func exportLogs() {
         let panel = NSSavePanel()
         panel.title = "Export Logs"
