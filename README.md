@@ -235,6 +235,8 @@ Jellyfin_mpv_play/
 ├── images/                  # Logo SVGs and screenshots
 │   ├── logo.svg             #   Full logo with text
 │   ├── icon.svg             #   App icon (no text)
+│   ├── icon-light.svg       #   Light variant
+│   ├── icon-dark.svg        #   Dark variant
 │   ├── logo-banner.svg      #   Horizontal banner for README
 │   └── 1-4.png              #   Step-by-step screenshots
 ├── data/                    # Runtime state (auto-generated, gitignored)

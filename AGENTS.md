@@ -2,7 +2,7 @@
 
 ## What this is
 
-Node.js shim (`shim.js`, ~1200 lines) that connects to Jellyfin via WebSocket, receives play commands, and controls MPV via Unix socket IPC. Optional macOS menubar app (`macapp/`) spawns the shim and parses its stdout for UI state.
+Node.js shim (`shim.js`, ~1250 lines) that connects to Jellyfin via WebSocket, receives play commands, and controls MPV via Unix socket IPC. Optional macOS menubar app (`macapp/`) spawns the shim and parses its stdout for UI state.
 
 ## Commands
 

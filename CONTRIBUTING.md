@@ -79,7 +79,7 @@ Jellyfin_mpv_play/
 
 - Keep PRs focused — one feature or fix per PR
 - Update README if adding user-facing features
-- Bump version in `macapp/Info.plist` if releasing
+- Bump version in `macapp/Info.plist` **and** `package.json` if releasing
 - No secrets or credentials in the diff
 
 ## Reporting Bugs
