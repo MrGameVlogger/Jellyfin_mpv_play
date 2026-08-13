@@ -23,8 +23,8 @@ class NodeProcessManager {
     var nowPlayingHandler: ((String?) -> Void)?
     var pauseStateHandler: ((Bool) -> Void)?
     private var isPaused = false
-    private var stdoutBuffer = ""
-    private var stderrBuffer = ""
+    private var stdoutData = Data()
+    private var stderrData = Data()
     private var ipcSocketPath = "/tmp/mpv-ipc.sock"
     private var isStoppingPlayback = false
 
@@ -77,13 +77,18 @@ class NodeProcessManager {
 
         stdoutPipe.fileHandleForReading.readabilityHandler = { [weak self] handle in
             let data = handle.availableData
-            guard !data.isEmpty, let str = String(data: data, encoding: .isoLatin1) else { return }
+            guard !data.isEmpty else { return }
             DispatchQueue.main.async { [weak self] in
                 guard let self = self else { return }
-                self.stdoutBuffer += str
-                let lines = self.stdoutBuffer.components(separatedBy: .newlines)
-                self.stdoutBuffer = lines.last ?? ""
-                for line in lines.dropLast() where !line.isEmpty {
+                self.stdoutData.append(data)
+                guard let str = String(data: self.stdoutData, encoding: .utf8) else { return }
+                self.stdoutData = Data()
+                let lines = str.components(separatedBy: .newlines)
+                let complete = lines.dropLast()
+                if let last = lines.last, !last.isEmpty {
+                    self.stdoutData = Data(last.utf8)
+                }
+                for line in complete where !line.isEmpty {
                     self.processLogLine(line)
                 }
             }
@@ -91,13 +96,18 @@ class NodeProcessManager {
 
         stderrPipe.fileHandleForReading.readabilityHandler = { [weak self] handle in
             let data = handle.availableData
-            guard !data.isEmpty, let str = String(data: data, encoding: .isoLatin1) else { return }
+            guard !data.isEmpty else { return }
             DispatchQueue.main.async { [weak self] in
                 guard let self = self else { return }
-                self.stderrBuffer += str
-                let lines = self.stderrBuffer.components(separatedBy: .newlines)
-                self.stderrBuffer = lines.last ?? ""
-                for line in lines.dropLast() where !line.isEmpty {
+                self.stderrData.append(data)
+                guard let str = String(data: self.stderrData, encoding: .utf8) else { return }
+                self.stderrData = Data()
+                let lines = str.components(separatedBy: .newlines)
+                let complete = lines.dropLast()
+                if let last = lines.last, !last.isEmpty {
+                    self.stderrData = Data(last.utf8)
+                }
+                for line in complete where !line.isEmpty {
                     self.logHandler("STDERR: \(line)")
                     self.processLogLine("STDERR: \(line)")
                 }
@@ -191,8 +201,8 @@ class NodeProcessManager {
         stdoutPipe = nil
         stderrPipe = nil
         process = nil
-        stdoutBuffer = ""
-        stderrBuffer = ""
+        stdoutData = Data()
+        stderrData = Data()
     }
 
     private func loadIpcSocketPath() {
