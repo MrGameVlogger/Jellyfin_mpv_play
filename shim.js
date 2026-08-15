@@ -509,6 +509,8 @@ async function handleMessage(msg) {
             const header = args.Header || '';
             const text = args.Text || '';
             console.log(`💬 Jellyfin message: ${header} - ${text}`);
+            const osdText = header ? `${header}\n${text}` : text;
+            sendMpvCommand('show-text', [osdText, 5000]);
         } else if (command === 'PlayNext') {
             playNextEpisode();
         } else if (command === 'ToggleFullscreen') {
