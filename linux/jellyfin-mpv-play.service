@@ -1,0 +1,15 @@
+[Unit]
+Description=Jellyfin MPV Play
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+ExecStart=/opt/jellyfin-mpv-play/node/bin/node /opt/jellyfin-mpv-play/shim.js
+WorkingDirectory=/opt/jellyfin-mpv-play
+Restart=on-failure
+RestartSec=5
+Environment=NODE_PATH=/opt/jellyfin-mpv-play/node_modules
+
+[Install]
+WantedBy=default.target

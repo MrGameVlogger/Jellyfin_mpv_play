@@ -2,7 +2,7 @@
 
 ## What this is
 
-Node.js shim (`shim.js`, ~1250 lines) that connects to Jellyfin via WebSocket, receives play commands, and controls MPV via Unix socket IPC. Optional macOS menubar app (`macapp/`) spawns the shim and parses its stdout for UI state.
+Node.js shim (`shim.js`, ~1620 lines) that connects to Jellyfin via WebSocket, receives play commands, and controls MPV via Unix socket IPC. Optional macOS menubar app (`macapp/`) spawns the shim and parses its stdout for UI state.
 
 ## Commands
 
@@ -28,10 +28,15 @@ No test, lint, or typecheck steps exist.
 ## Architecture
 
 - **IPC**: Unix socket at `/tmp/mpv-ipc.sock` (configurable via `ipcSocketPath` in config.js)
-- **MPV flags**: `--idle=yes --keep-open=yes --save-position-on-quit=no`
-- **Auto-play**: Poll timer queries `time-pos` and `duration` via IPC every 1s. Triggers next episode when `pos >= dur - 1`. Does NOT rely on `eof-reached` or `end-file` — those don't fire with `--keep-open=yes`.
-- **Episode transitions**: `loadNextEpisode()` reuses the running MPV process (sends `loadfile` via IPC). `playMedia()` spawns a fresh MPV (used for initial play and when IPC is down).
-- **Series page play**: Queries `GET /Shows/NextUp?userId={id}&seriesId={id}&limit=1` to find the correct next episode, falls back to first unwatched in the list.
+- **MPV flags**: `--idle=yes --keep-open=yes --save-position-on-quit=no` (plus optional `--fullscreen` and user `mpvFlags`)
+- **Queue system**: `playQueue` array tracks all item IDs; `queuePosition` tracks current index. All items loaded into MPV's native playlist on connect. MPV auto-advances through the playlist.
+- **Episode transitions**: MPV's native playlist handles auto-advance. The `file-loaded` event detects auto-advance and updates state. `loadNewQueue()` reuses the existing MPV for PlayNow commands. `playMedia()` spawns a fresh MPV (used for initial play and when IPC is down).
+- **Cross-season**: When queue is exhausted, queries `GET /Shows/NextUp` for next season's episodes.
+- **PlayNext/PlayLast**: Inserts items into both the queue and MPV's playlist at the correct position using `insert-at-index`.
+- **Auto-play**: Poll timer queries `time-pos` and `duration` via IPC every 1s. For the last item in the playlist, triggers `playNextEpisode()` when `pos >= dur - 1`. MPV handles all other transitions natively.
+- **DisplayMessage**: Shows OSD overlay in MPV, pauses playback for 10s, then resumes. Original pause state tracked globally to handle concurrent messages.
+- **Subtitle sync**: Observes `sid` property. Changes from MPV are reported to Jellyfin via progress API. Changes from Jellyfin are flagged to prevent echo.
+- **Headless mode**: `headless: true` in config.js redirects console output to `data/shim.log` and suppresses stdout/stderr.
 - **Playable types**: `Episode`, `Movie`, `Video`, `MusicVideo`, `Audio` — anything else is skipped.
 - **Watched threshold**: Item marked watched at 90% of runtime.
 - **Reconnection**: Exponential backoff (5s → 10s → 20s → 30s cap) on WebSocket disconnect.

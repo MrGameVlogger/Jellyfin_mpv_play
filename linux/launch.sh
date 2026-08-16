@@ -47,12 +47,51 @@ if [ ! -f "$SCRIPT_DIR/shim.js" ]; then
     exit 1
 fi
 
+# Install systemd service
+if [ "$1" = "--install-service" ]; then
+    SERVICE_FILE="$SCRIPT_DIR/linux/jellyfin-mpv-play.service"
+    if [ ! -f "$SERVICE_FILE" ]; then
+        echo "ERROR: Service file not found at $SERVICE_FILE" >&2
+        exit 1
+    fi
+    # Patch ExecStart and WorkingDirectory to actual install path
+    sed "s|/opt/jellyfin-mpv-play|$SCRIPT_DIR|g" "$SERVICE_FILE" > /tmp/jellyfin-mpv-play.service
+    mkdir -p ~/.config/systemd/user
+    cp /tmp/jellyfin-mpv-play.service ~/.config/systemd/user/jellyfin-mpv-play.service
+    systemctl --user daemon-reload
+    systemctl --user enable jellyfin-mpv-play.service
+    echo "Service installed and enabled. Start with: systemctl --user start jellyfin-mpv-play"
+    echo "View logs with: journalctl --user -u jellyfin-mpv-play -f"
+    exit 0
+fi
+
+# Uninstall systemd service
+if [ "$1" = "--uninstall-service" ]; then
+    systemctl --user stop jellyfin-mpv-play.service 2>/dev/null || true
+    systemctl --user disable jellyfin-mpv-play.service 2>/dev/null || true
+    rm -f ~/.config/systemd/user/jellyfin-mpv-play.service
+    systemctl --user daemon-reload
+    echo "Service stopped, disabled, and removed."
+    exit 0
+fi
+
 set +e
 cd "$SCRIPT_DIR"
-"$NODE_BIN" "$SCRIPT_DIR/shim.js" &
-NODE_PID=$!
-trap 'kill $NODE_PID 2>/dev/null' INT TERM
-wait $NODE_PID
+
+if [ "$1" = "--headless" ]; then
+    nohup "$NODE_BIN" "$SCRIPT_DIR/shim.js" > /dev/null 2>&1 &
+    NODE_PID=$!
+    disown $NODE_PID
+    echo "Running headless (PID: $NODE_PID). Logs: $SCRIPT_DIR/data/shim.log"
+    echo "Stop with: kill $NODE_PID"
+    exit 0
+else
+    "$NODE_BIN" "$SCRIPT_DIR/shim.js" &
+    NODE_PID=$!
+    trap 'kill $NODE_PID 2>/dev/null' INT TERM
+    wait $NODE_PID
+fi
+
 EXIT_CODE=$?
 set -e
 if [ $EXIT_CODE -ne 0 ]; then

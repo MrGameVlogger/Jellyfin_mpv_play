@@ -2,9 +2,26 @@
 Name=Jellyfin MPV Play
 Comment=Play media from Jellyfin using MPV
 Version=1.0
-Exec=bash -c 'exec "$(dirname "$(readlink -f "$0")")/launch.sh"'
+Exec=env bash -c 'SOURCE="$0"; while [ -L "$SOURCE" ]; do DIR="$(cd "$(dirname "$SOURCE")" && pwd)"; SOURCE="$(readlink "$SOURCE")"; [[ "$SOURCE" != /* ]] && SOURCE="$DIR/$SOURCE"; done; exec "$(cd "$(dirname "$SOURCE")" && pwd)/launch.sh"' %k
 Icon=jellyfin-mpv-play
 Terminal=true
 Type=Application
 Categories=AudioVideo;Video;Player;
 Keywords=jellyfin;mpv;video;media;
+
+Actions=Headless;InstallService;UninstallService;
+
+[Desktop Action Headless]
+Name=Run Headless
+Exec=env bash -c 'SOURCE="$0"; while [ -L "$SOURCE" ]; do DIR="$(cd "$(dirname "$SOURCE")" && pwd)"; SOURCE="$(readlink "$SOURCE")"; [[ "$SOURCE" != /* ]] && SOURCE="$DIR/$SOURCE"; done; exec "$(cd "$(dirname "$SOURCE")" && pwd)/launch.sh" --headless' %k
+Terminal=false
+
+[Desktop Action InstallService]
+Name=Install Background Service
+Exec=env bash -c 'SOURCE="$0"; while [ -L "$SOURCE" ]; do DIR="$(cd "$(dirname "$SOURCE")" && pwd)"; SOURCE="$(readlink "$SOURCE")"; [[ "$SOURCE" != /* ]] && SOURCE="$DIR/$SOURCE"; done; exec "$(cd "$(dirname "$SOURCE")" && pwd)/launch.sh" --install-service' %k
+Terminal=true
+
+[Desktop Action UninstallService]
+Name=Remove Background Service
+Exec=env bash -c 'SOURCE="$0"; while [ -L "$SOURCE" ]; do DIR="$(cd "$(dirname "$SOURCE")" && pwd)"; SOURCE="$(readlink "$SOURCE")"; [[ "$SOURCE" != /* ]] && SOURCE="$DIR/$SOURCE"; done; exec "$(cd "$(dirname "$SOURCE")" && pwd)/launch.sh" --uninstall-service' %k
+Terminal=true

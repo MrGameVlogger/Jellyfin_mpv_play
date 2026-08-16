@@ -2,6 +2,34 @@
 
 All notable changes to Jellyfin MPV Play are documented here.
 
+## v1.8.0
+
+### New Features
+- **Full queue system** — Native MPV playlist; Play Next / Play Last from Jellyfin UI; next/prev navigation through queued items
+- **Cross-season auto-play** — Automatically queries Jellyfin's NextUp API when a season ends
+- **Display messages** — Jellyfin notifications appear as OSD overlays in MPV with pause support
+- **Subtitle sync** — Subtitle changes in MPV are reported back to Jellyfin
+- **Fullscreen mode** — `fullscreen: true` in config.js starts MPV in fullscreen
+- **Auto-close** — `autoClose: true` in config.js shuts down when playback queue is exhausted
+- **Custom MPV flags** — `mpvFlags: [...]` in config.js passes extra arguments to MPV
+- **Headless mode** — `headless: true` in config.js suppresses console output, logs to `data/shim.log`
+- **Linux systemd service** — `./launch.sh --install-service` installs a user service for background operation
+- **PlayNow reuses MPV** — New play commands reuse the existing MPV instance instead of restarting
+
+### Bug Fixes
+- Fixed episode selection — plays exactly the episode clicked in Jellyfin, not the first unwatched
+- Fixed DisplayMessage OSD positioning (uses `osd-align-y: center` instead of invalid `middle`)
+- Fixed progress report 400 errors from invalid SubtitleStreamIndex
+- Fixed `isReportingStop` persisting across episode transitions
+- Fixed `playPreviousEpisode` queue/playlist desync
+- Fixed PlayNext/PlayLast items landing at wrong position in MPV playlist
+- Fixed `isPlayingNext` getting stuck forever when MPV IPC is dead
+- Fixed DisplayMessage OSD properties corrupted by concurrent messages
+- Fixed `loadNewQueue` triggering false auto-advance
+- Fixed DisplayMessage timeout not cancelled on MPV close
+
+---
+
 ## v1.7.6
 
 ### Bug Fixes

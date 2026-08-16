@@ -25,9 +25,16 @@
 
 - **Remote Control** — Play from any device on your network
 - **Smart Resume** — Remembers where you left off; "Play from beginning" in Jellyfin starts fresh
-- **Auto-Play Next Episode** — Binge-watch series seamlessly
+- **Auto-Play Next Episode** — Binge-watch series seamlessly with cross-season support
+- **Full Queue System** — Native MPV playlist; Play Next / Play Last from Jellyfin UI; next/prev navigation
 - **Hardware Acceleration** — Smooth playback powered by MPV
 - **Auto-Reconnect** — Handles network interruptions with exponential backoff
+- **Subtitle Sync** — Change subtitles in MPV, Jellyfin tracks the change
+- **Display Messages** — Jellyfin notifications appear as OSD overlays in MPV
+- **Fullscreen Mode** — Optional auto-fullscreen on startup
+- **Auto-Close** — Optional shutdown when playback queue is exhausted
+- **Custom MPV Flags** — Pass any MPV options from config
+- **Headless Mode** — Run as a background service on Linux (systemd support)
 - **Native macOS App** — Menubar icon, notifications, preferences editor, log viewer, setup wizard
 - **Self-Contained Bundles** — All platforms bundle Node.js 22 LTS; just install MPV and go
 - **Built-in Help** — Reference guide accessible from the menu bar (macOS)
@@ -130,7 +137,11 @@ All bundles include their own Node.js runtime. Only [MPV Player](https://mpv.io/
        password: 'your_password',
        mpvPath: '/usr/bin/mpv',
        deviceName: 'My-PC',
-       deviceId: 'my-pc'
+       deviceId: 'my-pc',
+       // fullscreen: true,       // Start MPV in fullscreen
+       // autoClose: true,         // Close app when queue finishes
+       // mpvFlags: [],            // Extra MPV flags
+       // headless: true,          // Suppress console output, log to data/shim.log
    };
    ```
 
@@ -140,6 +151,30 @@ All bundles include their own Node.js runtime. Only [MPV Player](https://mpv.io/
    ```
 
    > To add to your app launcher, copy `jellyfin-mpv-play.desktop` to `~/.local/share/applications/` and update the `Exec` path.
+
+#### Headless / Background Service
+
+Run without a terminal window:
+
+```bash
+./launch.sh --headless
+```
+
+Logs are written to `data/shim.log` instead of the terminal.
+
+To run as a systemd service (auto-start on login, auto-restart on crash):
+
+```bash
+./launch.sh --install-service
+systemctl --user start jellyfin-mpv-play
+```
+
+View logs: `journalctl --user -u jellyfin-mpv-play -f`
+
+To remove the service:
+```bash
+./launch.sh --uninstall-service
+```
 
 ---
 
@@ -170,8 +205,11 @@ While watching in MPV:
 
 | Key | Action |
 |-----|--------|
-| `>` or `Media Next` | Next episode |
-| `<` or `Media Previous` | Previous episode |
+| `>` | Next episode |
+| `<` | Previous episode |
+| `j` | Cycle subtitles (synced to Jellyfin) |
+
+MPV's native `Media Next` / `Media Previous` keys also work for playlist navigation.
 
 ---
 
@@ -185,6 +223,28 @@ Or manually:
 1. Open **System Settings** → **General** → **Login Items**
 2. Click the **+** button
 3. Navigate to `/Applications` and select `Jellyfin MPV Play.app`
+
+### Linux
+
+**Option A: Systemd service (recommended)**
+
+```bash
+./launch.sh --install-service
+systemctl --user start jellyfin-mpv-play
+```
+
+This creates a user service that starts on login and restarts on crash. Logs: `journalctl --user -u jellyfin-mpv-play -f`
+
+**Option B: Desktop file**
+
+Copy `jellyfin-mpv-play.desktop` to `~/.local/share/applications/` and update the `Exec` path. Right-click the entry in your app launcher to set it as a startup app.
+
+**Option C: Cron**
+
+```bash
+crontab -e
+# Add: @reboot /path/to/launch.sh --headless
+```
 
 ### Windows
 
@@ -240,8 +300,9 @@ Jellyfin_mpv_play/
 │   ├── AppIcon.icns         #   App icon (macOS .icns format)
 │   └── Info.plist           #   App metadata
 ├── linux/                   # Linux bundle launcher
-│   ├── launch.sh            #   Launcher script
-│   └── jellyfin-mpv-play.desktop  # Desktop integration
+│   ├── launch.sh            #   Launcher script (--headless, --install-service)
+│   ├── jellyfin-mpv-play.service  #   Systemd user service
+│   └── jellyfin-mpv-play.desktop  #   Desktop integration
 ├── windows/                 # Windows bundle launcher
 │   └── launch.bat           #   Launcher script
 ├── images/                  # Logo SVGs and screenshots
@@ -255,7 +316,7 @@ Jellyfin_mpv_play/
 ├── node_modules/            # Dependencies (gitignored)
 ├── config.example.js        # Configuration template
 ├── config.js                # Your config — never commit! (gitignored)
-├── shim.js                  # Main Node.js application (~1250 lines)
+├── shim.js                  # Main Node.js application (~1620 lines)
 ├── package.json
 └── README.md
 ```
@@ -276,6 +337,13 @@ Jellyfin_mpv_play/
 See [CHANGELOG.md](CHANGELOG.md) for full release history.
 
 ### Recent Releases
+
+**v1.8.0** — Queue system, DisplayMessage OSD, subtitle sync, headless mode ([details](CHANGELOG.md#v180))
+- Full queue system with native MPV playlist, Play Next/Play Last, cross-season auto-play
+- Jellyfin messages appear as OSD overlays in MPV with pause support
+- Subtitle changes in MPV synced to Jellyfin
+- Headless mode for Linux background operation
+- Fullscreen, auto-close, custom MPV flags config options
 
 **v1.7.6** — Bug fixes: stop reporting ([details](CHANGELOG.md#v176))
 - Fixed playback stop not reported when Stop command comes from Jellyfin web UI
