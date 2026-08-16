@@ -101,7 +101,7 @@ Title format for `Episode detected`: `SeriesName - SxEp - EpisodeName` (parsed b
 3. Create and push a version tag: `git tag -a vX.Y.Z -m "vX.Y.Z" && git push origin vX.Y.Z`
 4. The CI workflow (`.github/workflows/build.yml`) automatically:
    - Reads version from `package.json`
-   - Generates release notes from merged PRs (categorized by feat/fix/docs/ci)
+   - Generates release notes from CHANGELOG.md entries
    - Builds macOS `.app` bundle (runs on `macos-latest`)
    - Builds Linux bundle with bundled Node.js (runs on `ubuntu-latest`)
    - Builds Windows bundle with bundled Node.js (runs on `windows-latest`)
