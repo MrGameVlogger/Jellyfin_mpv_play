@@ -109,6 +109,48 @@ The macOS app parses stdout from shim.js. These patterns must be preserved:
 - Clear `isPlayingNext` after 10s timeout in case `loadfile` silently fails
 - The `markedWatched` Set prevents duplicate API calls; clear it on each new file load
 
+## macOS App Architecture
+
+The native macOS menubar app (`macapp/`) spawns the Node.js shim and parses its stdout for UI state.
+
+### File Map (11 files)
+
+| File | Role |
+|------|------|
+| `main.swift` | Entry point — creates NSApplication, assigns AppDelegate |
+| `AppDelegate.swift` | Lifecycle: checks setup needed, starts/stops shim, prompts before quit during playback |
+| `ConfigParser.swift` | Shared utility: config path, regex extraction, value escaping, Jellyfin auth test |
+| `NodeProcessManager.swift` | Spawns `node shim.js`, captures stdout/stderr, parses log lines, sends MPV IPC commands |
+| `StatusBarController.swift` | Menu bar icon (dynamic SF Symbols), dropdown menu, dispatches all actions |
+| `PreferencesWindowController.swift` | Reads/writes config.js, "Test Connection" button, restarts shim on save |
+| `SetupWindowController.swift` | 5-step wizard on first launch: server, credentials, MPV path, device info |
+| `NotificationManager.swift` | UNUserNotificationCenter wrapper for connection/error banners |
+| `LogWindowController.swift` | Timestamped, color-coded log viewer with auto-scroll, export, copy |
+| `HelpWindowController.swift` | Scrollable reference guide (Getting Started, Controls, Shortcuts, Troubleshooting) |
+| `AboutWindowController.swift` | Version, features, fork attribution, links |
+
+### How It Works
+
+1. `AppDelegate` checks if config is complete via `ConfigParser`
+2. If incomplete → shows `SetupWindowController` wizard
+3. If complete → calls `NodeProcessManager.start()`:
+   - Copies shim.js + package.json to `~/Library/Application Support/JellyfinMpvPlay/`
+   - Finds node binary (bundled → system → nvm)
+   - Spawns `node shim.js` with `NODE_PATH` pointing to bundle's node_modules
+   - Captures stdout/stderr via Pipe, dispatches to main thread
+4. `processLogLine()` runs on main thread, parses each line:
+   - Updates `isPlaying`, `isPaused`, `nowPlaying` state
+   - Fires callbacks → `StatusBarController` updates icon/menu
+   - Fires `notificationHandler` for errors and connection events
+5. `StatusBarController` manages the NSStatusItem with dynamic SF Symbol icons
+
+### Key Design Decisions
+
+- `processLogLine` always runs on main thread (dispatched from GCD background)
+- `isStoppingPlayback` flag prevents stale log lines after user clicks Stop
+- Config is a CommonJS module parsed with regex (not `eval`)
+- `setupApplicationSupport()` always overwrites shim.js from bundle on launch
+
 ## Submitting Changes
 
 1. **Fork** the repository
