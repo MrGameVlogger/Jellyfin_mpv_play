@@ -42,54 +42,15 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
-      - name: Generate release notes from PRs
+      - name: Generate release notes
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           VERSION="${{ needs.get-version.outputs.version }}"
 
-          # Get the date of the most recent release (to filter PRs)
-          LAST_RELEASE_DATE=$(gh release list -R MrGameVlogger/Jellyfin_mpv_play --limit 1 --json publishedAt -q '.[0].publishedAt' 2>/dev/null || echo "")
-          echo "Last release date: $LAST_RELEASE_DATE"
-
-          # Get merged PRs since last release
-          if [ -n "$LAST_RELEASE_DATE" ]; then
-            PRS=$(gh pr list -R MrGameVlogger/Jellyfin_mpv_play --state merged --limit 100 --json number,title,mergedAt --jq "
-              .[] | select(.mergedAt != null and .mergedAt > \"$LAST_RELEASE_DATE\") | \"\(.number)|\(.title)\"
-            " 2>/dev/null || echo "")
-          else
-            PRS=$(gh pr list -R MrGameVlogger/Jellyfin_mpv_play --state merged --limit 100 --json number,title,mergedAt --jq "
-              .[] | select(.mergedAt != null) | \"\(.number)|\(.title)\"
-            " 2>/dev/null || echo "")
-          fi
-
-          echo "Found PRs: $PRS"
-
-          FEAT=""; FIX=""; DOCS=""; CI_CHG=""; OTHER=""
-          while IFS='|' read -r num title; do
-            [ -z "$num" ] && continue
-            entry="- ${title} ([#${num}](https://github.com/MrGameVlogger/Jellyfin_mpv_play/pull/${num}))"
-            case "$title" in
-              feat:*|Feat:*) FEAT="${FEAT}${entry}\n" ;;
-              fix:*|Fix:*) FIX="${FIX}${entry}\n" ;;
-              docs:*|Docs:*) DOCS="${DOCS}${entry}\n" ;;
-              ci:*|Ci:*) CI_CHG="${CI_CHG}${entry}\n" ;;
-              release:*|Release:*) ;;
-              *) OTHER="${OTHER}${entry}\n" ;;
-            esac
-          done <<< "$PRS"
-
-          ENTRY="## v${VERSION}\n\n"
-          [ -n "$FEAT" ] && ENTRY="${ENTRY}### Features\n${FEAT}\n"
-          [ -n "$FIX" ] && ENTRY="${ENTRY}### Bug Fixes\n${FIX}\n"
-          [ -n "$DOCS" ] && ENTRY="${ENTRY}### Documentation\n${DOCS}\n"
-          [ -n "$OTHER" ] && ENTRY="${ENTRY}### Other Changes\n${OTHER}\n"
-          if [ -n "$CI_CHG" ]; then
-            ENTRY="${ENTRY}<details>\n<summary><b>CI/Infrastructure</b></summary>\n\n${CI_CHG}\n</details>\n\n"
-          fi
-
-          mkdir -p sync-output
-          echo -e "$ENTRY" > sync-output/changelog-entry.md
+          # Extract changelog entry for this version from CHANGELOG.md
+          VER_ESCAPED="${VERSION//./\\.}"
+          awk "/^## v${VER_ESCAPED}/{found=1; next} found && /^## v/{exit} found" CHANGELOG.md > sync-output/changelog-entry.md
 
           # Sync Info.plist version (only CFBundleVersion and CFBundleShortVersionString)
           cp macapp/Info.plist sync-output/Info.plist
