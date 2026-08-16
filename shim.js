@@ -19,8 +19,25 @@ const CONFIG = {
     
     clientVersion: pkg.version,
     ipcSocketPath: userConfig.ipcSocketPath || (process.platform === 'win32' ? '\\\\.\\pipe\\mpv-ipc' : '/tmp/mpv-ipc.sock'),
-    mpvLoadDelayMs: 100
+    mpvLoadDelayMs: 100,
+    fullscreen: userConfig.fullscreen || false,
+    autoClose: userConfig.autoClose || false,
+    mpvFlags: userConfig.mpvFlags || [],
+    headless: userConfig.headless || false
 };
+
+if (CONFIG.headless) {
+    const logDir = path.join(__dirname, 'data');
+    if (!fs.existsSync(logDir)) fs.mkdirSync(logDir, { recursive: true });
+    const logFile = path.join(logDir, 'shim.log');
+    const logStream = fs.createWriteStream(logFile, { flags: 'a' });
+    const timestamp = () => new Date().toISOString();
+    console.log = (...args) => { logStream.write(`[${timestamp()}] ${args.join(' ')}\n`); };
+    console.error = (...args) => { logStream.write(`[${timestamp()}] ERROR: ${args.join(' ')}\n`); };
+    console.log(`🔇 Headless mode — logging to ${logFile}`);
+    process.stdout.write = () => true;
+    process.stderr.write = () => true;
+}
 
 const TOKEN_FILE = path.join(__dirname, 'data', `jellyfin_token_${CONFIG.deviceId}.json`);
 const POSITIONS_FILE = path.join(__dirname, 'data', `playback_positions_${CONFIG.deviceId}.json`);
@@ -47,6 +64,9 @@ let pendingStartSeconds = 0;
 let pendingTitle = null;
 let pendingAudioStreamIndex = undefined;
 let pendingSubtitleStreamIndex = undefined;
+let isSettingSubtitleFromJellyfin = false;
+let subtitleFlagTimeout = null;
+let currentSubtitleTrack = undefined;
 let playbackGeneration = 0;
 let isMpvPaused = false;
 let isMuted = false;
@@ -56,6 +76,19 @@ let currentDuration = 0;
 let progressPollTimer = null;
 const pendingQueries = new Map();
 const markedWatched = new Set();
+
+let playQueue = [];
+let queuePosition = -1;
+let displayMessageTimeout = null;
+let displayMessageOriginalPause = null;
+let displayMessageOriginalFontSize = null;
+let displayMessageOriginalAlignX = null;
+let displayMessageOriginalAlignY = null;
+let isManualSkip = false;
+let isSeeking = false;
+let isNewQueueLoad = false;
+let isPlayingNextTimestamp = 0;
+let previousItemId = null;
 
 function generateOrLoadDeviceId() {
     const idFile = path.join(__dirname, 'data', '.device-id');
@@ -232,7 +265,7 @@ async function connectWebSocket() {
                 if (msg.MessageType !== 'KeepAlive' && msg.MessageType !== 'ForceKeepAlive') {
                     console.log('📩 Message received:', msg.MessageType);
                 }
-                handleMessage(msg);
+                handleMessage(msg).catch(e => console.error('⚠️ Error handling message:', e.message));
             } catch (e) {
                 console.error('⚠️ Error parsing message:', e.message);
             }
@@ -381,8 +414,6 @@ async function handleMessage(msg) {
                     [orderedItems[i], orderedItems[j]] = [orderedItems[j], orderedItems[i]];
                 }
                 console.log('🔀 Shuffled playlist');
-            } else if (playCommand === 'PlayNext' || playCommand === 'PlayLast') {
-                console.log(`ℹ️ ${playCommand} not supported, playing now`);
             } else if (playCommand === 'PlayInstantMix') {
                 console.log('ℹ️ PlayInstantMix not supported, playing first item');
             }
@@ -392,33 +423,29 @@ async function handleMessage(msg) {
             
             if (startIndex > 0) {
                 console.log(`🎯 Starting from index ${startIndex}`);
-            } else if (orderedItems.length > 1 && !hasStartPosition && playCommand !== 'PlayShuffle') {
-                const firstInfo = await getEpisodeInfo(orderedItems[0]);
-                if (firstInfo.isSeries && firstInfo.seriesId) {
-                    try {
-                        const headers = getAuthHeaders();
-                        const nextUpResponse = await axios.get(`${CONFIG.serverUrl}/Shows/NextUp`, {
-                            headers,
-                            params: { userId, seriesId: firstInfo.seriesId, limit: 1 }
-                        });
-                        if (nextUpResponse.data.Items && nextUpResponse.data.Items.length > 0) {
-                            targetId = nextUpResponse.data.Items[0].Id;
-                            console.log(`🎯 Next Up from Jellyfin: ${nextUpResponse.data.Items[0].Name}`);
-                        }
-                    } catch (e) {
-                        console.log('⚠️ Next Up query failed, falling back to first unwatched');
-                    }
+            }
+            
+            if (playCommand === 'PlayNext') {
+                const insertAt = queuePosition + 1;
+                playQueue.splice(insertAt, 0, ...orderedItems);
+                for (let i = 0; i < orderedItems.length; i++) {
+                    const url = `${CONFIG.serverUrl}/Videos/${orderedItems[i]}/stream?static=true&api_key=${accessToken}`;
+                    sendMpvCommand('loadfile', [url, 'insert-at-index', insertAt + i]);
                 }
-                if (targetId === (orderedItems[startIndex] || orderedItems[0])) {
-                    for (const id of orderedItems) {
-                        const info = await getEpisodeInfo(id);
-                        if (info.playable && !info.userData?.Played) {
-                            targetId = id;
-                            console.log(`🎯 Playing first unwatched: ${info.title}`);
-                            break;
-                        }
-                    }
+                console.log(`➕ Added ${orderedItems.length} item(s) to queue after position ${queuePosition}`);
+                return;
+            } else if (playCommand === 'PlayLast') {
+                playQueue.push(...orderedItems);
+                for (const id of orderedItems) {
+                    const url = `${CONFIG.serverUrl}/Videos/${id}/stream?static=true&api_key=${accessToken}`;
+                    sendMpvCommand('loadfile', [url, 'append']);
                 }
+                console.log(`➕ Appended ${orderedItems.length} item(s) to queue (total: ${playQueue.length})`);
+                return;
+            } else {
+                playQueue = [...orderedItems];
+                queuePosition = startIndex;
+                console.log(`📋 Queue set: ${playQueue.length} items, starting at index ${queuePosition}`);
             }
             
             if (data.AudioStreamIndex !== undefined) {
@@ -428,9 +455,15 @@ async function handleMessage(msg) {
                 pendingSubtitleStreamIndex = data.SubtitleStreamIndex === -1 ? 'no' : data.SubtitleStreamIndex;
             }
 
-            playMedia(targetId, finalStartPosition).catch(err => {
-                console.error('⚠️ Error playing media:', err.message);
-            });
+            if (ipcClient && !ipcClient.destroyed && mpvProcess) {
+                loadNewQueue(targetId, finalStartPosition).catch(err => {
+                    console.error('⚠️ Error loading new queue:', err.message);
+                });
+            } else {
+                playMedia(targetId, finalStartPosition).catch(err => {
+                    console.error('⚠️ Error playing media:', err.message);
+                });
+            }
         } else {
             console.error('⚠️ No ItemIds received in Play command');
         }
@@ -482,6 +515,9 @@ async function handleMessage(msg) {
             if (!isNaN(index)) sendMpvCommand('set_property', ['aid', index]);
         } else if (command === 'SetSubtitleStreamIndex') {
             const index = parseInt(args.Index, 10);
+            isSettingSubtitleFromJellyfin = true;
+            if (subtitleFlagTimeout) clearTimeout(subtitleFlagTimeout);
+            subtitleFlagTimeout = setTimeout(() => { isSettingSubtitleFromJellyfin = false; subtitleFlagTimeout = null; }, 5000);
             sendMpvCommand('set_property', ['sid', isNaN(index) || index === -1 ? 'no' : index]);
         } else if (command === 'SetVolume') {
             const vol = parseInt(args.Volume, 10);
@@ -509,6 +545,39 @@ async function handleMessage(msg) {
             const header = args.Header || '';
             const text = args.Text || '';
             console.log(`💬 Jellyfin message: ${header} - ${text}`);
+            const osdText = header ? `Message from Jellyfin Server\n${header}\n${text}` : `Message from Jellyfin Server\n${text}`;
+            const duration = 10000;
+            const wasPaused = await queryProperty('pause');
+            if (wasPaused === null) return;
+            if (displayMessageTimeout) {
+                clearTimeout(displayMessageTimeout);
+                displayMessageTimeout = null;
+            } else {
+                displayMessageOriginalPause = wasPaused;
+                displayMessageOriginalFontSize = await queryProperty('osd-font-size');
+                displayMessageOriginalAlignX = await queryProperty('osd-align-x');
+                displayMessageOriginalAlignY = await queryProperty('osd-align-y');
+            }
+            if (!displayMessageOriginalPause) sendMpvCommand('set_property', ['pause', true]);
+            sendMpvCommand('set_property', ['osd-font-size', 60]);
+            sendMpvCommand('set_property', ['osd-align-x', 'center']);
+            sendMpvCommand('set_property', ['osd-align-y', 'center']);
+            await new Promise(r => setTimeout(r, 50));
+            sendMpvCommand('show-text', [osdText, duration]);
+            displayMessageTimeout = setTimeout(async () => {
+                displayMessageTimeout = null;
+                sendMpvCommand('set_property', ['osd-font-size', displayMessageOriginalFontSize || 55]);
+                sendMpvCommand('set_property', ['osd-align-x', displayMessageOriginalAlignX || 'center']);
+                sendMpvCommand('set_property', ['osd-align-y', displayMessageOriginalAlignY || 'bottom']);
+                if (!displayMessageOriginalPause) {
+                    const currentPause = await queryProperty('pause');
+                    if (currentPause === true) sendMpvCommand('set_property', ['pause', false]);
+                }
+                displayMessageOriginalPause = null;
+                displayMessageOriginalFontSize = null;
+                displayMessageOriginalAlignX = null;
+                displayMessageOriginalAlignY = null;
+            }, duration);
         } else if (command === 'PlayNext') {
             playNextEpisode();
         } else if (command === 'ToggleFullscreen') {
@@ -526,7 +595,7 @@ async function handleMessage(msg) {
     }
 }
 
-async function getEpisodeInfo(itemId) {
+async function getEpisodeInfo(itemId, silent = false) {
     try {
         const headers = getAuthHeaders();
         
@@ -547,7 +616,7 @@ async function getEpisodeInfo(itemId) {
             const currentIndex = episodes.findIndex(ep => ep.Id === itemId);
             const epName = currentIndex >= 0 ? (episodes[currentIndex].Name || '') : (item.Name || '');
             const epLogTitle = [item.SeriesName, `${item.ParentIndexNumber}x${item.IndexNumber}`, epName].filter(Boolean).join(' - ');
-            console.log(`📺 Episode detected: ${epLogTitle}`);
+            if (!silent) console.log(`📺 Episode detected: ${epLogTitle}`);
 
             return {
                 isSeries: true,
@@ -580,7 +649,98 @@ async function getEpisodeInfo(itemId) {
     }
 }
 
+async function loadNewQueue(itemId, startTicks) {
+    stopProgressPoll();
+    if (currentItemId && !isReportingStop) {
+        const runtime = currentEpisodeInfo?.itemRuntime || 0;
+        const completionThreshold = 0.9;
+        if (runtime > 0 && currentPositionSeconds >= runtime * completionThreshold) {
+            markItemAsWatched(currentItemId);
+        }
+        reportPlaybackStop(currentItemId, Math.round(currentPositionSeconds * 10000000));
+    }
+    isReportingStop = false;
+    isNewQueueLoad = true;
+
+    currentItemId = itemId;
+    currentPositionSeconds = startTicks / 10000000;
+
+    try {
+        currentEpisodeInfo = await getEpisodeInfo(itemId);
+    } catch (e) {
+        console.error('⚠️ Error getting episode info for new queue:', e.message);
+        currentItemId = null;
+        currentEpisodeInfo = null;
+        isPlayingNext = false;
+        return;
+    }
+
+    if (!ipcClient || ipcClient.destroyed || !mpvProcess) {
+        console.log('⚠️ MPV/IPC no longer available after loading queue info, falling back to playMedia');
+        playMedia(itemId, startTicks).catch(err => {
+            console.error('⚠️ Error playing media:', err.message);
+        });
+        return;
+    }
+
+    if (!currentEpisodeInfo.playable) {
+        console.log(`⏭️ Skipping non-playable item: ${currentEpisodeInfo.title}`);
+        currentItemId = null;
+        currentEpisodeInfo = null;
+        return;
+    }
+
+    playSessionId = crypto.randomUUID();
+    markedWatched.clear();
+
+    const titleText = currentEpisodeInfo.isSeries
+        ? [currentEpisodeInfo.seriesName, `${currentEpisodeInfo.seasonNumber}x${currentEpisodeInfo.episodeNumber}`, currentEpisodeInfo.title].filter(Boolean).join(' - ')
+        : (currentEpisodeInfo.title || String(itemId));
+
+    console.log(`📺 Loading new queue: ${titleText}`);
+
+    const savedAudioIndex = pendingAudioStreamIndex;
+    const savedSubIndex = pendingSubtitleStreamIndex;
+
+    sendMpvCommand('playlist-clear');
+    const firstUrl = `${CONFIG.serverUrl}/Videos/${itemId}/stream?static=true&api_key=${accessToken}`;
+    sendMpvCommand('loadfile', [firstUrl, 'replace']);
+    for (let i = 1; i < playQueue.length; i++) {
+        const url = `${CONFIG.serverUrl}/Videos/${playQueue[i]}/stream?static=true&api_key=${accessToken}`;
+        sendMpvCommand('loadfile', [url, 'append']);
+    }
+    console.log(`📋 Loaded ${playQueue.length} items into MPV playlist.`);
+
+    if (savedAudioIndex !== undefined) {
+        sendMpvCommand('set_property', ['aid', savedAudioIndex]);
+        pendingAudioStreamIndex = undefined;
+    }
+    if (savedSubIndex !== undefined) {
+        isSettingSubtitleFromJellyfin = true;
+        if (subtitleFlagTimeout) clearTimeout(subtitleFlagTimeout);
+        subtitleFlagTimeout = setTimeout(() => { isSettingSubtitleFromJellyfin = false; subtitleFlagTimeout = null; }, 5000);
+        sendMpvCommand('set_property', ['sid', savedSubIndex]);
+        pendingSubtitleStreamIndex = undefined;
+    }
+
+    if (startTicks > 0) {
+        pendingStartSeconds = startTicks / 10000000;
+    }
+
+    pendingAudioStreamIndex = savedAudioIndex;
+    pendingSubtitleStreamIndex = savedSubIndex;
+    reportPlaybackStart(itemId, startTicks);
+    pendingAudioStreamIndex = undefined;
+    pendingSubtitleStreamIndex = undefined;
+    startProgressReporting(itemId);
+    sendMpvCommand('set_property', ['force-media-title', `Jellyfin - ${titleText}`]);
+    sendMpvCommand('set_property', ['title', `Jellyfin - ${titleText}`]);
+}
+
 async function playMedia(itemId, startTicks) {
+    if (currentItemId && !isReportingStop) {
+        reportPlaybackStop(currentItemId, Math.round(currentPositionSeconds * 10000000));
+    }
     killMpv();
     isReportingStop = false;
     
@@ -623,6 +783,14 @@ async function playMedia(itemId, startTicks) {
         `--input-ipc-server=${CONFIG.ipcSocketPath}`,
         '--save-position-on-quit=no'
     ];
+
+    if (CONFIG.fullscreen) {
+        args.push('--fullscreen');
+    }
+
+    if (Array.isArray(CONFIG.mpvFlags)) {
+        args.push(...CONFIG.mpvFlags);
+    }
 
     console.log('🔧 MPV arguments:', args.join(' '));
 
@@ -686,13 +854,20 @@ async function playMedia(itemId, startTicks) {
             }
             mpvProcess = null;
             stopProgressPoll();
-            for (const [, q] of pendingQueries) q.resolve(null);
+            for (const [, q] of pendingQueries) { if (q.timer) clearTimeout(q.timer); q.resolve(null); }
             pendingQueries.clear();
             if (progressInterval) { clearInterval(progressInterval); progressInterval = null; }
             if (ipcClient) { ipcClient.destroy(); ipcClient = null; }
             currentItemId = null;
+            isSettingSubtitleFromJellyfin = false;
+            if (subtitleFlagTimeout) { clearTimeout(subtitleFlagTimeout); subtitleFlagTimeout = null; }
+            currentSubtitleTrack = undefined;
             currentEpisodeInfo = null;
             isReportingStop = false;
+            isPlayingNext = false;
+            isManualSkip = false;
+            isSeeking = false;
+            isNewQueueLoad = false;
         });
     } catch (err) {
         console.error('❌ Critical error executing MPV:', err);
@@ -728,15 +903,26 @@ function connectToMpvIpc(gen) {
 
             setTimeout(() => {
                 if (pendingStreamUrl && gen === playbackGeneration) {
-                    console.log('📡 Sending LOADFILE command...');
-                    sendMpvCommand('loadfile', [pendingStreamUrl, 'replace']); 
-                    console.log('    ✅ Load command sent.');
+                    console.log('📡 Loading playlist into MPV...');
+                    sendMpvCommand('loadfile', [pendingStreamUrl, 'replace']);
+                    console.log(`    ✅ Item 1/${playQueue.length} loaded.`);
+
+                    for (let i = 1; i < playQueue.length; i++) {
+                        const url = `${CONFIG.serverUrl}/Videos/${playQueue[i]}/stream?static=true&api_key=${accessToken}`;
+                        sendMpvCommand('loadfile', [url, 'append']);
+                    }
+                    if (playQueue.length > 1) {
+                        console.log(`    ✅ Appended ${playQueue.length - 1} more items to playlist.`);
+                    }
 
                     if (pendingAudioStreamIndex !== undefined) {
                         sendMpvCommand('set_property', ['aid', pendingAudioStreamIndex]);
                         pendingAudioStreamIndex = undefined;
                     }
                     if (pendingSubtitleStreamIndex !== undefined) {
+                        isSettingSubtitleFromJellyfin = true;
+                        if (subtitleFlagTimeout) clearTimeout(subtitleFlagTimeout);
+                        subtitleFlagTimeout = setTimeout(() => { isSettingSubtitleFromJellyfin = false; subtitleFlagTimeout = null; }, 5000);
                         sendMpvCommand('set_property', ['sid', pendingSubtitleStreamIndex]);
                         pendingSubtitleStreamIndex = undefined;
                     }
@@ -747,12 +933,11 @@ function connectToMpvIpc(gen) {
             sendMpvCommand('observe_property', [2, 'pause']);
             sendMpvCommand('observe_property', [3, 'mute']);
             sendMpvCommand('observe_property', [4, 'volume']);
+            sendMpvCommand('observe_property', [5, 'sid']);
             
-            sendMpvCommand('keybind', ['NEXT', 'script-message jellyfin-next']);
-            sendMpvCommand('keybind', ['PREV', 'script-message jellyfin-prev']);
             sendMpvCommand('keybind', ['>', 'script-message jellyfin-next']);
             sendMpvCommand('keybind', ['<', 'script-message jellyfin-prev']);
-            console.log('⌨️ Keys bound (NEXT/PREV/>/< overridden for Jellyfin remote control)');
+            console.log('⌨️ Keys bound (>/< overridden for Jellyfin remote control)');
         });
 
         ipcClient.on('data', (data) => {
@@ -767,6 +952,7 @@ function connectToMpvIpc(gen) {
 
                         if (response.request_id !== undefined && pendingQueries.has(response.request_id)) {
                             const query = pendingQueries.get(response.request_id);
+                            if (query.timer) clearTimeout(query.timer);
                             pendingQueries.delete(response.request_id);
                             query.resolve(response.error === 'success' ? response.data : null);
                             return;
@@ -801,7 +987,7 @@ function connectToMpvIpc(gen) {
 
         ipcClient.on('close', () => {
             console.log('🔌 Disconnected from MPV IPC');
-            for (const [, q] of pendingQueries) q.resolve(null);
+            for (const [, q] of pendingQueries) { if (q.timer) clearTimeout(q.timer); q.resolve(null); }
             pendingQueries.clear();
             ipcClient = null;
         });
@@ -831,11 +1017,18 @@ async function markItemAsWatched(itemId) {
 
 function killMpv() {
     stopProgressPoll();
-    for (const [, q] of pendingQueries) q.resolve(null);
+    for (const [, q] of pendingQueries) { if (q.timer) clearTimeout(q.timer); q.resolve(null); }
     pendingQueries.clear();
+    if (displayMessageTimeout) {
+        clearTimeout(displayMessageTimeout);
+        displayMessageTimeout = null;
+        displayMessageOriginalPause = null;
+        displayMessageOriginalFontSize = null;
+        displayMessageOriginalAlignX = null;
+        displayMessageOriginalAlignY = null;
+    }
     if (mpvProcess) {
         console.log('⏹️ Forcing previous MPV shutdown...');
-        isReportingStop = true;
         mpvProcess.kill();
         mpvProcess = null;
     }
@@ -874,18 +1067,23 @@ function sendMpvCommand(command, args = []) {
     }
 }
 
-function queryProperty(property) {
+function queryProperty(property, timeoutMs = 5000) {
     return new Promise((resolve) => {
         if (!ipcClient || ipcClient.destroyed) {
             resolve(null);
             return;
         }
         const requestId = ipcCommandId++;
-        pendingQueries.set(requestId, { property, resolve });
+        const timer = timeoutMs > 0 ? setTimeout(() => {
+            pendingQueries.delete(requestId);
+            resolve(null);
+        }, timeoutMs) : null;
+        pendingQueries.set(requestId, { property, resolve, timer });
         const cmd = { command: ['get_property', property], request_id: requestId };
         try {
             ipcClient.write(JSON.stringify(cmd) + '\n');
         } catch (e) {
+            if (timer) clearTimeout(timer);
             pendingQueries.delete(requestId);
             resolve(null);
         }
@@ -896,6 +1094,12 @@ function startProgressPoll() {
     stopProgressPoll();
     progressPollTimer = setInterval(async () => {
         if (!currentItemId) return;
+
+        if (isPlayingNext && Date.now() - isPlayingNextTimestamp > 10000) {
+            console.log('⚠️ isPlayingNext stuck for 10s, resetting');
+            isPlayingNext = false;
+        }
+
         const pos = await queryProperty('time-pos');
         const dur = await queryProperty('duration');
         if (typeof pos === 'number') currentPositionSeconds = pos;
@@ -905,10 +1109,13 @@ function startProgressPoll() {
             currentDuration = 0;
         }
         if (!isMpvPaused && currentDuration > 0 && currentPositionSeconds >= currentDuration - 1 && !isPlayingNext && currentItemId) {
-            console.log(`🎬 Position near end (${currentPositionSeconds.toFixed(1)}s / ${currentDuration.toFixed(1)}s), triggering next episode`);
-            markItemAsWatched(currentItemId);
-            reportPlaybackStop(currentItemId, Math.round(currentPositionSeconds * 10000000));
-            playNextEpisode();
+            const isLastInPlaylist = queuePosition >= playQueue.length - 1;
+            if (isLastInPlaylist) {
+                console.log(`🎬 Near end of last item (${currentPositionSeconds.toFixed(1)}s / ${currentDuration.toFixed(1)}s), querying NextUp`);
+                markItemAsWatched(currentItemId);
+                reportPlaybackStop(currentItemId, Math.round(currentPositionSeconds * 10000000));
+                playNextEpisode();
+            }
         }
     }, 1000);
 }
@@ -922,17 +1129,75 @@ function stopProgressPoll() {
 
 function handleMpvEvent(event) {
     if (event.event === 'file-loaded') {
+        const isSeekingEvent = isSeeking;
+        const isNewQueueEvent = isNewQueueLoad;
+        isSeeking = false;
+        isNewQueueLoad = false;
+        const isAutoAdvance = currentItemId && !pendingStreamUrl && !isManualSkip && !isSeekingEvent && !isNewQueueEvent;
+        const isManualSkipEvent = isManualSkip && !isSeekingEvent && !isNewQueueEvent;
+        isManualSkip = false;
+        
+        if (isAutoAdvance) {
+            const prevItemId = currentItemId;
+            const prevPos = currentPositionSeconds;
+            const prevRuntime = currentEpisodeInfo?.itemRuntime || 0;
+            const completionThreshold = 0.9;
+            
+            if (prevRuntime > 0 && prevPos >= prevRuntime * completionThreshold) {
+                markItemAsWatched(prevItemId);
+            }
+            reportPlaybackStop(prevItemId, Math.round(prevPos * 10000000));
+            stopProgressPoll();
+            
+            queuePosition++;
+            if (queuePosition >= 0 && queuePosition < playQueue.length) {
+                currentItemId = playQueue[queuePosition];
+                console.log(`📋 Auto-advance: queuePosition=${queuePosition}, itemId=${currentItemId}`);
+            } else {
+                console.log(`📋 Auto-advance: queue exhausted (position=${queuePosition}, length=${playQueue.length})`);
+                currentItemId = null;
+            }
+            currentPositionSeconds = 0;
+            isPlayingNext = false;
+        } else if (isManualSkipEvent && previousItemId) {
+            console.log(`📋 Manual skip: prevItemId=${previousItemId}, newPos=${queuePosition}, newItemId=${currentItemId}`);
+            reportPlaybackStop(previousItemId, Math.round(currentPositionSeconds * 10000000));
+            previousItemId = null;
+            stopProgressPoll();
+            currentPositionSeconds = 0;
+            isPlayingNext = false;
+        }
+
+        isReportingStop = false;
         console.log('✅ File loaded by MPV. Preparing Seek if necessary...');
         isPlayingNext = false;
         currentDuration = 0;
         markedWatched.clear();
-        startProgressPoll();
         
         if (pendingTitle) {
             sendMpvCommand('set_property', ['force-media-title', pendingTitle]);
             sendMpvCommand('set_property', ['title', pendingTitle]);
             pendingTitle = null;
         }
+
+        if (isAutoAdvance && currentItemId) {
+            getEpisodeInfo(currentItemId).then(info => {
+                currentEpisodeInfo = info;
+                const titleText = info.isSeries
+                    ? [info.seriesName, `${info.seasonNumber}x${info.episodeNumber}`, info.title].filter(Boolean).join(' - ')
+                    : (info.title || String(currentItemId));
+                console.log(`▶️ Starting next episode: ${titleText}`);
+                sendMpvCommand('set_property', ['force-media-title', `Jellyfin - ${titleText}`]);
+                sendMpvCommand('set_property', ['title', `Jellyfin - ${titleText}`]);
+                playSessionId = crypto.randomUUID();
+                reportPlaybackStart(currentItemId, 0);
+                startProgressReporting(currentItemId);
+                startProgressPoll();
+            });
+        } else {
+            startProgressPoll();
+        }
+
         if (pendingStartSeconds > 0) {
             sendMpvCommand('seek', [pendingStartSeconds, 'absolute']);
             console.log(`⏩ Automatic seek to saved position: ${pendingStartSeconds.toFixed(2)}s`);
@@ -940,7 +1205,7 @@ function handleMpvEvent(event) {
         } else {
             currentPositionSeconds = 0;
         }
-        if (currentItemId) reportPlaybackProgress(currentItemId, Math.round(currentPositionSeconds * 10000000));
+        if (currentItemId && !isAutoAdvance) reportPlaybackProgress(currentItemId, Math.round(currentPositionSeconds * 10000000));
         pendingStartSeconds = 0;
         pendingStreamUrl = null;
         return;
@@ -968,6 +1233,21 @@ function handleMpvEvent(event) {
         return;
     }
 
+    if (event.event === 'property-change' && event.name === 'sid') {
+        currentSubtitleTrack = event.data;
+        if (isSettingSubtitleFromJellyfin) {
+            isSettingSubtitleFromJellyfin = false;
+            if (subtitleFlagTimeout) { clearTimeout(subtitleFlagTimeout); subtitleFlagTimeout = null; }
+            return;
+        }
+        if (currentItemId) {
+            const sid = event.data;
+            console.log(`🔤 Subtitle changed in MPV: track ${sid}`);
+            reportPlaybackProgress(currentItemId, Math.round(currentPositionSeconds * 10000000));
+        }
+        return;
+    }
+
     if (event.event === 'client-message' && event.args && event.args[0]) {
         if (event.args[0] === 'jellyfin-next') {
             console.log('⏭️ Next episode requested (Keypress)');
@@ -979,96 +1259,146 @@ function handleMpvEvent(event) {
     }
 }
 
-async function loadNextEpisode(nextEpId, markCurrentWatched = true) {
-    stopProgressPoll();
-    for (const [, q] of pendingQueries) q.resolve(null);
-    pendingQueries.clear();
-    if (progressInterval) { clearInterval(progressInterval); progressInterval = null; }
-
-    if (markCurrentWatched && !isReportingStop && currentItemId) {
-        markItemAsWatched(currentItemId);
-        reportPlaybackStop(currentItemId, Math.round(currentPositionSeconds * 10000000));
-    } else if (!markCurrentWatched && currentItemId && !isReportingStop) {
-        reportPlaybackStop(currentItemId, Math.round(currentPositionSeconds * 10000000));
-    }
-    isReportingStop = false;
-
-    currentItemId = nextEpId;
-    currentPositionSeconds = 0;
-    currentEpisodeInfo = await getEpisodeInfo(nextEpId);
-
-    if (!currentEpisodeInfo.playable) {
-        console.log(`⏭️ Next item not playable: ${currentEpisodeInfo.title}`);
-        isPlayingNext = false;
-        return;
-    }
-
-    playSessionId = crypto.randomUUID();
-    pendingStreamUrl = `${CONFIG.serverUrl}/Videos/${nextEpId}/stream?static=true&api_key=${accessToken}`;
-    pendingStartSeconds = 0;
-
-    const titleText = currentEpisodeInfo.isSeries
-        ? [currentEpisodeInfo.seriesName, `${currentEpisodeInfo.seasonNumber}x${currentEpisodeInfo.episodeNumber}`, currentEpisodeInfo.title].filter(Boolean).join(' - ')
-        : (currentEpisodeInfo.title || String(nextEpId));
-
-    console.log(`📺 Now playing: ${titleText}`);
-
-    reportPlaybackStart(nextEpId, 0);
-    startProgressReporting(nextEpId);
-
-    pendingTitle = `Jellyfin - ${titleText}`;
-    sendMpvCommand('loadfile', [pendingStreamUrl, 'replace']);
-    
-    setTimeout(() => {
-        if (isPlayingNext) {
-            isPlayingNext = false;
-        }
-    }, 10000);
-}
-
-function playNextEpisode() {
+async function playNextEpisode() {
     if (isPlayingNext) {
         console.log('⏭️ Already playing next episode, skipping duplicate call.');
         return;
     }
     isPlayingNext = true;
+    isPlayingNextTimestamp = Date.now();
+
+    if (playQueue.length > 0 && queuePosition < playQueue.length - 1) {
+        previousItemId = currentItemId;
+        isManualSkip = true;
+        queuePosition++;
+        currentItemId = playQueue[queuePosition];
+        console.log(`▶️ Next in queue (${queuePosition + 1}/${playQueue.length})`);
+        if (!ipcClient || ipcClient.destroyed || !mpvProcess) {
+            console.log('⚠️ MPV/IPC not available, cannot skip to next');
+            isPlayingNext = false;
+            isManualSkip = false;
+            return;
+        }
+        sendMpvCommand('playlist-next');
+        return;
+    }
 
     if (!currentEpisodeInfo || !currentEpisodeInfo.isSeries) {
-        console.log('ℹ️ Not a series, ignoring Next command.');
+        console.log('ℹ️ Not a series, ending playback.');
+        playQueue = [];
+        queuePosition = -1;
         isPlayingNext = false;
+        if (CONFIG.autoClose) {
+            shutdown('auto-close');
+        } else {
+            killMpv();
+        }
         return;
     }
 
-    if (!currentEpisodeInfo.nextEpisode) {
-        console.log('ℹ️ No more episodes in this season, ending.');
-        isPlayingNext = false;
-        killMpv();
+    if (currentEpisodeInfo.nextEpisode) {
+        const nextEp = currentEpisodeInfo.nextEpisode;
+        const nextTitle = [currentEpisodeInfo.seriesName, `${currentEpisodeInfo.seasonNumber}x${nextEp.IndexNumber}`, nextEp.Name].filter(Boolean).join(' - ');
+        console.log(`▶️ Starting next episode: ${nextTitle}`);
+        if (!ipcClient || ipcClient.destroyed || !mpvProcess) {
+            playMedia(nextEp.Id, 0).catch(err => {
+                console.error('⚠️ Error playing next episode:', err.message);
+                isPlayingNext = false;
+            });
+            return;
+        }
+        const url = `${CONFIG.serverUrl}/Videos/${nextEp.Id}/stream?static=true&api_key=${accessToken}`;
+        playQueue.push(nextEp.Id);
+        previousItemId = currentItemId;
+        queuePosition = playQueue.length - 1;
+        currentItemId = nextEp.Id;
+        isManualSkip = true;
+        sendMpvCommand('loadfile', [url, 'append']);
+        sendMpvCommand('playlist-next');
         return;
     }
 
-    const nextEp = currentEpisodeInfo.nextEpisode;
-    const nextTitle = [currentEpisodeInfo.seriesName, `${currentEpisodeInfo.seasonNumber}x${nextEp.IndexNumber}`, nextEp.Name].filter(Boolean).join(' - ');
-    console.log(`▶️ Starting next episode: ${nextTitle}`);
-
-    if (ipcClient && !ipcClient.destroyed && mpvProcess) {
-        loadNextEpisode(nextEp.Id).catch(err => {
-            console.error('⚠️ Error loading next episode:', err.message);
+    console.log('🔍 End of season, querying NextUp...');
+    try {
+        const nextUpId = await queryNextUp(currentEpisodeInfo.seriesId);
+        if (nextUpId) {
+            const nextUpInfo = await getEpisodeInfo(nextUpId);
+            const nextUpTitle = nextUpInfo.isSeries
+                ? [nextUpInfo.seriesName, `${nextUpInfo.seasonNumber}x${nextUpInfo.episodeNumber}`, nextUpInfo.title].filter(Boolean).join(' - ')
+                : (nextUpInfo.title || String(nextUpId));
+            console.log(`▶️ Starting next episode: ${nextUpTitle}`);
+            if (!ipcClient || ipcClient.destroyed || !mpvProcess) {
+                playMedia(nextUpId, 0).catch(err => {
+                    console.error('⚠️ Error playing next episode:', err.message);
+                    isPlayingNext = false;
+                });
+                return;
+            }
+            const url = `${CONFIG.serverUrl}/Videos/${nextUpId}/stream?static=true&api_key=${accessToken}`;
+            playQueue.push(nextUpId);
+            previousItemId = currentItemId;
+            queuePosition = playQueue.length - 1;
+            currentItemId = nextUpId;
+            isManualSkip = true;
+            sendMpvCommand('loadfile', [url, 'append']);
+            sendMpvCommand('playlist-next');
+        } else {
+            console.log('ℹ️ No more episodes, ending playback.');
+            playQueue = [];
+            queuePosition = -1;
             isPlayingNext = false;
-        });
-    } else {
-        playMedia(nextEp.Id, 0).catch(err => {
-            console.error('⚠️ Error playing next episode:', err.message);
-            isPlayingNext = false;
-        });
+            if (CONFIG.autoClose) {
+                shutdown('auto-close');
+            } else {
+                killMpv();
+            }
+        }
+    } catch (e) {
+        console.log('⚠️ NextUp query failed, keeping playback alive:', e.message);
     }
 }
 
-function playPreviousEpisode() {
+async function queryNextUp(seriesId) {
+    const headers = getAuthHeaders();
+    const response = await axios.get(`${CONFIG.serverUrl}/Shows/NextUp`, {
+        headers,
+        params: { userId, seriesId, limit: 1 }
+    });
+    if (response.data.Items && response.data.Items.length > 0) {
+        const nextEp = response.data.Items[0];
+        console.log(`📺 NextUp from Jellyfin: ${nextEp.SeriesName} - S${nextEp.ParentIndexNumber}E${nextEp.IndexNumber} - ${nextEp.Name}`);
+        return nextEp.Id;
+    }
+    return null;
+}
+
+async function playPreviousEpisode() {
     if (isPlayingNext) {
-        console.log('⏮️ Already transitioning, skipping.');
+        console.log('⏭️ Already transitioning, skipping.');
         return;
     }
     isPlayingNext = true;
+    isPlayingNextTimestamp = Date.now();
+
+    if (currentPositionSeconds > 30) {
+        console.log('↩️ Restarting current episode (time > 30s)');
+        isSeeking = true;
+        sendMpvCommand('seek', [0, 'absolute']);
+        currentPositionSeconds = 0;
+        if (currentItemId) reportPlaybackProgress(currentItemId, 0);
+        isPlayingNext = false;
+        return;
+    }
+
+    if (playQueue.length > 0 && queuePosition > 0) {
+        previousItemId = currentItemId;
+        queuePosition--;
+        currentItemId = playQueue[queuePosition];
+        isManualSkip = true;
+        console.log(`⏮️ Previous in queue (${queuePosition + 1}/${playQueue.length})`);
+        sendMpvCommand('playlist-prev');
+        return;
+    }
 
     if (!currentEpisodeInfo || !currentEpisodeInfo.isSeries) {
         console.log('ℹ️ Not a series, ignoring Previous command.');
@@ -1076,24 +1406,8 @@ function playPreviousEpisode() {
         return;
     }
 
-    if (currentPositionSeconds > 30) {
-        console.log('↩️ Restarting current episode (time > 30s)');
-        if (ipcClient && !ipcClient.destroyed && mpvProcess) {
-            sendMpvCommand('seek', [0, 'absolute']);
-            currentPositionSeconds = 0;
-            if (currentItemId) reportPlaybackProgress(currentItemId, 0);
-            isPlayingNext = false;
-        } else {
-            playMedia(currentItemId, 0).catch(err => {
-                console.error('⚠️ Error playing media:', err.message);
-                isPlayingNext = false;
-            });
-        }
-        return;
-    }
-
     if (!currentEpisodeInfo.previousEpisode) {
-        console.log('ℹ️ This is the first episode of the season.');
+        console.log('ℹ️ This is the first episode.');
         isPlayingNext = false;
         return;
     }
@@ -1101,18 +1415,21 @@ function playPreviousEpisode() {
     const prevEp = currentEpisodeInfo.previousEpisode;
     const prevTitle = [currentEpisodeInfo.seriesName, `${currentEpisodeInfo.seasonNumber}x${prevEp.IndexNumber}`, prevEp.Name].filter(Boolean).join(' - ');
     console.log(`◀️ Starting previous episode: ${prevTitle}`);
-
-    if (ipcClient && !ipcClient.destroyed && mpvProcess) {
-        loadNextEpisode(prevEp.Id, false).catch(err => {
-            console.error('⚠️ Error loading previous episode:', err.message);
-            isPlayingNext = false;
-        });
-    } else {
+    if (!ipcClient || ipcClient.destroyed || !mpvProcess) {
         playMedia(prevEp.Id, 0).catch(err => {
             console.error('⚠️ Error playing previous episode:', err.message);
             isPlayingNext = false;
         });
+        return;
     }
+    const url = `${CONFIG.serverUrl}/Videos/${prevEp.Id}/stream?static=true&api_key=${accessToken}`;
+    previousItemId = currentItemId;
+    playQueue.splice(queuePosition, 0, prevEp.Id);
+    currentItemId = playQueue[queuePosition];
+    isManualSkip = true;
+    sendMpvCommand('loadfile', [url, 'insert-at-index', queuePosition]);
+    sendMpvCommand('playlist-prev');
+    return;
 }
 
 function reportPlaybackStart(itemId, positionTicks) {
@@ -1131,7 +1448,7 @@ function reportPlaybackStart(itemId, positionTicks) {
         RepeatMode: 'RepeatNone',
         PlaybackOrder: 'Default',
         AudioStreamIndex: pendingAudioStreamIndex,
-        SubtitleStreamIndex: pendingSubtitleStreamIndex
+        SubtitleStreamIndex: pendingSubtitleStreamIndex !== undefined ? pendingSubtitleStreamIndex : (typeof currentSubtitleTrack === 'number' ? currentSubtitleTrack : undefined)
     };
 
     console.log('📡 Reporting playback start...');
@@ -1221,7 +1538,7 @@ function shutdown(signal) {
     console.log(`\n👋 Closing application (${signal})...`);
     
     stopProgressPoll();
-    for (const [, q] of pendingQueries) q.resolve(null);
+    for (const [, q] of pendingQueries) { if (q.timer) clearTimeout(q.timer); q.resolve(null); }
     pendingQueries.clear();
     if (reconnectInterval) { clearTimeout(reconnectInterval); reconnectInterval = null; }
     if (keepAliveInterval) { clearInterval(keepAliveInterval); keepAliveInterval = null; }

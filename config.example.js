@@ -22,4 +22,17 @@ module.exports = {
     
     // IPC socket path (optional — defaults to /tmp/mpv-ipc.sock on Linux/macOS, \\.\pipe\mpv-ipc on Windows)
     // ipcSocketPath: '/tmp/mpv-ipc.sock'
+
+    // Start MPV in fullscreen (optional — default: false)
+    // fullscreen: true,
+
+    // Close the app when playback finishes (optional — default: false)
+    // autoClose: true,
+
+    // Extra MPV flags (optional — array of strings passed to MPV)
+    // mpvFlags: ['--hwdec=auto', '--vo=gpu-next'],
+
+    // Headless mode — suppress console output, log to data/shim.log (optional — default: false)
+    // Useful for running as a background service on Linux/Windows
+    // headless: true,
 };
