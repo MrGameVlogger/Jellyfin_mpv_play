@@ -280,11 +280,23 @@ Set WshShell = Nothing
 |---------|----------|
 | **macOS: "app is damaged/can't be opened"** | Run `xattr -cr "/Applications/Jellyfin MPV Play.app"` to remove the quarantine flag |
 | **"config.js file not found"** | Run the launcher once to auto-create `config.js`, then edit with your details |
-| **MPV doesn't open** | Check `mpvPath` in config. Test: `mpv --version` in terminal |
+| **`Error: Cannot find module './config.js'`** | Same as above — `config.js` doesn't exist yet. Run the launcher or copy `config.example.js` to `config.js` |
+| **`Error: Cannot find module 'ws'`** | Dependencies missing — run `npm install` in the project directory |
+| **MPV doesn't open / `spawn ... ENOENT`** | Wrong `mpvPath` — test with `mpv --version` in terminal. Common paths: macOS `/opt/homebrew/bin/mpv`, Linux `/usr/bin/mpv`, Windows `mpv` (if in PATH) |
+| **`MPV closed with error` (exit code 1)** | Invalid `mpvFlags`, missing video driver, or display issue. Test `mpv --idle=yes` manually. Check `~/.config/mpv/mpv.conf` |
+| **`WebSocket error: connect ECONNREFUSED`** | Server unreachable — verify `serverUrl` includes `http://` and port (e.g., `http://192.168.1.100:8096`). Ensure server is running |
+| **`Authentication error: ... 401`** | Wrong credentials — verify `username` and `password` in `config.js` |
+| **`Token expired, reauthenticating...`** | Normal during reconnection. If repeated, re-enter your credentials |
+| **`IPC error: connect ECONNREFUSED`** | MPV crashed or hasn't started — check `mpvPath`. The shim retries 10 times automatically |
+| **`Maximum IPC connection attempts reached`** | MPV won't start — test `mpv --idle=yes` manually. Check for invalid `mpvFlags` |
+| **`deviceId` equals `deviceName`** | Must be different strings per Jellyfin's device registration (e.g., `deviceName: 'Mac'`, `deviceId: 'mac-mpv'`) |
 | **Device doesn't appear in Jellyfin** | Verify `serverUrl`, username, password. Ensure same network |
 | **Playback doesn't resume** | Wait at least 10 seconds before closing MPV |
 | **Black screen / no video** | Check `~/.config/mpv/mpv.conf` for valid `vo` and `hwdec` settings |
 | **Episode navigation (`>`/`<`) not working** | Custom keybinds in `~/.config/mpv/input.conf` may override defaults |
+| **`serverUrl` format** | Use `http://host:port` — no trailing slash, no `ws://` prefix. The shim converts HTTP to WS automatically |
+| **Headless mode — where are logs?** | Check `data/shim.log`. On Linux with systemd: `journalctl --user -u jellyfin-mpv-play -f` |
+| **Multiple instances conflict** | Set different `ipcSocketPath` in each `config.js` |
 | **Linux: "mpv is not installed"** | Install via `sudo apt install mpv` (or your distro's package manager) |
 | **Windows: "mpv is not installed"** | Download from [mpv.io](https://mpv.io/installation/) and add to your PATH |
 
