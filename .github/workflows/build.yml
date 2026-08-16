@@ -48,6 +48,8 @@ jobs:
         run: |
           VERSION="${{ needs.get-version.outputs.version }}"
 
+          mkdir -p sync-output
+
           # Extract changelog entry for this version from CHANGELOG.md
           VER_ESCAPED="${VERSION//./\\.}"
           awk "/^## v${VER_ESCAPED}/{found=1; next} found && /^## v/{exit} found" CHANGELOG.md > sync-output/changelog-entry.md
@@ -263,11 +265,21 @@ jobs:
             echo "For full documentation, see the [README](https://github.com/MrGameVlogger/Jellyfin_mpv_play#readme)."
           } >> notes.md
 
-          gh release delete "v${VERSION}" -R MrGameVlogger/Jellyfin_mpv_play --yes 2>/dev/null || true
-
-          gh release create "v${VERSION}" \
-            -R MrGameVlogger/Jellyfin_mpv_play \
-            --title "v${VERSION}" \
-            --notes-file notes.md \
-            --verify-tag \
-            release-files/*
+          # Create or update release (never delete — assets are permanently lost)
+          if gh release view "v${VERSION}" -R MrGameVlogger/Jellyfin_mpv_play &>/dev/null; then
+            gh release edit "v${VERSION}" \
+              -R MrGameVlogger/Jellyfin_mpv_play \
+              --notes-file notes.md
+            # Upload any new assets
+            gh release upload "v${VERSION}" \
+              -R MrGameVlogger/Jellyfin_mpv_play \
+              --clobber \
+              release-files/*
+          else
+            gh release create "v${VERSION}" \
+              -R MrGameVlogger/Jellyfin_mpv_play \
+              --title "v${VERSION}" \
+              --notes-file notes.md \
+              --verify-tag \
+              release-files/*
+          fi

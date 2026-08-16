@@ -338,6 +338,9 @@ See [CHANGELOG.md](CHANGELOG.md) for full release history.
 
 ### Recent Releases
 
+**v1.8.2** — CI fix, Info.plist sync, .desktop Exec, SECURITY.md, more ([details](CHANGELOG.md#v182))
+- Fixed CI release workflow, Info.plist version stuck at 1.7.6, .desktop Exec line for copied files
+
 **v1.8.1** — Linux headless fix, release notes format ([details](CHANGELOG.md#v181))
 - Fixed Linux headless mode — no terminal window when `headless: true`
 

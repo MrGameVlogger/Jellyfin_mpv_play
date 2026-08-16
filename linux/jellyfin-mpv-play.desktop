@@ -2,7 +2,7 @@
 Name=Jellyfin MPV Play
 Comment=Play media from Jellyfin using MPV
 Version=1.0
-Exec=env bash -c 'SOURCE="$0"; while [ -L "$SOURCE" ]; do DIR="$(cd "$(dirname "$SOURCE")" && pwd)"; SOURCE="$(readlink "$SOURCE")"; [[ "$SOURCE" != /* ]] && SOURCE="$DIR/$SOURCE"; done; exec "$(cd "$(dirname "$SOURCE")" && pwd)/launch.sh"' %k
+Exec=env bash -c 'SCRIPT_DIR="$(dirname "$(readlink -f "$0")")"; [ -x "$SCRIPT_DIR/launch.sh" ] && exec "$SCRIPT_DIR/launch.sh"; for d in "$HOME/JellyfinMPVPlay-Linux-"* /opt/jellyfin-mpv-play; do [ -x "$d/launch.sh" ] && exec "$d/launch.sh"; done; echo "launch.sh not found. Extract the bundle and update the Exec path in this .desktop file." >&2; sleep 3' %k
 Icon=jellyfin-mpv-play
 Terminal=false
 Type=Application
@@ -13,15 +13,15 @@ Actions=Headless;InstallService;UninstallService;
 
 [Desktop Action Headless]
 Name=Run Headless
-Exec=env bash -c 'SOURCE="$0"; while [ -L "$SOURCE" ]; do DIR="$(cd "$(dirname "$SOURCE")" && pwd)"; SOURCE="$(readlink "$SOURCE")"; [[ "$SOURCE" != /* ]] && SOURCE="$DIR/$SOURCE"; done; exec "$(cd "$(dirname "$SOURCE")" && pwd)/launch.sh" --headless' %k
+Exec=env bash -c 'SCRIPT_DIR="$(dirname "$(readlink -f "$0")")"; [ -x "$SCRIPT_DIR/launch.sh" ] && exec "$SCRIPT_DIR/launch.sh" --headless; for d in "$HOME/JellyfinMPVPlay-Linux-"* /opt/jellyfin-mpv-play; do [ -x "$d/launch.sh" ] && exec "$d/launch.sh" --headless; done' %k
 Terminal=false
 
 [Desktop Action InstallService]
 Name=Install Background Service
-Exec=env bash -c 'SOURCE="$0"; while [ -L "$SOURCE" ]; do DIR="$(cd "$(dirname "$SOURCE")" && pwd)"; SOURCE="$(readlink "$SOURCE")"; [[ "$SOURCE" != /* ]] && SOURCE="$DIR/$SOURCE"; done; exec "$(cd "$(dirname "$SOURCE")" && pwd)/launch.sh" --install-service' %k
+Exec=env bash -c 'SCRIPT_DIR="$(dirname "$(readlink -f "$0")")"; [ -x "$SCRIPT_DIR/launch.sh" ] && exec "$SCRIPT_DIR/launch.sh" --install-service; for d in "$HOME/JellyfinMPVPlay-Linux-"* /opt/jellyfin-mpv-play; do [ -x "$d/launch.sh" ] && exec "$d/launch.sh" --install-service; done' %k
 Terminal=true
 
 [Desktop Action UninstallService]
 Name=Remove Background Service
-Exec=env bash -c 'SOURCE="$0"; while [ -L "$SOURCE" ]; do DIR="$(cd "$(dirname "$SOURCE")" && pwd)"; SOURCE="$(readlink "$SOURCE")"; [[ "$SOURCE" != /* ]] && SOURCE="$DIR/$SOURCE"; done; exec "$(cd "$(dirname "$SOURCE")" && pwd)/launch.sh" --uninstall-service' %k
+Exec=env bash -c 'SCRIPT_DIR="$(dirname "$(readlink -f "$0")")"; [ -x "$SCRIPT_DIR/launch.sh" ] && exec "$SCRIPT_DIR/launch.sh" --uninstall-service; for d in "$HOME/JellyfinMPVPlay-Linux-"* /opt/jellyfin-mpv-play; do [ -x "$d/launch.sh" ] && exec "$d/launch.sh" --uninstall-service; done' %k
 Terminal=true

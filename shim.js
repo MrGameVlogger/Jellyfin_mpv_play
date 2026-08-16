@@ -664,6 +664,7 @@ async function loadNewQueue(itemId, startTicks) {
 
     currentItemId = itemId;
     currentPositionSeconds = startTicks / 10000000;
+    pendingStartSeconds = 0;
 
     try {
         currentEpisodeInfo = await getEpisodeInfo(itemId);

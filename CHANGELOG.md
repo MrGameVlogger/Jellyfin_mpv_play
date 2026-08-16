@@ -2,6 +2,20 @@
 
 All notable changes to Jellyfin MPV Play are documented here.
 
+## v1.8.2
+
+### Bug Fixes
+- **Fixed CI release workflow** — `sync-output/` directory now created before writing files; release notes, Info.plist, and SECURITY.md sync correctly
+- **Fixed CI release deletion** — workflow no longer deletes existing releases before recreating; assets are no longer permanently lost on re-runs
+- **Fixed Info.plist version** — was stuck at 1.7.6; now matches package.json version
+- **Fixed SECURITY.md version table** — now shows 1.8.x as supported, 1.7.x as no longer supported
+- **Fixed pendingStartSeconds not reset** — stale seek position no longer persists when playing from beginning via loadNewQueue
+- **Fixed .desktop Exec line** — now searches common bundle locations (`~/JellyfinMPVPlay-Linux-*`, `/opt/jellyfin-mpv-play`) when copied separately
+- **Fixed AGENTS.md** — release workflow description now correctly says CHANGELOG.md (not PRs)
+- **Fixed CONTRIBUTING.md** — line count updated from ~1250 to ~1620
+
+---
+
 ## v1.8.1
 
 ### Bug Fixes
