@@ -48,6 +48,20 @@ if not exist "%SCRIPT_DIR%\shim.js" (
     exit /b 1
 )
 
+:: Check for headless mode
+set "IS_HEADLESS=false"
+if "%~1"=="--headless" set "IS_HEADLESS=true"
+if "%IS_HEADLESS%"=="false" (
+    findstr /i "headless.*true" "%CONFIG_FILE%" >nul 2>nul
+    if not errorlevel 1 set "IS_HEADLESS=true"
+)
+
+if "%IS_HEADLESS%"=="true" (
+    echo Running headless. Logs: %SCRIPT_DIR%\data\shim.log
+    start "" /B "%NODE_BIN%" "%SCRIPT_DIR%\shim.js"
+    exit /b 0
+)
+
 "%NODE_BIN%" "%SCRIPT_DIR%\shim.js"
 if errorlevel 1 (
     echo.
