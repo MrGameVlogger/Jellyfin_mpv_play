@@ -78,12 +78,33 @@ fi
 set +e
 cd "$SCRIPT_DIR"
 
+# Check if headless is enabled in config
+IS_HEADLESS=false
 if [ "$1" = "--headless" ]; then
+    IS_HEADLESS=true
+elif [ -f "$CONFIG_FILE" ] && grep -q "headless.*true" "$CONFIG_FILE"; then
+    IS_HEADLESS=true
+fi
+
+if [ "$IS_HEADLESS" = true ]; then
     nohup "$NODE_BIN" "$SCRIPT_DIR/shim.js" > /dev/null 2>&1 &
     NODE_PID=$!
     disown $NODE_PID
     echo "Running headless (PID: $NODE_PID). Logs: $SCRIPT_DIR/data/shim.log"
     echo "Stop with: kill $NODE_PID"
+    exit 0
+elif [ ! -t 0 ] && [ "$1" != "--terminal" ]; then
+    # Not in a terminal and not explicitly requesting terminal — re-exec in one
+    for TERM_CMD in x-terminal-emulator gnome-terminal konsole xfce4-terminal mate-terminal tilix alacritty kitty xterm; do
+        if command -v "$TERM_CMD" &>/dev/null; then
+            exec "$TERM_CMD" -e "$0" --terminal
+        fi
+    done
+    # No terminal found, fall back to running silently
+    echo "No terminal emulator found. Running silently. Logs: $SCRIPT_DIR/data/shim.log"
+    nohup "$NODE_BIN" "$SCRIPT_DIR/shim.js" > /dev/null 2>&1 &
+    NODE_PID=$!
+    disown $NODE_PID
     exit 0
 else
     "$NODE_BIN" "$SCRIPT_DIR/shim.js" &
