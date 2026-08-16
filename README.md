@@ -338,6 +338,9 @@ See [CHANGELOG.md](CHANGELOG.md) for full release history.
 
 ### Recent Releases
 
+**v1.8.1** — Linux headless fix, release notes format ([details](CHANGELOG.md#v181))
+- Fixed Linux headless mode — no terminal window when `headless: true`
+
 **v1.8.0** — Queue system, DisplayMessage OSD, subtitle sync, headless mode ([details](CHANGELOG.md#v180))
 - Full queue system with native MPV playlist, Play Next/Play Last, cross-season auto-play
 - Jellyfin messages appear as OSD overlays in MPV with pause support

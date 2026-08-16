@@ -2,6 +2,14 @@
 
 All notable changes to Jellyfin MPV Play are documented here.
 
+## v1.8.1
+
+### Bug Fixes
+- **Fixed Linux headless mode** — `.desktop` file no longer opens a terminal window; `launch.sh` auto-detects headless config and either runs silently or opens a terminal as needed
+- **Fixed release notes format** — CI now uses CHANGELOG.md directly instead of auto-generating from PRs
+
+---
+
 ## v1.8.0
 
 ### New Features
