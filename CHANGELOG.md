@@ -6,27 +6,35 @@ All notable changes to Jellyfin MPV Play are documented here.
 
 ### New Features
 - **Full queue system** — Native MPV playlist; Play Next / Play Last from Jellyfin UI; next/prev navigation through queued items
-- **Cross-season auto-play** — Automatically queries Jellyfin's NextUp API when a season ends
-- **Display messages** — Jellyfin notifications appear as OSD overlays in MPV with pause support
-- **Subtitle sync** — Subtitle changes in MPV are reported back to Jellyfin
+- **Cross-season auto-play** — Automatically queries Jellyfin's NextUp API when a season ends, seamlessly continuing to the next season
+- **Display messages** — Jellyfin notifications appear as OSD overlays in MPV with pause support; "Message from Jellyfin Server" title identifies the source
+- **Subtitle sync** — Subtitle changes in MPV (via `j` key or menu) are reported back to Jellyfin's session tracking
 - **Fullscreen mode** — `fullscreen: true` in config.js starts MPV in fullscreen
-- **Auto-close** — `autoClose: true` in config.js shuts down when playback queue is exhausted
-- **Custom MPV flags** — `mpvFlags: [...]` in config.js passes extra arguments to MPV
-- **Headless mode** — `headless: true` in config.js suppresses console output, logs to `data/shim.log`
-- **Linux systemd service** — `./launch.sh --install-service` installs a user service for background operation
-- **PlayNow reuses MPV** — New play commands reuse the existing MPV instance instead of restarting
+- **Auto-close** — `autoClose: true` in config.js shuts down the app when playback queue is exhausted
+- **Custom MPV flags** — `mpvFlags: ['--hwdec=auto', ...]` in config.js passes extra arguments to MPV
+- **Headless mode** — `headless: true` in config.js suppresses console output, logs to `data/shim.log`; no terminal window required
+- **Linux systemd service** — `./launch.sh --install-service` installs a user service for background operation with auto-restart; `--uninstall-service` to remove
+- **PlayNow reuses MPV** — New play commands reuse the existing MPV instance via `playlist-clear` instead of killing and restarting; faster transitions, no window flicker
+- **Diagnostic logging** — Queue position and item ID logged on every episode transition for easier debugging
 
 ### Bug Fixes
-- Fixed episode selection — plays exactly the episode clicked in Jellyfin, not the first unwatched
-- Fixed DisplayMessage OSD positioning (uses `osd-align-y: center` instead of invalid `middle`)
-- Fixed progress report 400 errors from invalid SubtitleStreamIndex
-- Fixed `isReportingStop` persisting across episode transitions
-- Fixed `playPreviousEpisode` queue/playlist desync
-- Fixed PlayNext/PlayLast items landing at wrong position in MPV playlist
-- Fixed `isPlayingNext` getting stuck forever when MPV IPC is dead
-- Fixed DisplayMessage OSD properties corrupted by concurrent messages
-- Fixed `loadNewQueue` triggering false auto-advance
-- Fixed DisplayMessage timeout not cancelled on MPV close
+- **Fixed episode selection** — Plays exactly the episode clicked in Jellyfin, not the first unwatched; removed the NextUp/first-unwatched search
+- **Fixed DisplayMessage OSD** — Uses `osd-align-y: center` instead of invalid `middle`; OSD positioned center-screen
+- **Fixed progress report 400 errors** — Removed invalid `SubtitleStreamIndex` from progress reports; start reports still include the correct value
+- **Fixed stop reports not sent** — Removed `isReportingStop` flag from `killMpv()`; added stop report in `playMedia()` before killing
+- **Fixed `playPreviousEpisode` desync** — Uses `insert-at-index` + `playlist-prev` instead of `replace` to keep queue and MPV playlist in sync
+- **Fixed PlayNext/PlayLast position** — Uses `insert-at-index` instead of `append` so items land at the correct position in MPV's playlist
+- **Fixed `isPlayingNext` stuck** — 10-second timeout fallback in poll timer; IPC liveness checks before sending commands
+- **Fixed DisplayMessage concurrent messages** — Original OSD properties captured once and reused; previous timeout cancelled before setting new one
+- **Fixed `loadNewQueue` false auto-advance** — Sets `isNewQueueLoad` flag to prevent `file-loaded` handler from treating it as auto-advance
+- **Fixed subtitle flag stuck** — 5-second timeout on `isSettingSubtitleFromJellyfin` flag; reset on MPV close
+- **Fixed `queryProperty` hang** — 5-second timeout on all property queries; timers properly cleared on resolution
+- **Fixed timer leak** — All `pendingQueries` bulk-clear paths now clear individual timers before resolving
+- **Fixed stale position saves** — Skip functions update `currentItemId` and `queuePosition` immediately before sending MPV commands
+- **Fixed `handleMessage` crash** — Added `.catch()` to async handler; unhandled rejections no longer kill the process
+- **Fixed `.desktop` Exec lines** — Fixed broken `$0` reference in `bash -c` using `%k` (desktop file path)
+- **Fixed headless terminal survival** — Uses `nohup` and `disown` so the process survives terminal closure
+- **Fixed NextUp tight retry loop** — `isPlayingNext` no longer reset on NextUp failure; 10-second timeout handles recovery
 
 ---
 
