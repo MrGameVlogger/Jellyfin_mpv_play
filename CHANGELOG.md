@@ -2,6 +2,22 @@
 
 All notable changes to Jellyfin MPV Play are documented here.
 
+<!--
+## vX.Y.Z — TEMPLATE (copy this for new releases)
+
+### New Features
+- **Feature name** — Description of what it does and how to use it
+
+### Bug Fixes
+- **Fixed bug name** — Description of what was broken and how it's fixed
+
+### Internal
+- **Change name** — Description of internal change (CI, docs, refactoring)
+
+---
+
+-->
+
 ## v1.8.2
 
 ### Bug Fixes

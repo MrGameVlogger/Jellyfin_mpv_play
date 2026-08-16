@@ -67,6 +67,48 @@ Jellyfin_mpv_play/
 - `ConfigParser.swift` is the shared utility for config file parsing
 - `processLogLine()` runs on the main thread — keep it fast
 
+## Queue System Architecture
+
+The queue system manages playback of multiple items using MPV's native playlist.
+
+### Key Concepts
+
+- **`playQueue`** — Array of item IDs representing the user's queue
+- **`queuePosition`** — Index of the currently playing item in `playQueue`
+- **MPV Playlist** — MPV's built-in playlist, loaded from `playQueue` on connect
+
+### How It Works
+
+1. **PlayNow** — Clears the queue, adds the item, and loads it into MPV
+2. **PlayNext** — Inserts the item at `queuePosition + 1` in both `playQueue` and MPV's playlist
+3. **PlayLast** — Appends the item to the end of both `playQueue` and MPV's playlist
+4. **Auto-advance** — MPV handles transitions natively via its playlist; the `file-loaded` event updates `queuePosition`
+5. **Cross-season** — When the queue is exhausted, queries `GET /Shows/NextUp` for the next season's episodes
+
+### Important Flags
+
+- **`isManualSkip`** — Set when user clicks Next/Previous; prevents auto-advance logic from interfering
+- **`isNewQueueLoad`** — Set when loading a new queue; prevents `file-loaded` from treating it as an auto-advance
+- **`isPlayingNext`** — Prevents double-triggering of episode transitions; has a 10s timeout fallback
+
+### Log Line Contracts
+
+The macOS app parses stdout from shim.js. These patterns must be preserved:
+
+| Pattern | What Swift code does |
+|---------|---------------------|
+| `Episode detected: <title>` | Sets now-playing title |
+| `Starting next episode: <title>` | Updates now-playing title |
+| `Starting previous episode: <title>` | Updates now-playing title |
+| `No more episodes` | Clears now-playing |
+
+### Common Pitfalls
+
+- Never push to `playQueue` without also updating MPV's playlist
+- Always set `isManualSkip = true` before calling `playNextEpisode()` or `playPreviousEpisode()`
+- Clear `isPlayingNext` after 10s timeout in case `loadfile` silently fails
+- The `markedWatched` Set prevents duplicate API calls; clear it on each new file load
+
 ## Submitting Changes
 
 1. **Fork** the repository
