@@ -191,6 +191,13 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
+      - name: Sync Info.plist version
+        run: |
+          VERSION="${{ needs.get-version.outputs.version }}"
+          sed -i '' "/CFBundleVersion/{n;s|<string>[0-9.]*</string>|<string>${VERSION}</string>|}" macapp/Info.plist
+          sed -i '' "/CFBundleShortVersionString/{n;s|<string>[0-9.]*</string>|<string>${VERSION}</string>|}" macapp/Info.plist
+          echo "Synced Info.plist to version $VERSION"
+
       - name: Install dependencies
         run: npm ci
 
