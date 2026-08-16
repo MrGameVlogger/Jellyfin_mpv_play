@@ -123,6 +123,7 @@ The macOS `.app` can also be built locally: `cd macapp && ./build.sh` (deploys t
 - **⚠️ NEVER push directly to `main`** — always create a branch and open a PR, even for docs or small fixes. The branch protection allows maintainer bypass but this should not be used.
 - **Dependabot**: Weekly npm dependency updates on Mondays
 - **Auto-labeler**: PRs auto-labeled by file paths (macos, shim, documentation, ci, dependencies, images, linux, windows)
+- **Signed commits and tags**: SSH signing configured in global git config — all commits and tags should be signed
 
 ## Running a comprehensive audit
 
@@ -150,6 +151,11 @@ Read EVERY file completely. Do not skip or summarize. Check for:
 - Deprecated APIs vs minimum macOS version
 - Duplicate code across files (shared utilities)
 - Logic bugs (state desync, unreachable code)
+
+**macapp/build.sh:**
+- curl flags (-f for fail on HTTP errors)
+- Architecture handling
+- Missing error messages
 
 **linux/launch.sh:**
 - Symlink resolution
@@ -201,6 +207,7 @@ Read ALL docs completely. Check for:
 - .github/pull_request_template.md
 - .github/ISSUE_TEMPLATE/*.md
 - .github/copilot-instructions.md
+- .github/skills/code-review/SKILL.md
 
 ### 3. CI/CD audit
 
@@ -228,7 +235,16 @@ gh api repos/MrGameVlogger/Jellyfin_mpv_play -q '.security_and_analysis'
 - Release assets (all 3 platforms present)
 - Release notes quality (no CI noise, correct categorization)
 
-### 4. Post-audit
+### 4. Version release check
+
+If a release was recently created, verify:
+- Tag points to the correct commit
+- Release notes match what's actually in the build
+- All 3 platform bundles are present
+- No code fixes listed that aren't in the build
+- Downloads table has correct version-specific filenames
+
+### 5. Post-audit
 
 After fixing everything:
 - All fixes go through PRs (never push to main)
