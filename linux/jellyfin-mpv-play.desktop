@@ -4,7 +4,7 @@ Comment=Play media from Jellyfin using MPV
 Version=1.0
 Exec=env bash -c 'SOURCE="$0"; while [ -L "$SOURCE" ]; do DIR="$(cd "$(dirname "$SOURCE")" && pwd)"; SOURCE="$(readlink "$SOURCE")"; [[ "$SOURCE" != /* ]] && SOURCE="$DIR/$SOURCE"; done; exec "$(cd "$(dirname "$SOURCE")" && pwd)/launch.sh"' %k
 Icon=jellyfin-mpv-play
-Terminal=true
+Terminal=false
 Type=Application
 Categories=AudioVideo;Video;Player;
 Keywords=jellyfin;mpv;video;media;
