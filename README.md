@@ -350,6 +350,9 @@ See [CHANGELOG.md](CHANGELOG.md) for full release history.
 
 ### Recent Releases
 
+**v1.8.3** — Windows headless, troubleshooting, macOS app docs ([details](CHANGELOG.md#v183))
+- Windows headless mode, expanded troubleshooting, macOS app architecture docs
+
 **v1.8.2** — CI fix, Info.plist sync, .desktop Exec, SECURITY.md, more ([details](CHANGELOG.md#v182))
 - Fixed CI release workflow, Info.plist version stuck at 1.7.6, .desktop Exec line for copied files
 

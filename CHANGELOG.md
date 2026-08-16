@@ -18,6 +18,19 @@ All notable changes to Jellyfin MPV Play are documented here.
 
 -->
 
+## v1.8.3
+
+### New Features
+- **Windows headless mode** — `launch.bat` now supports `--headless` flag and auto-detection from config.js (matches Linux behavior)
+
+### Internal
+- **Expanded troubleshooting** — 12 new entries in README covering common failure modes (MODULE_NOT_FOUND, ENOENT, ECONNREFUSED, 401, IPC failures)
+- **macOS app architecture docs** — CONTRIBUTING.md now documents all 11 Swift source files, spawn flow, and processLogLine
+- **.editorconfig** — Consistent formatting across contributors (4-space JS/Swift, 2-space YAML, CRLF for .bat)
+- **AGENTS.md cleanup** — Removed stale audit section, fixed Info.plist description
+
+---
+
 ## v1.8.2
 
 ### Bug Fixes
