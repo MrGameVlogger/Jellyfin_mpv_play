@@ -762,15 +762,19 @@ function checkIntroSegment(positionTicks) {
     }
 }
 
+let osdRestoreTimeout = null;
+
 function showSkipOsd(text) {
+    if (osdRestoreTimeout) { clearTimeout(osdRestoreTimeout); osdRestoreTimeout = null; }
     sendMpvCommand('set_property', ['osd-font-size', 40]);
     sendMpvCommand('set_property', ['osd-align-x', 'right']);
     sendMpvCommand('set_property', ['osd-align-y', 'bottom']);
     sendMpvCommand('show-text', [text, 3000]);
-    setTimeout(() => {
+    osdRestoreTimeout = setTimeout(() => {
         sendMpvCommand('set_property', ['osd-font-size', 55]);
         sendMpvCommand('set_property', ['osd-align-x', 'center']);
         sendMpvCommand('set_property', ['osd-align-y', 'bottom']);
+        osdRestoreTimeout = null;
     }, 3100);
 }
 
@@ -778,14 +782,16 @@ function showErrorOsd(text) {
     const now = Date.now();
     if (now - lastErrorOsdTime < 30000) return;
     lastErrorOsdTime = now;
+    if (osdRestoreTimeout) { clearTimeout(osdRestoreTimeout); osdRestoreTimeout = null; }
     sendMpvCommand('set_property', ['osd-font-size', 35]);
     sendMpvCommand('set_property', ['osd-align-x', 'right']);
     sendMpvCommand('set_property', ['osd-align-y', 'top']);
     sendMpvCommand('show-text', [text, 3000]);
-    setTimeout(() => {
+    osdRestoreTimeout = setTimeout(() => {
         sendMpvCommand('set_property', ['osd-font-size', 55]);
         sendMpvCommand('set_property', ['osd-align-x', 'center']);
         sendMpvCommand('set_property', ['osd-align-y', 'bottom']);
+        osdRestoreTimeout = null;
     }, 3100);
 }
 
@@ -1171,6 +1177,7 @@ function killMpv() {
     isInIntroSegment = false;
     nextUpShown = false;
     if (skipIntroTimeout) { clearTimeout(skipIntroTimeout); skipIntroTimeout = null; }
+    if (osdRestoreTimeout) { clearTimeout(osdRestoreTimeout); osdRestoreTimeout = null; }
     for (const [, q] of pendingQueries) { if (q.timer) clearTimeout(q.timer); q.resolve(null); }
     pendingQueries.clear();
     if (displayMessageTimeout) {
