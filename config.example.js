@@ -39,4 +39,8 @@ module.exports = {
     // Auto-skip intros and outros (optional — default: false)
     // true = auto-skip after 3s, false = show "Press S to skip" OSD
     // autoSkipIntros: true,
+
+    // Verbose logging (optional — default: false)
+    // Show debug-level logs with timestamps and component names
+    // verbose: true,
 };

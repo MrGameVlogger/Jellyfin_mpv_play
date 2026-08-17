@@ -24,7 +24,8 @@ const CONFIG = {
     autoClose: userConfig.autoClose || false,
     mpvFlags: userConfig.mpvFlags || [],
     headless: userConfig.headless || false,
-    autoSkipIntros: userConfig.autoSkipIntros || false
+    autoSkipIntros: userConfig.autoSkipIntros || false,
+    verbose: userConfig.verbose || false
 };
 
 if (CONFIG.headless) {
@@ -38,6 +39,20 @@ if (CONFIG.headless) {
     console.log(`🔇 Headless mode — logging to ${logFile}`);
     process.stdout.write = () => true;
     process.stderr.write = () => true;
+}
+
+function ts() {
+    return new Date().toISOString().replace('T', ' ').substring(0, 19);
+}
+
+function log(level, component, ...args) {
+    if (level === 'debug' && !CONFIG.verbose) return;
+    const prefix = `[${ts()}] [${component}]`;
+    if (level === 'error') {
+        console.error(prefix, ...args);
+    } else {
+        console.log(prefix, ...args);
+    }
 }
 
 const TOKEN_FILE = path.join(__dirname, 'data', `jellyfin_token_${CONFIG.deviceId}.json`);
@@ -271,21 +286,21 @@ async function connectWebSocket() {
             try {
                 const msg = JSON.parse(data);
                 if (msg.MessageType !== 'KeepAlive' && msg.MessageType !== 'ForceKeepAlive') {
-                    console.log('📩 Message received:', msg.MessageType);
+                    log('info', 'ws', 'Message received:', msg.MessageType);
                 }
-                handleMessage(msg).catch(e => console.error('⚠️ Error handling message:', e.message));
+                handleMessage(msg).catch(e => log('error', 'ws', 'Error handling message:', e.message));
             } catch (e) {
-                console.error('⚠️ Error parsing message:', e.message);
+                log('error', 'ws', 'Error parsing message:', e.message);
             }
         });
 
         ws.on('error', (error) => {
-            console.error('❌ WebSocket error:', error.message);
+            log('error', 'ws', 'WebSocket error:', error.message);
             isReconnecting = false;
         });
 
         ws.on('close', () => {
-            console.log('❌ Disconnected from server.');
+            log('info', 'ws', 'Disconnected from server.');
             isReconnecting = false;
             showErrorOsd('Connection lost — reconnecting...');
             
@@ -1173,9 +1188,10 @@ function sendMpvCommand(command, args = []) {
 
     try {
         const cmdStr = JSON.stringify(cmd) + '\n';
+        log('debug', 'mpv', '→', command, ...args);
         ipcClient.write(cmdStr);
     } catch (e) {
-        console.error('⚠️ Error sending command to MPV:', e.message);
+        log('error', 'mpv', 'Error sending command:', e.message);
     }
 }
 
@@ -1328,6 +1344,7 @@ function handleMpvEvent(event) {
 
     if (event.event === 'property-change' && event.name === 'time-pos' && typeof event.data === 'number') {
         currentPositionSeconds = event.data;
+        log('debug', 'mpv', 'time-pos:', event.data.toFixed(2));
         return;
     }
 
@@ -1340,11 +1357,13 @@ function handleMpvEvent(event) {
 
     if (event.event === 'property-change' && event.name === 'mute' && typeof event.data === 'boolean') {
         isMuted = event.data;
+        log('debug', 'mpv', 'mute:', event.data);
         return;
     }
 
     if (event.event === 'property-change' && event.name === 'volume' && typeof event.data === 'number') {
         volumeLevel = Math.round(event.data);
+        log('debug', 'mpv', 'volume:', event.data);
         return;
     }
 
