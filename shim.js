@@ -185,7 +185,7 @@ async function authenticateUser() {
     } catch (error) {
         console.error('❌ Authentication error:', error.message);
         if (error.response) {
-            console.error('📄 Details:', error.response.status, error.response.data);
+            console.error('📄 HTTP status:', error.response.status);
         }
         return false;
     }
@@ -257,7 +257,7 @@ async function connectWebSocket() {
             isReconnecting = false;
             reconnectAttempts = 0;
             lastErrorOsdTime = 0;
-            showErrorOsd('Connected to Jellyfin');
+            log('info', 'ws', 'Connected to Jellyfin');
             
             const msg = {
                 MessageType: "SessionsStart",
@@ -989,6 +989,9 @@ async function playMedia(itemId, startTicks) {
     } catch (err) {
         console.error('❌ Critical error executing MPV:', err);
         console.error('   Stack:', err.stack);
+        currentItemId = null;
+        currentEpisodeInfo = null;
+        stopProgressPoll();
     }
 }
 
@@ -1012,6 +1015,10 @@ function connectToMpvIpc(gen) {
 
         console.log(`🔗 Attempting to connect to MPV IPC (attempt ${connectionAttempts}/${maxAttempts})...`);
         
+        if (ipcClient) {
+            ipcClient.removeAllListeners();
+            ipcClient.destroy();
+        }
         ipcClient = net.connect(CONFIG.ipcSocketPath);
         let buffer = '';
 
@@ -1329,6 +1336,9 @@ function handleMpvEvent(event) {
                 startProgressReporting(currentItemId);
                 getIntroSegments(currentItemId);
                 startProgressPoll();
+            }).catch(err => {
+                console.error('⚠️ Error getting episode info for auto-advance:', err.message);
+                startProgressPoll();
             });
         } else {
             startProgressPoll();
@@ -1499,6 +1509,7 @@ async function playNextEpisode() {
         }
     } catch (e) {
         console.log('⚠️ NextUp query failed, keeping playback alive:', e.message);
+        isPlayingNext = false;
     }
 }
 
@@ -1508,7 +1519,7 @@ async function queryNextUp(seriesId) {
         headers,
         params: { userId, seriesId, limit: 1 }
     });
-    if (response.data.Items && response.data.Items.length > 0) {
+    if (response.data?.Items && response.data.Items.length > 0) {
         const nextEp = response.data.Items[0];
         console.log(`📺 NextUp from Jellyfin: ${nextEp.SeriesName} - S${nextEp.ParentIndexNumber}E${nextEp.IndexNumber} - ${nextEp.Name}`);
         return nextEp.Id;
@@ -1531,6 +1542,7 @@ async function playPreviousEpisode() {
         currentPositionSeconds = 0;
         if (currentItemId) reportPlaybackProgress(currentItemId, 0);
         isPlayingNext = false;
+        isSeeking = false;
         return;
     }
 
@@ -1707,7 +1719,7 @@ function shutdown(signal) {
         const data = {
             ItemId: currentItemId,
             PositionTicks: Math.round(currentPositionSeconds * 10000000),
-            IsPaused: false,
+            IsPaused: isMpvPaused,
             PlayMethod: 'DirectPlay',
             PlaySessionId: playSessionId
         };
