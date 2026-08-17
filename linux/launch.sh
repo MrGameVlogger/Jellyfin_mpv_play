@@ -108,7 +108,7 @@ cd "$SCRIPT_DIR"
 IS_HEADLESS=false
 if [ "$1" = "--headless" ]; then
     IS_HEADLESS=true
-elif [ -f "$CONFIG_FILE" ] && grep -q "headless.*true" "$CONFIG_FILE"; then
+elif [ -f "$CONFIG_FILE" ] && "$NODE_BIN" -e "const c=require(process.argv[1]); if(c.headless) process.exit(0); else process.exit(1);" "$CONFIG_FILE" 2>/dev/null; then
     IS_HEADLESS=true
 fi
 
@@ -136,7 +136,7 @@ else
     "$NODE_BIN" "$SCRIPT_DIR/shim.js" &
     NODE_PID=$!
     trap 'kill $NODE_PID 2>/dev/null' INT TERM
-    wait $NODE_PID
+    wait $NODE_PID || true
 fi
 
 EXIT_CODE=$?
