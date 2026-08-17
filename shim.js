@@ -392,8 +392,7 @@ function reportCapabilities() {
             "VolumeDown",
             "SetVolume",
             "DisplayMessage",
-            "ToggleFullscreen",
-            "SkipIntro"
+            "ToggleFullscreen"
         ],
         SupportsMediaControl: true,
         SupportsPersistentIdentifier: true,
