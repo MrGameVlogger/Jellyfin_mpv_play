@@ -118,6 +118,7 @@ let skipIntroTimeout = null;
 let isInIntroSegment = false;
 let lastErrorOsdTime = 0;
 let nextUpShown = false;
+let skippedSegmentIds = new Set();
 
 function generateOrLoadDeviceId() {
     const idFile = path.join(__dirname, 'data', '.device-id');
@@ -711,6 +712,7 @@ async function getEpisodeInfo(itemId, silent = false) {
 
 async function getIntroSegments(itemId) {
     introSegments = [];
+    skippedSegmentIds = new Set();
     isInIntroSegment = false;
     if (skipIntroTimeout) { clearTimeout(skipIntroTimeout); skipIntroTimeout = null; }
     try {
@@ -748,15 +750,19 @@ function skipIntro() {
         currentPositionSeconds = seekTo;
         if (currentItemId) reportPlaybackProgress(currentItemId, segment.endTicks);
         showSkipOsd(`Skipped ${segment.type.toLowerCase()}`);
+        // Mark this segment as skipped so we don't skip again
+        skippedSegmentIds.add(segment.startTicks);
     }
-    // Clear all segments to prevent re-triggering
-    introSegments = [];
     isInIntroSegment = false;
     if (skipIntroTimeout) { clearTimeout(skipIntroTimeout); skipIntroTimeout = null; }
 }
 
 function checkIntroSegment(positionTicks) {
-    const segment = introSegments.find(seg => positionTicks >= seg.startTicks && positionTicks <= seg.endTicks);
+    const segment = introSegments.find(seg =>
+        positionTicks >= seg.startTicks &&
+        positionTicks <= seg.endTicks &&
+        !skippedSegmentIds.has(seg.startTicks)
+    );
     if (segment) {
         if (!isInIntroSegment) {
             isInIntroSegment = true;
@@ -1214,6 +1220,7 @@ async function markItemAsWatched(itemId) {
 function killMpv() {
     stopProgressPoll();
     introSegments = [];
+    skippedSegmentIds = new Set();
     isInIntroSegment = false;
     nextUpShown = false;
     if (skipIntroTimeout) { clearTimeout(skipIntroTimeout); skipIntroTimeout = null; }
