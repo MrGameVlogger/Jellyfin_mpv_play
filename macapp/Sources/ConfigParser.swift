@@ -3,14 +3,28 @@ import Foundation
 enum ConfigParser {
     static func extractValue(from content: String, key: String) -> String {
         let escapedKey = NSRegularExpression.escapedPattern(for: key)
-        // Match: key: 'value' or key: "value", allowing escaped quotes inside
-        let pattern = "\(escapedKey):\\s*(['\"])([^'\"]*(?:\\\\.[^'\"]*)*)\\1"
-        guard let regex = try? NSRegularExpression(pattern: pattern),
-              let match = regex.firstMatch(in: content, range: NSRange(content.startIndex..., in: content)),
-              let range = Range(match.range(at: 2), in: content) else {
-            return ""
+        // Match: key: 'value' or key: "value" (quoted strings)
+        let quotedPattern = "\(escapedKey):\\s*(['\"])([^'\"]*(?:\\\\.[^'\"]*)*)\\1"
+        if let regex = try? NSRegularExpression(pattern: quotedPattern),
+           let match = regex.firstMatch(in: content, range: NSRange(content.startIndex..., in: content)),
+           let range = Range(match.range(at: 2), in: content) {
+            return unescapeConfigValue(String(content[range]))
         }
-        return unescapeConfigValue(String(content[range]))
+        // Match: key: true/false (booleans)
+        let boolPattern = "\(escapedKey):\\s*(true|false)"
+        if let regex = try? NSRegularExpression(pattern: boolPattern),
+           let match = regex.firstMatch(in: content, range: NSRange(content.startIndex..., in: content)),
+           let range = Range(match.range(at: 1), in: content) {
+            return String(content[range])
+        }
+        // Match: key: 123 (numbers)
+        let numberPattern = "\(escapedKey):\\s*(\\d+)"
+        if let regex = try? NSRegularExpression(pattern: numberPattern),
+           let match = regex.firstMatch(in: content, range: NSRange(content.startIndex..., in: content)),
+           let range = Range(match.range(at: 1), in: content) {
+            return String(content[range])
+        }
+        return ""
     }
 
     private static func unescapeConfigValue(_ value: String) -> String {
