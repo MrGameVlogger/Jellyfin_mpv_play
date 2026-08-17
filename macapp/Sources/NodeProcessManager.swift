@@ -37,6 +37,7 @@ class NodeProcessManager {
     }
 
     func start() {
+        closeLogFile()
         if let process = process, process.isRunning {
             process.terminationHandler = nil
             process.terminate()
@@ -125,6 +126,7 @@ class NodeProcessManager {
                 self.statusHandler(.disconnected)
                 let exitCode = proc.terminationStatus
                 if self.isShuttingDown {
+                    self.restartCount = 0
                     self.logHandler("Process terminated (exit code: \(exitCode))")
                 } else if self.restartCount < self.maxRestarts {
                     self.restartCount += 1
@@ -180,11 +182,6 @@ class NodeProcessManager {
                 guard let self = self else { return }
                 if proc.isRunning {
                     kill(pid_t(proc.processIdentifier), SIGKILL)
-                }
-                DispatchQueue.main.async {
-                    if self.process === proc {
-                        self.cleanupPipes()
-                    }
                 }
             }
         } else {
@@ -295,14 +292,16 @@ class NodeProcessManager {
 
     func togglePause() {
         guard !isStoppingPlayback else { return }
-        // Send toggle command — actual state is updated by processLogLine via pauseStateHandler
-        sendMpvCommand("{\"command\": [\"set_property\", \"pause\", \(!isPaused)]}")
+        sendMpvCommand("{\"command\": [\"cycle\", \"pause\"]}")
     }
 
     func stopPlayback() {
         isStoppingPlayback = true
         resetPlaybackState()
         sendMpvCommand("{\"command\": [\"quit\"]}")
+        DispatchQueue.main.asyncAfter(deadline: .now() + 3) { [weak self] in
+            self?.isStoppingPlayback = false
+        }
     }
 
     private func resetPlaybackState() {
