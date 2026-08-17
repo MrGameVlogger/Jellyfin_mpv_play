@@ -94,6 +94,7 @@ let previousItemId = null;
 let introSegments = [];
 let skipIntroTimeout = null;
 let isInIntroSegment = false;
+let lastErrorOsdTime = 0;
 
 function generateOrLoadDeviceId() {
     const idFile = path.join(__dirname, 'data', '.device-id');
@@ -239,6 +240,8 @@ async function connectWebSocket() {
             console.log('✅ WebSocket connection established.');
             isReconnecting = false;
             reconnectAttempts = 0;
+            lastErrorOsdTime = 0;
+            showErrorOsd('Connected to Jellyfin');
             
             const msg = {
                 MessageType: "SessionsStart",
@@ -284,6 +287,7 @@ async function connectWebSocket() {
         ws.on('close', () => {
             console.log('❌ Disconnected from server.');
             isReconnecting = false;
+            showErrorOsd('Connection lost — reconnecting...');
             
             if (keepAliveInterval) {
                 clearInterval(keepAliveInterval);
@@ -332,17 +336,20 @@ function scheduleReconnect() {
         } catch (error) {
             if (error.response && error.response.status === 401) {
                 console.log('🔐 Token expired, reauthenticating...');
+                showErrorOsd('Authentication expired — reconnecting...');
                 const authenticated = await authenticateUser();
                 if (authenticated) {
                     await connectWebSocket();
                 } else {
                     console.error('❌ Reauthentication failed. Waiting for next attempt.');
+                    showErrorOsd('Authentication failed');
                     clearTimeout(reconnectInterval);
                     reconnectInterval = null;
                     scheduleReconnect();
                 }
             } else {
                 console.log(`⚠️ Server unavailable or network down. Retrying in ${delaySeconds}s...`);
+                showErrorOsd('Server unreachable — retrying...');
                 clearTimeout(reconnectInterval);
                 reconnectInterval = null;
                 scheduleReconnect();
@@ -729,6 +736,20 @@ async function showSkipOsd(text) {
     setTimeout(() => {
         sendMpvCommand('set_property', ['osd-font-size', 55]);
     }, 3100);
+}
+
+function showErrorOsd(text) {
+    const now = Date.now();
+    if (now - lastErrorOsdTime < 30000) return;
+    lastErrorOsdTime = now;
+    sendMpvCommand('set_property', ['osd-font-size', 50]);
+    sendMpvCommand('set_property', ['osd-align-x', 'center']);
+    sendMpvCommand('set_property', ['osd-align-y', 'center']);
+    sendMpvCommand('show-text', [text, 5000]);
+    setTimeout(() => {
+        sendMpvCommand('set_property', ['osd-font-size', 55]);
+        sendMpvCommand('set_property', ['osd-align-y', 'bottom']);
+    }, 5100);
 }
 
 async function loadNewQueue(itemId, startTicks) {
