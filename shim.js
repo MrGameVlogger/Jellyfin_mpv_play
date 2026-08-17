@@ -730,11 +730,12 @@ function checkIntroSegment(positionTicks) {
 
 async function showSkipOsd(text) {
     sendMpvCommand('set_property', ['osd-font-size', 40]);
-    sendMpvCommand('set_property', ['osd-align-x', 'center']);
+    sendMpvCommand('set_property', ['osd-align-x', 'right']);
     sendMpvCommand('set_property', ['osd-align-y', 'bottom']);
     sendMpvCommand('show-text', [text, 3000]);
     setTimeout(() => {
         sendMpvCommand('set_property', ['osd-font-size', 55]);
+        sendMpvCommand('set_property', ['osd-align-x', 'center']);
     }, 3100);
 }
 
@@ -743,11 +744,13 @@ function showErrorOsd(text) {
     if (now - lastErrorOsdTime < 30000) return;
     lastErrorOsdTime = now;
     sendMpvCommand('set_property', ['osd-font-size', 35]);
-    sendMpvCommand('set_property', ['osd-align-x', 'center']);
-    sendMpvCommand('set_property', ['osd-align-y', 'bottom']);
+    sendMpvCommand('set_property', ['osd-align-x', 'right']);
+    sendMpvCommand('set_property', ['osd-align-y', 'top']);
     sendMpvCommand('show-text', [text, 3000]);
     setTimeout(() => {
         sendMpvCommand('set_property', ['osd-font-size', 55]);
+        sendMpvCommand('set_property', ['osd-align-x', 'center']);
+        sendMpvCommand('set_property', ['osd-align-y', 'bottom']);
     }, 3100);
 }
 
