@@ -160,11 +160,10 @@ class StatusBarController: NSObject, NSMenuDelegate {
 
     private func setStatusIcon(_ symbolName: String, color: NSColor, tooltip: String) {
         guard let button = statusItem.button else { return }
-        if let image = NSImage(systemSymbolName: symbolName, accessibilityDescription: tooltip) {
-            image.isTemplate = true
+        let config = NSImage.SymbolConfiguration(paletteColors: [color])
+        if let image = NSImage(systemSymbolName: symbolName, accessibilityDescription: tooltip)?.withSymbolConfiguration(config) {
             button.image = image
         }
-        button.contentTintColor = color
         button.toolTip = tooltip
     }
 
