@@ -882,7 +882,11 @@ async function loadNewQueue(itemId, startTicks) {
         pendingStartSeconds = startTicks / 10000000;
     }
 
+    // Restore saved indices for reportPlaybackStart
+    pendingAudioStreamIndex = savedAudioIndex;
+    pendingSubtitleStreamIndex = savedSubIndex;
     reportPlaybackStart(itemId, startTicks);
+    pendingAudioStreamIndex = undefined;
     pendingSubtitleStreamIndex = undefined;
     startProgressReporting(itemId);
     sendMpvCommand('set_property', ['force-media-title', `Jellyfin - ${titleText}`]);
@@ -1322,7 +1326,7 @@ function handleMpvEvent(event) {
         } else {
             isNewQueueLoad = false;
         }
-        const isAutoAdvance = currentItemId && !pendingStreamUrl && !isManualSkip && !isSeekingEvent && !isNewQueueEvent && !isPlayingNext;
+        const isAutoAdvance = currentItemId && !pendingStreamUrl && !isManualSkip && !isSeekingEvent && !isNewQueueEvent && !isPlayingNext && mpvProcess;
         const isManualSkipEvent = isManualSkip && !isSeekingEvent && !isNewQueueEvent;
         isManualSkip = false;
         
@@ -1491,6 +1495,13 @@ async function playNextEpisode() {
     }
     isPlayingNext = true;
     isPlayingNextTimestamp = Date.now();
+    // Safety timeout to reset isPlayingNext if progress poll isn't running
+    setTimeout(() => {
+        if (isPlayingNext && Date.now() - isPlayingNextTimestamp > 30000) {
+            log('info', 'queue', '⚠️ isPlayingNext stuck for 30s (safety timeout), resetting');
+            isPlayingNext = false;
+        }
+    }, 31000);
 
     if (playQueue.length > 0 && queuePosition < playQueue.length - 1) {
         previousItemId = currentItemId;
@@ -1605,6 +1616,13 @@ async function playPreviousEpisode() {
     }
     isPlayingNext = true;
     isPlayingNextTimestamp = Date.now();
+    // Safety timeout to reset isPlayingNext if progress poll isn't running
+    setTimeout(() => {
+        if (isPlayingNext && Date.now() - isPlayingNextTimestamp > 30000) {
+            log('info', 'queue', '⚠️ isPlayingNext stuck for 30s (safety timeout), resetting');
+            isPlayingNext = false;
+        }
+    }, 31000);
 
     if (currentPositionSeconds > 30) {
         log('info', 'episode', '↩️ Restarting current episode (time > 30s)');
@@ -1642,20 +1660,11 @@ async function playPreviousEpisode() {
     const prevEp = currentEpisodeInfo.previousEpisode;
     const prevTitle = [currentEpisodeInfo.seriesName, `${currentEpisodeInfo.seasonNumber}x${prevEp.IndexNumber}`, prevEp.Name].filter(Boolean).join(' - ');
     log("info", "contract", `◀️ Starting previous episode: ${prevTitle}`);
-    if (!ipcClient || ipcClient.destroyed || !mpvProcess) {
-        playMedia(prevEp.Id, 0).catch(err => {
-            log('error', 'episode', '⚠️ Error playing previous episode:', err.message);
-            isPlayingNext = false;
-        });
-        return;
-    }
-    const url = `${CONFIG.serverUrl}/Videos/${prevEp.Id}/stream?static=true&api_key=${accessToken}`;
-    previousItemId = currentItemId;
-    playQueue.splice(queuePosition, 0, prevEp.Id);
-    currentItemId = prevEp.Id;
-    isManualSkip = true;
-    sendMpvCommand('loadfile', [url, 'insert-at-index', queuePosition]);
-    sendMpvCommand('playlist-prev');
+    // Use playMedia for cross-season previous to avoid queue desync
+    playMedia(prevEp.Id, 0).catch(err => {
+        log('error', 'episode', '⚠️ Error playing previous episode:', err.message);
+        isPlayingNext = false;
+    });
     return;
 }
 
