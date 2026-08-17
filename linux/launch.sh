@@ -25,21 +25,47 @@ if [ ! -f "$CONFIG_FILE" ]; then
     fi
 fi
 
-if ! command -v mpv &>/dev/null; then
-    echo "ERROR: mpv is not installed or not in PATH." >&2
-    echo "Install it with your package manager, e.g.:" >&2
-    echo "  Ubuntu/Debian:  sudo apt install mpv" >&2
-    echo "  Fedora:         sudo dnf install mpv" >&2
-    echo "  Arch:           sudo pacman -S mpv" >&2
-    exit 1
-fi
-
 NODE_BIN="$SCRIPT_DIR/node/bin/node"
 if [ ! -x "$NODE_BIN" ]; then
     echo "ERROR: Bundled Node.js not found at $NODE_BIN" >&2
     echo "Bundle may be corrupted. Please re-download." >&2
     exit 1
 fi
+
+MPV_PATH=""
+# Try to read mpvPath from config.js
+if [ -f "$CONFIG_FILE" ]; then
+    MPV_CONFIG="$("$NODE_BIN" -e "try { const c=require(process.argv[1]); process.stdout.write(c.mpvPath||''); } catch(e) { process.exit(2) }" "$CONFIG_FILE" 2>/dev/null)" || true
+    if [ -n "$MPV_CONFIG" ]; then
+        if [[ "$MPV_CONFIG" = /* ]]; then
+            MPV_PATH="$MPV_CONFIG"
+        elif [ -f "$SCRIPT_DIR/$MPV_CONFIG" ]; then
+            MPV_PATH="$SCRIPT_DIR/$MPV_CONFIG"
+        else
+            MPV_PATH="$MPV_CONFIG"
+        fi
+    fi
+fi
+
+# Fall back to mpv in PATH
+if [ -z "$MPV_PATH" ]; then
+    MPV_PATH="$(command -v mpv || true)"
+fi
+
+if [ -z "$MPV_PATH" ] || [ ! -x "$MPV_PATH" ]; then
+    echo "ERROR: mpv not found." >&2
+    if [ -n "$MPV_PATH" ]; then
+        echo "Configured path is not executable: $MPV_PATH" >&2
+    fi
+    echo "Install it with your package manager, e.g.:" >&2
+    echo "  Ubuntu/Debian:  sudo apt install mpv" >&2
+    echo "  Fedora:         sudo dnf install mpv" >&2
+    echo "  Arch:           sudo pacman -S mpv" >&2
+    echo "Or set mpvPath in config.js to the full path of your mpv binary." >&2
+    exit 1
+fi
+
+export JELLYFIN_MPV_PATH="$MPV_PATH"
 
 if [ ! -f "$SCRIPT_DIR/shim.js" ]; then
     echo "ERROR: shim.js not found in $SCRIPT_DIR" >&2
