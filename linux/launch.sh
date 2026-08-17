@@ -37,12 +37,18 @@ MPV_PATH=""
 if [ -f "$CONFIG_FILE" ]; then
     MPV_CONFIG="$("$NODE_BIN" -e "try { const c=require(process.argv[1]); process.stdout.write(c.mpvPath||''); } catch(e) { process.exit(2) }" "$CONFIG_FILE" 2>/dev/null)" || true
     if [ -n "$MPV_CONFIG" ]; then
-        if [[ "$MPV_CONFIG" = /* ]]; then
-            MPV_PATH="$MPV_CONFIG"
-        elif [ -f "$SCRIPT_DIR/$MPV_CONFIG" ]; then
-            MPV_PATH="$SCRIPT_DIR/$MPV_CONFIG"
+        if [[ "$MPV_CONFIG" = */* ]]; then
+            # It's a path (absolute or relative with directory component)
+            if [[ "$MPV_CONFIG" = /* ]]; then
+                MPV_PATH="$MPV_CONFIG"
+            elif [ -f "$SCRIPT_DIR/$MPV_CONFIG" ]; then
+                MPV_PATH="$SCRIPT_DIR/$MPV_CONFIG"
+            else
+                MPV_PATH="$MPV_CONFIG"
+            fi
         else
-            MPV_PATH="$MPV_CONFIG"
+            # Bare command name — search PATH
+            MPV_PATH="$(command -v "$MPV_CONFIG" || true)"
         fi
     fi
 fi
