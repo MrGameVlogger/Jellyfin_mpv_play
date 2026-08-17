@@ -272,7 +272,7 @@ async function connectWebSocket() {
                     try {
                         ws.send(JSON.stringify({ MessageType: 'KeepAlive' }));
                     } catch (e) {
-                        console.error('⚠️ Error sending keep-alive:', e.message);
+                        log('error', 'ws', 'Error sending keep-alive:', e.message);
                     }
                 }
             }, 30000);
@@ -413,6 +413,21 @@ function reportCapabilities() {
 }
 
 async function handleMessage(msg) {
+    if (msg.MessageType === "ForceKeepAlive") {
+        const interval = msg.Data || 30;
+        log('info', 'ws', `Server requested keep-alive every ${interval}s`);
+        if (keepAliveInterval) clearInterval(keepAliveInterval);
+        keepAliveInterval = setInterval(() => {
+            if (ws && ws.readyState === WebSocket.OPEN) {
+                try {
+                    ws.send(JSON.stringify({ MessageType: 'KeepAlive' }));
+                } catch (e) {
+                    log('error', 'ws', 'Error sending keep-alive:', e.message);
+                }
+            }
+        }, interval * 1000);
+        return;
+    }
     if (msg.MessageType === "Play") {
         console.log('▶️ PLAY command received from web!');
         const data = msg.Data || {};
