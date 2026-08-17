@@ -328,7 +328,7 @@ Jellyfin_mpv_play/
 ├── node_modules/            # Dependencies (gitignored)
 ├── config.example.js        # Configuration template
 ├── config.js                # Your config — never commit! (gitignored)
-├── shim.js                  # Main Node.js application (~1864 lines)
+├── shim.js                  # Main Node.js application (~1895 lines)
 ├── package.json
 └── README.md
 ```
