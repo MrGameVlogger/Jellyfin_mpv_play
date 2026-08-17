@@ -194,8 +194,9 @@ jobs:
       - name: Sync Info.plist version
         run: |
           VERSION="${{ needs.get-version.outputs.version }}"
-          sed -i '' "/CFBundleVersion/{n;s|<string>[0-9.]*</string>|<string>${VERSION}</string>|}" macapp/Info.plist
-          sed -i '' "/CFBundleShortVersionString/{n;s|<string>[0-9.]*</string>|<string>${VERSION}</string>|}" macapp/Info.plist
+          # Use perl instead of sed for reliable macOS compatibility
+          perl -i -pe "s|(<key>CFBundleVersion</key>\\s*<string>)[^<]*(</string>)|\\${1}${VERSION}\$2|" macapp/Info.plist
+          perl -i -pe "s|(<key>CFBundleShortVersionString</key>\\s*<string>)[^<]*(</string>)|\\${1}${VERSION}\$2|" macapp/Info.plist
           echo "Synced Info.plist to version $VERSION"
 
       - name: Install dependencies
