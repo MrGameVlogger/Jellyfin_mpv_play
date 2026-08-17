@@ -24,7 +24,7 @@ class AboutWindowController: NSWindowController {
         let iconBundlePath = Bundle.main.resourcePath ?? ""
         let iconFilename = isDark ? "icon-dark.svg" : "icon-light.svg"
         let iconPath = (iconBundlePath as NSString).appendingPathComponent(iconFilename)
-        iconView.image = NSImage(contentsOfFile: iconPath) ?? NSImage(named: "AppIcon")
+        iconView.image = NSImage(contentsOfFile: iconPath) ?? NSApp.applicationIconImage ?? NSImage(named: "AppIcon")
         contentView.addSubview(iconView)
 
         let title = NSTextField(labelWithString: "Jellyfin MPV Play")
