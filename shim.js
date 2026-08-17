@@ -1068,7 +1068,17 @@ function connectToMpvIpc(gen) {
             return;
         }
 
-        log('info', 'ipc', `🔗 Attempting to connect to MPV IPC (attempt ${connectionAttempts}/${maxAttempts})...`);
+        // Wait for socket file to exist before attempting connection
+        if (!fs.existsSync(CONFIG.ipcSocketPath)) {
+            if (connectionAttempts < maxAttempts) {
+                setTimeout(attemptConnection, retryDelay);
+            } else {
+                log('error', 'ipc', '❌ Maximum IPC connection attempts reached');
+            }
+            return;
+        }
+
+        log('info', 'ipc', `🔗 Connecting to MPV IPC...`);
         
         if (ipcClient) {
             ipcClient.removeAllListeners();
@@ -1158,10 +1168,9 @@ function connectToMpvIpc(gen) {
         });
 
         ipcClient.on('error', (err) => {
-            log('error', 'ipc', `⚠️ IPC error (attempt ${connectionAttempts}):`, err.message);
+            log('error', 'ipc', '⚠️ IPC error:', err.message);
             
             if (connectionAttempts < maxAttempts && mpvProcess && mpvProcess.exitCode === null) {
-                log('info', 'ipc', `🔄 Retrying IPC connection in ${retryDelay}ms...`);
                 setTimeout(attemptConnection, retryDelay);
             } else if (connectionAttempts >= maxAttempts) {
                 log('error', 'ipc', '❌ Maximum IPC connection attempts reached');
