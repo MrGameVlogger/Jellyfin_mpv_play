@@ -18,16 +18,12 @@ Features, bugs, and improvements planned for Jellyfin MPV Play.
 | Windows support | v1.8.3 | `launch.bat` with headless support |
 | CI version sync | v1.8.3 | Info.plist auto-synced from package.json in CI |
 | Seek progress reports | v1.8.4 | Report progress immediately on user-initiated seeks (MPV seeking property) |
+| Auto-skip intros/outros | v1.8.4 | MediaSegments API, auto-skip or S key, config option `autoSkipIntros` |
+| Error OSD messages | v1.8.4 | Connection/auth errors shown in MPV OSD with rate limiting |
 
 ---
 
 ## Features
-
-### Auto-skip intros/outros
-
-**Source:** Upstream Issue #1 — [Add Auto-Skip support?](https://github.com/JohnGlaus/Jellyfin_mpv_play/issues/1)
-
-**Status:** In progress — see implementation plan below.
 
 ### Next-up notification
 
