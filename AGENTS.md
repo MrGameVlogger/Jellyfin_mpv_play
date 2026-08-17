@@ -2,7 +2,7 @@
 
 ## What this is
 
-Node.js shim (`shim.js`, ~1620 lines) that connects to Jellyfin via WebSocket, receives play commands, and controls MPV via Unix socket IPC. Optional macOS menubar app (`macapp/`) spawns the shim and parses its stdout for UI state. Linux and Windows users run `shim.js` directly via platform-specific launcher scripts.
+Node.js shim (`shim.js`, ~1773 lines) that connects to Jellyfin via WebSocket, receives play commands, and controls MPV via Unix socket IPC. Optional macOS menubar app (`macapp/`) spawns the shim and parses its stdout for UI state. Linux and Windows users run `shim.js` directly via platform-specific launcher scripts.
 
 ## Commands
 
@@ -67,6 +67,8 @@ All options go in `config.js` (copy from `config.example.js`):
 | `autoClose` | boolean | `false` | Close shim when playback ends |
 | `mpvFlags` | array | `[]` | Additional MPV arguments (e.g. `["--hwdec=auto"]`) |
 | `headless` | boolean | `false` | Redirect logs to `data/shim.log`, suppress stdout/stderr |
+| `autoSkipIntros` | boolean | `false` | Auto-skip intros/outros after 3s (or show "Press S to skip" OSD) |
+| `verbose` | boolean | `false` | Show debug-level logs with timestamps and component names |
 
 `config.js` is gitignored. Missing file → `MODULE_NOT_FOUND` on start.
 
@@ -78,62 +80,72 @@ All functions live in `shim.js`. There are no classes — the entire app is proc
 
 | Function | Line | Description |
 |----------|------|-------------|
-| `main()` | 1590 | Entry point: creates `data/`, loads token or authenticates, connects WebSocket |
-| `authenticateUser()` | 139 | POSTs to `/Users/AuthenticateByName`, saves token |
-| `loadToken()` | 109 | Reads JWT from `data/jellyfin_token_{deviceId}.json` |
-| `saveToken(authResponse)` | 128 | Persists JWT to disk |
-| `getAuthHeaders()` | 198 | Returns `X-Emby-Token` + `X-Emby-Authorization` headers |
-| `generateOrLoadDeviceId()` | 93 | Reads or generates device ID from `data/.device-id` |
+| `main()` | 1743 | Entry point: creates `data/`, loads token or authenticates, connects WebSocket |
+| `authenticateUser()` | 161 | POSTs to `/Users/AuthenticateByName`, saves token |
+| `loadToken()` | 131 | Reads JWT from `data/jellyfin_token_{deviceId}.json` |
+| `saveToken(authResponse)` | 150 | Persists JWT to disk |
+| `getAuthHeaders()` | 220 | Returns `X-Emby-Token` + `X-Emby-Authorization` headers |
+| `generateOrLoadDeviceId()` | 115 | Reads or generates device ID from `data/.device-id` |
 
 ### WebSocket & Jellyfin communication
 
 | Function | Line | Description |
 |----------|------|-------------|
-| `connectWebSocket()` | 205 | Establishes WS connection, sets up message handler, starts keep-alive |
-| `scheduleReconnect()` | 298 | Exponential backoff reconnection (5s → 10s → 20s → 30s cap) |
-| `handleMessage(msg)` | 386 | Main WS message dispatcher — handles Play, Playstate, GeneralCommand |
-| `reportCapabilities()` | 349 | Registers session capabilities with Jellyfin |
-| `getEpisodeInfo(itemId, silent)` | 598 | Fetches item metadata + season episode list |
-| `queryNextUp(seriesId)` | 1362 | Queries `/Shows/NextUp` for next unwatched episode |
+| `connectWebSocket()` | 227 | Establishes WS connection, sets up message handler, starts keep-alive |
+| `scheduleReconnect()` | 323 | Exponential backoff reconnection (5s → 10s → 20s → 30s cap) |
+| `handleMessage(msg)` | 415 | Main WS message dispatcher — handles Play, Playstate, GeneralCommand |
+| `reportCapabilities()` | 377 | Registers session capabilities with Jellyfin |
+| `getEpisodeInfo(itemId, silent)` | 629 | Fetches item metadata + season episode list |
+| `queryNextUp(seriesId)` | 1515 | Queries `/Shows/NextUp` for next unwatched episode |
 
 ### MPV control
 
 | Function | Line | Description |
 |----------|------|-------------|
-| `playMedia(itemId, startTicks)` | 741 | Spawns fresh MPV process with IPC socket |
-| `loadNewQueue(itemId, startTicks)` | 652 | Loads new queue into running MPV (clears playlist, reloads) |
-| `connectToMpvIpc(gen)` | 879 | Connects to MPV Unix socket, observes properties, binds keys |
-| `killMpv()` | 1019 | Kills MPV, cleans up IPC, resolves pending queries |
-| `sendMpvCommand(command, args)` | 1053 | Sends JSON command to MPV via IPC |
-| `queryProperty(property, timeoutMs)` | 1071 | Queries MPV property (returns Promise) |
-| `startProgressPoll()` | 1094 | 1s interval: polls `time-pos`/`duration`, triggers next episode near end |
-| `stopProgressPoll()` | 1124 | Clears progress poll timer |
-| `handleMpvEvent(event)` | 1131 | Processes MPV IPC events (file-loaded, property changes, keybinds) |
+| `playMedia(itemId, startTicks)` | 864 | Spawns fresh MPV process with IPC socket |
+| `loadNewQueue(itemId, startTicks)` | 774 | Loads new queue into running MPV (clears playlist, reloads) |
+| `connectToMpvIpc(gen)` | 1003 | Connects to MPV Unix socket, observes properties, binds keys |
+| `killMpv()` | 1145 | Kills MPV, cleans up IPC, resolves pending queries |
+| `sendMpvCommand(command, args)` | 1183 | Sends JSON command to MPV via IPC |
+| `queryProperty(property, timeoutMs)` | 1202 | Queries MPV property (returns Promise) |
+| `startProgressPoll()` | 1225 | 1s interval: polls `time-pos`/`duration`, triggers next episode near end |
+| `stopProgressPoll()` | 1265 | Clears progress poll timer |
+| `handleMpvEvent(event)` | 1272 | Processes MPV IPC events (file-loaded, property changes, keybinds) |
 
 ### Queue & episode transitions
 
 | Function | Line | Description |
 |----------|------|-------------|
-| `playNextEpisode()` | 1263 | Advances to next episode (queue → season → NextUp → end) |
-| `playPreviousEpisode()` | 1376 | Goes to previous episode (restart if >30s, queue, or season prev) |
+| `playNextEpisode()` | 1416 | Advances to next episode (queue → season → NextUp → end) |
+| `playPreviousEpisode()` | 1529 | Goes to previous episode (restart if >30s, queue, or season prev) |
+
+### Auto-skip & OSD
+
+| Function | Line | Description |
+|----------|------|-------------|
+| `getIntroSegments(itemId)` | 683 | Fetches intro/outro segments from Jellyfin MediaSegments API |
+| `skipIntro()` | 712 | Seeks to end of current intro/outro segment |
+| `checkIntroSegment(positionTicks)` | 727 | Checks if position is inside an intro/outro segment |
+| `showSkipOsd(text)` | 747 | Shows bottom-right OSD (skip prompts, next-up notification) |
+| `showErrorOsd(text)` | 759 | Shows top-right OSD (connection/auth errors, rate limited) |
 
 ### Playback reporting
 
 | Function | Line | Description |
 |----------|------|-------------|
-| `reportPlaybackStart(itemId, positionTicks)` | 1436 | Reports start to `/Sessions/Playing` |
-| `reportPlaybackProgress(itemId, positionTicks)` | 1487 | Reports progress to `/Sessions/Playing/Progress` |
-| `reportPlaybackStop(itemId, positionTicks)` | 1510 | Reports stop to `/Sessions/Playing/Stopped` |
-| `startProgressReporting(itemId)` | 1468 | 10s interval: saves local playback positions |
-| `markItemAsWatched(itemId)` | 1000 | Marks item as played, clears local position |
-| `savePlaybackPosition(itemId, positionTicks)` | 184 | Persists position to `data/playback_positions_{deviceId}.json` |
-| `loadPlaybackPositions()` | 172 | Reads saved positions from disk |
+| `reportPlaybackStart(itemId, positionTicks)` | 1589 | Reports start to `/Sessions/Playing` |
+| `reportPlaybackProgress(itemId, positionTicks)` | 1640 | Reports progress to `/Sessions/Playing/Progress` |
+| `reportPlaybackStop(itemId, positionTicks)` | 1663 | Reports stop to `/Sessions/Playing/Stopped` |
+| `startProgressReporting(itemId)` | 1621 | 10s interval: saves local playback positions |
+| `markItemAsWatched(itemId)` | 1126 | Marks item as played, clears local position |
+| `savePlaybackPosition(itemId, positionTicks)` | 206 | Persists position to `data/playback_positions_{deviceId}.json` |
+| `loadPlaybackPositions()` | 194 | Reads saved positions from disk |
 
 ### Shutdown
 
 | Function | Line | Description |
 |----------|------|-------------|
-| `shutdown(signal)` | 1538 | Graceful exit: saves positions, kills MPV, sends SessionsStop, closes WS |
+| `shutdown(signal)` | 1691 | Graceful exit: saves positions, kills MPV, sends SessionsStop, closes WS |
 
 ## State management
 
@@ -172,7 +184,7 @@ All state is module-level variables. No state machine or stores — just mutable
 
 | Variable | Type | Purpose |
 |----------|------|---------|
-| `isPlayingNext` | boolean | Prevents double-triggering episode transitions (10s timeout fallback) |
+| `isPlayingNext` | boolean | Prevents double-triggering episode transitions (30s timeout fallback) |
 | `isPlayingNextTimestamp` | number | Timestamp when `isPlayingNext` was set (for timeout) |
 | `isManualSkip` | boolean | True when user/NextTrack triggered skip (vs auto-advance) |
 | `isSeeking` | boolean | True during seek operations (prevents progress reports) |
@@ -191,6 +203,16 @@ All state is module-level variables. No state machine or stores — just mutable
 | `displayMessageOriginalFontSize` | number | Font size before message (restored after) |
 | `displayMessageOriginalAlignX` | string | Alignment X before message (restored after) |
 | `displayMessageOriginalAlignY` | string | Alignment Y before message (restored after) |
+
+### Auto-skip & next-up state
+
+| Variable | Type | Purpose |
+|----------|------|---------|
+| `introSegments` | array | Cached intro/outro segments from MediaSegments API |
+| `skipIntroTimeout` | Timer | Auto-skip delay timeout (3s) |
+| `isInIntroSegment` | boolean | Currently inside an intro/outro segment |
+| `lastErrorOsdTime` | number | Timestamp of last error OSD (30s rate limiting) |
+| `nextUpShown` | boolean | Prevents duplicate next-up notifications per episode |
 
 ### Auth / connection state
 
@@ -219,7 +241,7 @@ All state is module-level variables. No state machine or stores — just mutable
 ### Adding a new config option
 
 1. Add the option to `config.example.js` with a default value and comment
-2. Add it to the `CONFIG` object in `shim.js` (line 12-27): `optionName: userConfig.optionName || defaultValue`
+2. Add it to the `CONFIG` object in `shim.js` (line 12-29): `optionName: userConfig.optionName || defaultValue`
 3. Use `CONFIG.optionName` throughout the code
 4. Update AGENTS.md config table, README.md, CONTRIBUTING.md if relevant
 
