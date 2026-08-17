@@ -715,7 +715,7 @@ function skipIntro() {
     if (segment) {
         const seekTo = segment.endTicks / 10000000;
         console.log(`⏩ Skipping ${segment.type} segment (seeking to ${seekTo.toFixed(2)}s)`);
-        sendMpvCommand('seek', [seekTo, 'keyframes']);
+        sendMpvCommand('seek', [seekTo, 'absolute']);
         currentPositionSeconds = seekTo;
         if (currentItemId) reportPlaybackProgress(currentItemId, segment.endTicks);
         showSkipOsd(`Skipped ${segment.type.toLowerCase()}`);
