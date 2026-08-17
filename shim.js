@@ -1388,6 +1388,29 @@ function handleMpvEvent(event) {
                 log('error', 'episode', '⚠️ Error getting episode info for auto-advance:', err.message);
                 startProgressPoll();
             });
+        } else if (!isAutoAdvance && !isManualSkipEvent && !isNewQueueEvent && playQueue.length > 1) {
+            // MPV native playlist navigation - sync queue position
+            queryProperty('playlist-pos').then(pos => {
+                if (typeof pos === 'number' && pos >= 0 && pos < playQueue.length && pos !== queuePosition) {
+                    const prevItemId = currentItemId;
+                    if (prevItemId && prevItemId !== playQueue[pos]) {
+                        reportPlaybackStop(prevItemId, Math.round(currentPositionSeconds * 10000000));
+                    }
+                    queuePosition = pos;
+                    currentItemId = playQueue[pos];
+                    log('info', 'queue', `📋 MPV playlist sync: queuePosition=${queuePosition}, itemId=${currentItemId}`);
+                    getEpisodeInfo(currentItemId).then(info => {
+                        currentEpisodeInfo = info;
+                        playSessionId = crypto.randomUUID();
+                        reportPlaybackStart(currentItemId, 0);
+                        startProgressReporting(currentItemId);
+                        getIntroSegments(currentItemId);
+                        startProgressPoll();
+                    }).catch(() => startProgressPoll());
+                } else {
+                    startProgressPoll();
+                }
+            });
         } else {
             startProgressPoll();
         }
