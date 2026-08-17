@@ -381,10 +381,11 @@ class SetupWindowController: NSWindowController, NSWindowDelegate {
         };
         """
 
-        let appSupport = NSSearchPathForDirectoriesInDomains(.applicationSupportDirectory, .userDomainMask, true).first ?? ""
-        let configPath = (appSupport as NSString).appendingPathComponent("JellyfinMpvPlay/config.js")
+        let configPath = ConfigParser.configPath()
 
         do {
+            let configDir = (configPath as NSString).deletingLastPathComponent
+            try FileManager.default.createDirectory(atPath: configDir, withIntermediateDirectories: true)
             let dedented = config.components(separatedBy: "\n").map { $0.trimmingCharacters(in: .whitespaces) }.joined(separator: "\n")
             try dedented.write(toFile: configPath, atomically: true, encoding: .utf8)
             didComplete = true
