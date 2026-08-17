@@ -20,16 +20,8 @@ Features, bugs, and improvements planned for Jellyfin MPV Play.
 | Seek progress reports | v1.8.4 | Report progress immediately on user-initiated seeks (MPV seeking property) |
 | Auto-skip intros/outros | v1.8.4 | MediaSegments API, auto-skip or S key, config option `autoSkipIntros` |
 | Error OSD messages | v1.8.4 | Connection/auth errors shown in MPV OSD with rate limiting |
-
----
-
-## Features
-
-### Next-up notification
-
-Before the current episode ends, show an OSD preview of the next episode:
-- "Next up: SeriesName - S2E5 - EpisodeName"
-- Auto-dismiss after 5s or on user action
+| Better logging | v1.8.4 | Log levels, timestamps, component names, `verbose` config option |
+| Next-up notification | v1.8.4 | Show next episode title 10s before current episode ends |
 
 ---
 
@@ -43,36 +35,21 @@ MPV freezes when playing videos with Japanese subtitles. This is an MPV issue, n
 
 ---
 
-## Improvements
+## Not Adding (Duplicate or Low Value)
 
-### Queue persistence
-
-Save the current queue to `data/` so it survives restarts. On relaunch, offer to resume:
-- "Resume playback? Last: SeriesName - S2E3"
-
-### Sync position from Jellyfin server on connect
-
-Resume from where you left off on another device. Query the server for the last playback position on connect and offer to resume.
-
-### MPV config detection
-
-Warn the user if their `~/.config/mpv/mpv.conf` has settings that conflict with the shim:
-- `--fullscreen` in mpv.conf when `fullscreen: false` in config.js
-- `--no-idle` which conflicts with `--idle=yes`
-
-### Better logging
-
-Add log levels (info, warn, error) and optional verbose mode:
-- `verbose: true` in config.js enables debug logging
-- Logs include timestamps and component names (e.g. `[mpv]`, `[ws]`, `[jellyfin]`)
+| Feature | Reason |
+|---------|--------|
+| Queue persistence | Complexity outweighs value — queue is ephemeral, playback position is already saved |
+| Sync position from server | Moderate effort, could be annoying — Jellyfin already sends resume position in play commands |
+| MPV config detection | Low value — user's mpv.conf is their responsibility, shim already overrides key settings |
+| Chapter markers | MPV handles this natively — chapters shown on seekbar, navigation via PgUp/PgDn |
+| Audio language preference | Jellyfin handles this natively — user settings in Jellyfin control default audio/subtitle languages |
+| Subtitle language preference | Jellyfin handles this natively — same as above |
+| Resume confirmation | Jellyfin handles this natively — web UI shows "Resume from X?" dialog before sending play command |
 
 ---
 
 ## Ideas (Low Priority)
 
-- **Chapter markers** — Display MPV chapter markers in OSD
-- **Audio language preference** — Auto-select preferred audio language from config
-- **Subtitle language preference** — Auto-select preferred subtitle language from config
-- **Resume confirmation** — Ask "Resume from 12:34?" instead of auto-resuming
 - **Multi-server support** — Connect to multiple Jellyfin servers
 - **Trakt integration** — Scrobble to Trakt.tv
