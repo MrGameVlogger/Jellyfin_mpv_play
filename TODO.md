@@ -17,6 +17,7 @@ Features, bugs, and improvements planned for Jellyfin MPV Play.
 | Subtitle sync | v1.8.0 | Bidirectional sync between MPV and Jellyfin server |
 | Windows support | v1.8.3 | `launch.bat` with headless support |
 | CI version sync | v1.8.3 | Info.plist auto-synced from package.json in CI |
+| Seek progress reports | v1.8.4 | Report progress immediately on user-initiated seeks (MPV seeking property) |
 
 ---
 
@@ -26,26 +27,7 @@ Features, bugs, and improvements planned for Jellyfin MPV Play.
 
 **Source:** Upstream Issue #1 — [Add Auto-Skip support?](https://github.com/JohnGlaus/Jellyfin_mpv_play/issues/1)
 
-Jellyfin provides intro/outro segment data via its API. We can use this to:
-
-1. **Query intro segments** — `GET /Items/{id}/IntroSections` returns timestamp ranges for intros
-2. **Auto-skip** — When playback reaches an intro start, seek to intro end
-3. **Manual skip button** — Show "Skip Intro" via DisplayMessage OSD when in an intro segment
-4. **Keyboard shortcut** — Bind a key (e.g. `S`) to manually skip intro/outro
-
-**Implementation plan:**
-- Add `getIntroSections(itemId)` function to fetch intro segment data
-- In `startProgressPoll()`, check if current position is inside an intro segment
-- If yes, show "Skip Intro" OSD and optionally auto-skip after 5s
-- Add `skipIntro()` function that seeks to the end of the current segment
-- Add `SkipIntro` to `SupportedCommands` for Jellyfin remote control
-
-### Better error messages
-
-Show user-facing errors in MPV OSD instead of just logging to console. For example:
-- "Connection lost" when WebSocket disconnects
-- "Authentication failed" when token expires
-- "Server unreachable" when Jellyfin is down
+**Status:** In progress — see implementation plan below.
 
 ### Next-up notification
 
@@ -55,18 +37,13 @@ Before the current episode ends, show an OSD preview of the next episode:
 
 ---
 
-## Bugs to Investigate
+## Not Our Bug
 
 ### JP subtitle freeze
 
 **Source:** Upstream Issue #2 — [MPV unresponsive when video includes JP subtitles](https://github.com/JohnGlaus/Jellyfin_mpv_play/issues/2) (closed)
 
-MPV freezes when playing videos with Japanese subtitles. May be related to:
-- Subtitle font rendering with CJK characters
-- MPV's `--sub-font` or `--sub-font-size` settings
-- ASS/SSA subtitle format handling
-
-**Action:** Test with a video containing JP subtitles and check if the issue exists in our version.
+MPV freezes when playing videos with Japanese subtitles. This is an MPV issue, not a shim issue. The shim doesn't touch subtitle rendering — it only passes the subtitle track to MPV via `sid`. Possible causes include CJK font rendering, ASS/SSA format handling, or missing fonts on the user's system. Not reproducible as a shim bug.
 
 ---
 
@@ -77,12 +54,9 @@ MPV freezes when playing videos with Japanese subtitles. May be related to:
 Save the current queue to `data/` so it survives restarts. On relaunch, offer to resume:
 - "Resume playback? Last: SeriesName - S2E3"
 
-### Progress sync improvements
+### Sync position from Jellyfin server on connect
 
-Currently reports progress every 10s. Could improve:
-- Report on pause/unpause immediately
-- Report on seek operations
-- Sync position from Jellyfin server on connect (resume from where you left off on another device)
+Resume from where you left off on another device. Query the server for the last playback position on connect and offer to resume.
 
 ### MPV config detection
 
