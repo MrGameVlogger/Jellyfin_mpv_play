@@ -2,7 +2,7 @@
 Name=Jellyfin MPV Play
 Comment=Play media from Jellyfin using MPV
 Version=1.0
-Exec=env bash -c 'SCRIPT_DIR="$(dirname "$(readlink -f "$0")")"; [ -x "$SCRIPT_DIR/launch.sh" ] && exec "$SCRIPT_DIR/launch.sh"; for d in "$HOME/JellyfinMPVPlay-Linux-"* /opt/jellyfin-mpv-play; do [ -x "$d/launch.sh" ] && exec "$d/launch.sh"; done; echo "launch.sh not found. Extract the bundle and update the Exec path in this .desktop file." >&2; sleep 3' %k
+Exec=env bash -c 'SCRIPT_DIR="$(dirname "$(readlink -f "$0")")"; [ -x "$SCRIPT_DIR/launch.sh" ] && exec "$SCRIPT_DIR/launch.sh"; for d in "$HOME/JellyfinMPVPlay-Linux-"* /opt/jellyfin-mpv-play; do [ -x "$d/launch.sh" ] && exec "$d/launch.sh"; done; echo "launch.sh not found. Extract the bundle and update the Exec path in this .desktop file." >&2; sleep 3;' %k
 Icon=jellyfin-mpv-play
 Terminal=false
 Type=Application
