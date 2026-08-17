@@ -350,25 +350,24 @@ Both `uncaughtException` and `unhandledRejection` handlers call `shutdown()` to 
 
 ## Testing approach
 
-**There are no automated tests.** The project relies on:
+**Automated tests** (`npm test`):
 
-1. Manual testing with a real Jellyfin server
-2. Code review during PR process
-3. Comprehensive audit checklist (see "Running a comprehensive audit" below)
-4. Log line contracts (macOS app parsing)
+- `tests/log-contracts.test.js` — verifies macOS app contract patterns exist in shim.js, error patterns present, log function signature, no conflicts between new and existing log lines
+- `tests/config.test.js` — verifies config.example.js is valid JavaScript, all required options present, CONFIG object has all expected properties, all options documented
 
-When making changes, verify by:
-- Starting the shim (`npm start`) and connecting from Jellyfin web UI
-- Testing Play/PlayNext/PlayLast queue behavior
-- Testing Playstate commands (Pause, Seek, Next/Prev track)
-- Testing DisplayMessage from Jellyfin dashboard
-- Testing subtitle switching from both sides
-- Testing headless mode (`headless: true` in config, check `data/shim.log`)
-- Testing auto-close (`autoClose: true` in config)
-- Testing fullscreen (`fullscreen: true` in config)
-- On macOS: building the app and testing from the menubar
-- On Linux: testing `launch.sh --install-service` and systemd service
-- On Windows: testing `launch.bat --headless`
+**Manual testing** with a real Jellyfin server:
+
+1. Starting the shim (`npm start`) and connecting from Jellyfin web UI
+2. Testing Play/PlayNext/PlayLast queue behavior
+3. Testing Playstate commands (Pause, Seek, Next/Prev track)
+4. Testing DisplayMessage from Jellyfin dashboard
+5. Testing subtitle switching from both sides
+6. Testing headless mode (`headless: true` in config, check `data/shim.log`)
+7. Testing auto-close (`autoClose: true` in config)
+8. Testing fullscreen (`fullscreen: true` in config)
+9. On macOS: building the app and testing from the menubar
+10. On Linux: testing `launch.sh --install-service` and systemd service
+11. On Windows: testing `launch.bat --headless`
 
 ## Security considerations
 
