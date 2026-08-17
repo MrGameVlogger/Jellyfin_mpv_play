@@ -103,6 +103,7 @@ let displayMessageOriginalAlignY = null;
 let isManualSkip = false;
 let isSeeking = false;
 let isNewQueueLoad = false;
+let queueLoadCounter = 0;
 let isPlayingNextTimestamp = 0;
 let previousItemId = null;
 
@@ -253,7 +254,7 @@ async function connectWebSocket() {
         ws = new WebSocket(wsUrl);
         
         ws.on('open', () => {
-            logContract('✅ WebSocket connection established.');
+            log("info", "contract", '✅ WebSocket connection established.');
             isReconnecting = false;
             reconnectAttempts = 0;
             lastErrorOsdTime = 0;
@@ -662,7 +663,7 @@ async function getEpisodeInfo(itemId, silent = false) {
             const currentIndex = episodes.findIndex(ep => ep.Id === itemId);
             const epName = currentIndex >= 0 ? (episodes[currentIndex].Name || '') : (item.Name || '');
             const epLogTitle = [item.SeriesName, `${item.ParentIndexNumber}x${item.IndexNumber}`, epName].filter(Boolean).join(' - ');
-            if (!silent) logContract(`📺 Episode detected: ${epLogTitle}`);
+            if (!silent) log("info", "contract", `📺 Episode detected: ${epLogTitle}`);
 
             return {
                 isSeries: true,
@@ -848,6 +849,7 @@ async function loadNewQueue(itemId, startTicks) {
     sendMpvCommand('playlist-clear');
     const firstUrl = `${CONFIG.serverUrl}/Videos/${itemId}/stream?static=true&api_key=${accessToken}`;
     sendMpvCommand('loadfile', [firstUrl, 'replace']);
+    queueLoadCounter = playQueue.length;
     for (let i = 1; i < playQueue.length; i++) {
         const url = `${CONFIG.serverUrl}/Videos/${playQueue[i]}/stream?static=true&api_key=${accessToken}`;
         sendMpvCommand('loadfile', [url, 'append']);
@@ -969,7 +971,7 @@ async function playMedia(itemId, startTicks) {
         mpvProcess.on('close', (code, signal) => {
             if (gen !== playbackGeneration) return;
 
-            logContract(`🛑 MPV closed (code ${code}, signal: ${signal})`);
+            log("info", "contract", `🛑 MPV closed (code ${code}, signal: ${signal})`);
             
             if (code === 1) {
                 log('error', 'mpv', '⚠️ MPV closed with error. Possible causes:');
@@ -1299,8 +1301,15 @@ function handleMpvEvent(event) {
         const isSeekingEvent = isSeeking;
         const isNewQueueEvent = isNewQueueLoad;
         isSeeking = false;
-        isNewQueueLoad = false;
-        const isAutoAdvance = currentItemId && !pendingStreamUrl && !isManualSkip && !isSeekingEvent && !isNewQueueEvent;
+        if (queueLoadCounter > 0) {
+            queueLoadCounter--;
+            if (queueLoadCounter === 0) {
+                isNewQueueLoad = false;
+            }
+        } else {
+            isNewQueueLoad = false;
+        }
+        const isAutoAdvance = currentItemId && !pendingStreamUrl && !isManualSkip && !isSeekingEvent && !isNewQueueEvent && !isPlayingNext;
         const isManualSkipEvent = isManualSkip && !isSeekingEvent && !isNewQueueEvent;
         isManualSkip = false;
         
@@ -1336,7 +1345,7 @@ function handleMpvEvent(event) {
         }
 
         isReportingStop = false;
-        logContract('✅ File loaded by MPV. Preparing Seek if necessary...');
+        log("info", "contract", '✅ File loaded by MPV. Preparing Seek if necessary...');
         isPlayingNext = false;
         currentDuration = 0;
         nextUpShown = false;
@@ -1354,7 +1363,7 @@ function handleMpvEvent(event) {
                 const titleText = info.isSeries
                     ? [info.seriesName, `${info.seasonNumber}x${info.episodeNumber}`, info.title].filter(Boolean).join(' - ')
                     : (info.title || String(currentItemId));
-                logContract(`▶️ Starting next episode: ${titleText}`);
+                log("info", "contract", `▶️ Starting next episode: ${titleText}`);
                 sendMpvCommand('set_property', ['force-media-title', `Jellyfin - ${titleText}`]);
                 sendMpvCommand('set_property', ['title', `Jellyfin - ${titleText}`]);
                 playSessionId = crypto.randomUUID();
@@ -1390,7 +1399,7 @@ function handleMpvEvent(event) {
 
     if (event.event === 'property-change' && event.name === 'pause' && typeof event.data === 'boolean') {
         isMpvPaused = event.data;
-        logContract(event.data ? '⏸️ Playback paused' : '▶️ Playback resumed');
+        log("info", "contract", event.data ? '⏸️ Playback paused' : '▶️ Playback resumed');
         if (currentItemId) reportPlaybackProgress(currentItemId, Math.round(currentPositionSeconds * 10000000));
         return;
     }
@@ -1479,7 +1488,7 @@ async function playNextEpisode() {
     if (currentEpisodeInfo.nextEpisode) {
         const nextEp = currentEpisodeInfo.nextEpisode;
         const nextTitle = [currentEpisodeInfo.seriesName, `${currentEpisodeInfo.seasonNumber}x${nextEp.IndexNumber}`, nextEp.Name].filter(Boolean).join(' - ');
-                logContract(`▶️ Starting next episode: ${nextTitle}`);
+                log("info", "contract", `▶️ Starting next episode: ${nextTitle}`);
         if (!ipcClient || ipcClient.destroyed || !mpvProcess) {
             playMedia(nextEp.Id, 0).catch(err => {
                     log('error', 'episode', '⚠️ Error playing next episode:', err.message);
@@ -1506,7 +1515,7 @@ async function playNextEpisode() {
             const nextUpTitle = nextUpInfo.isSeries
                 ? [nextUpInfo.seriesName, `${nextUpInfo.seasonNumber}x${nextUpInfo.episodeNumber}`, nextUpInfo.title].filter(Boolean).join(' - ')
                 : (nextUpInfo.title || String(nextUpId));
-            logContract(`▶️ Starting next episode: ${nextUpTitle}`);
+            log("info", "contract", `▶️ Starting next episode: ${nextUpTitle}`);
             if (!ipcClient || ipcClient.destroyed || !mpvProcess) {
                 playMedia(nextUpId, 0).catch(err => {
                 log('error', 'episode', '⚠️ Error playing next episode:', err.message);
@@ -1523,7 +1532,7 @@ async function playNextEpisode() {
             sendMpvCommand('loadfile', [url, 'append']);
             sendMpvCommand('playlist-next');
         } else {
-            logContract('ℹ️ No more episodes, ending playback.');
+            log("info", "contract", 'ℹ️ No more episodes, ending playback.');
             playQueue = [];
             queuePosition = -1;
             isPlayingNext = false;
@@ -1596,7 +1605,7 @@ async function playPreviousEpisode() {
 
     const prevEp = currentEpisodeInfo.previousEpisode;
     const prevTitle = [currentEpisodeInfo.seriesName, `${currentEpisodeInfo.seasonNumber}x${prevEp.IndexNumber}`, prevEp.Name].filter(Boolean).join(' - ');
-    logContract(`◀️ Starting previous episode: ${prevTitle}`);
+    log("info", "contract", `◀️ Starting previous episode: ${prevTitle}`);
     if (!ipcClient || ipcClient.destroyed || !mpvProcess) {
         playMedia(prevEp.Id, 0).catch(err => {
             log('error', 'episode', '⚠️ Error playing previous episode:', err.message);
@@ -1606,6 +1615,7 @@ async function playPreviousEpisode() {
     }
     const url = `${CONFIG.serverUrl}/Videos/${prevEp.Id}/stream?static=true&api_key=${accessToken}`;
     previousItemId = currentItemId;
+    playQueue.splice(queuePosition, 0, prevEp.Id);
     currentItemId = prevEp.Id;
     isManualSkip = true;
     sendMpvCommand('loadfile', [url, 'insert-at-index', queuePosition]);
@@ -1710,6 +1720,7 @@ function reportPlaybackStop(itemId, positionTicks) {
     axios.post(`${CONFIG.serverUrl}/Sessions/Playing/Stopped`, data, { headers })
         .then(() => {
             log('info', 'report', '✅ Playback stop reported correctly');
+            isReportingStop = false;
         })
         .catch(e => {
             log('error', 'report', '⚠️ Error reporting stop:', e.message);
