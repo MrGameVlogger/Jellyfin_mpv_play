@@ -935,6 +935,7 @@ function connectToMpvIpc(gen) {
             sendMpvCommand('observe_property', [3, 'mute']);
             sendMpvCommand('observe_property', [4, 'volume']);
             sendMpvCommand('observe_property', [5, 'sid']);
+            sendMpvCommand('observe_property', [6, 'seeking']);
             
             sendMpvCommand('keybind', ['>', 'script-message jellyfin-next']);
             sendMpvCommand('keybind', ['<', 'script-message jellyfin-prev']);
@@ -1246,6 +1247,11 @@ function handleMpvEvent(event) {
             console.log(`🔤 Subtitle changed in MPV: track ${sid}`);
             reportPlaybackProgress(currentItemId, Math.round(currentPositionSeconds * 10000000));
         }
+        return;
+    }
+
+    if (event.event === 'property-change' && event.name === 'seeking' && event.data === false) {
+        if (currentItemId) reportPlaybackProgress(currentItemId, Math.round(currentPositionSeconds * 10000000));
         return;
     }
 
