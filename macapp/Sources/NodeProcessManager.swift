@@ -318,11 +318,12 @@ class NodeProcessManager {
         logHandler(line)
         writeToLogFile(line)
 
-        if line.contains("WebSocket connection established") {
+        // Parse structured logs: [timestamp] [component] message
+        if line.contains("[ws] WebSocket connection established") {
             statusHandler(.connected)
             restartCount = 0
             notificationHandler("Connected", "Connected to Jellyfin server")
-        } else if line.contains("Episode detected") {
+        } else if line.contains("[episode] Episode detected") {
             if isStoppingPlayback { return }
             if let title = extractTitleFromEpisode(line) {
                 nowPlaying = title
@@ -330,32 +331,32 @@ class NodeProcessManager {
             }
             isPlaying = true
             statusHandler(.playing)
-        } else if line.contains("File loaded by MPV") {
+        } else if line.contains("[mpv] File loaded by MPV") {
             if isStoppingPlayback { return }
             if !isPlaying {
                 isPlaying = true
                 statusHandler(.playing)
             }
-        } else if line.contains("Starting next episode") || line.contains("Starting previous episode") {
+        } else if line.contains("[queue] Starting next episode") || line.contains("[queue] Starting previous episode") {
             if let title = extractTitleFromNextEpisode(line) {
                 nowPlaying = title
                 nowPlayingHandler?(title)
             }
-        } else if line.contains("Playback paused") {
+        } else if line.contains("[mpv] Playback paused") {
             if isStoppingPlayback { return }
             isPaused = true
             pauseStateHandler?(true)
-        } else if line.contains("Playback resumed") {
+        } else if line.contains("[mpv] Playback resumed") {
             if isStoppingPlayback { return }
             isPaused = false
             pauseStateHandler?(false)
-        } else if line.contains("No more episodes") {
+        } else if line.contains("[queue] No more episodes") {
             isStoppingPlayback = false
             resetPlaybackState()
-        } else if line.contains("Closing application") || line.contains("MPV closed") || line.contains("Process terminated") {
+        } else if line.contains("[main] Closing application") || line.contains("[mpv] MPV closed") || line.contains("Process terminated") {
             isStoppingPlayback = false
             resetPlaybackState()
-        } else if line.contains("ERROR") || line.contains("❌") || line.contains("FATAL") {
+        } else if line.contains("[error]") || line.contains("ERROR") || line.contains("❌") || line.contains("FATAL") {
             notificationHandler("Error", line)
         }
     }
