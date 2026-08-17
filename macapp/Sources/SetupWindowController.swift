@@ -328,7 +328,6 @@ class SetupWindowController: NSWindowController, NSWindowDelegate {
         panel.allowsMultipleSelection = false
         panel.canChooseDirectories = false
         panel.canChooseFiles = true
-        panel.allowedContentTypes = []
         if !mpvPathField.stringValue.isEmpty {
             let url = URL(fileURLWithPath: mpvPathField.stringValue)
             panel.directoryURL = url.deletingLastPathComponent()

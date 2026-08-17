@@ -168,10 +168,12 @@ class NodeProcessManager {
         if let process = process, process.isRunning {
             let proc = process
             proc.terminationHandler = { [weak self] arg in
+                self?.cleanupPipes()
                 if FileManager.default.fileExists(atPath: ipcPath) {
                     try? FileManager.default.removeItem(atPath: ipcPath)
                 }
                 DispatchQueue.main.async {
+                    self?.restartCount = 0
                     self?.shutdownCompletion?()
                     self?.shutdownCompletion = nil
                 }
