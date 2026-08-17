@@ -34,11 +34,17 @@ if (CONFIG.headless) {
     const logFile = path.join(logDir, 'shim.log');
     const logStream = fs.createWriteStream(logFile, { flags: 'a' });
     const timestamp = () => new Date().toISOString();
-    console.log = (...args) => { logStream.write(`[${timestamp()}] ${args.join(' ')}\n`); };
-    console.error = (...args) => { logStream.write(`[${timestamp()}] ERROR: ${args.join(' ')}\n`); };
+    console.log = (...args) => {
+        const msg = `[${timestamp()}] ${args.join(' ')}\n`;
+        logStream.write(msg);
+        process.stdout.write(msg);
+    };
+    console.error = (...args) => {
+        const msg = `[${timestamp()}] ERROR: ${args.join(' ')}\n`;
+        logStream.write(msg);
+        process.stderr.write(msg);
+    };
     console.log(`🔇 Headless mode — logging to ${logFile}`);
-    process.stdout.write = () => true;
-    process.stderr.write = () => true;
 }
 
 function ts() {
