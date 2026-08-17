@@ -2,7 +2,7 @@
 
 ## What this is
 
-Node.js shim (`shim.js`, ~1773 lines) that connects to Jellyfin via WebSocket, receives play commands, and controls MPV via Unix socket IPC. Optional macOS menubar app (`macapp/`) spawns the shim and parses its stdout for UI state. Linux and Windows users run `shim.js` directly via platform-specific launcher scripts.
+Node.js shim (`shim.js`, ~1864 lines) that connects to Jellyfin via WebSocket, receives play commands, and controls MPV via Unix socket IPC. Optional macOS menubar app (`macapp/`) spawns the shim and parses its stdout for UI state. Linux and Windows users run `shim.js` directly via platform-specific launcher scripts.
 
 ## Commands
 
@@ -12,7 +12,7 @@ cd macapp && ./build.sh      # compile Swift, bundle Node.js 22, deploy to /Appl
 cd macapp && CI=true ./build.sh  # build without deploying to /Applications
 ```
 
-No test, lint, or typecheck steps exist.
+No lint or typecheck steps exist. Tests run via `npm test`.
 
 ## Key files
 
@@ -80,72 +80,72 @@ All functions live in `shim.js`. There are no classes — the entire app is proc
 
 | Function | Line | Description |
 |----------|------|-------------|
-| `main()` | 1743 | Entry point: creates `data/`, loads token or authenticates, connects WebSocket |
-| `authenticateUser()` | 161 | POSTs to `/Users/AuthenticateByName`, saves token |
-| `loadToken()` | 131 | Reads JWT from `data/jellyfin_token_{deviceId}.json` |
-| `saveToken(authResponse)` | 150 | Persists JWT to disk |
-| `getAuthHeaders()` | 220 | Returns `X-Emby-Token` + `X-Emby-Authorization` headers |
-| `generateOrLoadDeviceId()` | 115 | Reads or generates device ID from `data/.device-id` |
+| `main()` | 1834 | Entry point: creates `data/`, loads token or authenticates, connects WebSocket |
+| `authenticateUser()` | 168 | POSTs to `/Users/AuthenticateByName`, saves token |
+| `loadToken()` | 132 | Reads JWT from `data/jellyfin_token_{deviceId}.json` |
+| `saveToken(authResponse)` | 157 | Persists JWT to disk |
+| `getAuthHeaders()` | 227 | Returns `X-Emby-Token` + `X-Emby-Authorization` headers |
+| `generateOrLoadDeviceId()` | 116 | Reads or generates device ID from `data/.device-id` |
 
 ### WebSocket & Jellyfin communication
 
 | Function | Line | Description |
 |----------|------|-------------|
-| `connectWebSocket()` | 227 | Establishes WS connection, sets up message handler, starts keep-alive |
-| `scheduleReconnect()` | 323 | Exponential backoff reconnection (5s → 10s → 20s → 30s cap) |
-| `handleMessage(msg)` | 415 | Main WS message dispatcher — handles Play, Playstate, GeneralCommand |
-| `reportCapabilities()` | 377 | Registers session capabilities with Jellyfin |
-| `getEpisodeInfo(itemId, silent)` | 629 | Fetches item metadata + season episode list |
-| `queryNextUp(seriesId)` | 1515 | Queries `/Shows/NextUp` for next unwatched episode |
+| `connectWebSocket()` | 234 | Establishes WS connection, sets up message handler, starts keep-alive |
+| `scheduleReconnect()` | 331 | Exponential backoff reconnection (5s → 10s → 20s → 30s cap) |
+| `handleMessage(msg)` | 422 | Main WS message dispatcher — handles Play, Playstate, GeneralCommand |
+| `reportCapabilities()` | 385 | Registers session capabilities with Jellyfin |
+| `getEpisodeInfo(itemId, silent)` | 651 | Fetches item metadata + season episode list |
+| `queryNextUp(seriesId)` | 1604 | Queries `/Shows/NextUp` for next unwatched episode |
 
 ### MPV control
 
 | Function | Line | Description |
 |----------|------|-------------|
-| `playMedia(itemId, startTicks)` | 864 | Spawns fresh MPV process with IPC socket |
-| `loadNewQueue(itemId, startTicks)` | 774 | Loads new queue into running MPV (clears playlist, reloads) |
-| `connectToMpvIpc(gen)` | 1003 | Connects to MPV Unix socket, observes properties, binds keys |
-| `killMpv()` | 1145 | Kills MPV, cleans up IPC, resolves pending queries |
-| `sendMpvCommand(command, args)` | 1183 | Sends JSON command to MPV via IPC |
-| `queryProperty(property, timeoutMs)` | 1202 | Queries MPV property (returns Promise) |
-| `startProgressPoll()` | 1225 | 1s interval: polls `time-pos`/`duration`, triggers next episode near end |
-| `stopProgressPoll()` | 1265 | Clears progress poll timer |
-| `handleMpvEvent(event)` | 1272 | Processes MPV IPC events (file-loaded, property changes, keybinds) |
+| `playMedia(itemId, startTicks)` | 896 | Spawns fresh MPV process with IPC socket |
+| `loadNewQueue(itemId, startTicks)` | 804 | Loads new queue into running MPV (clears playlist, reloads) |
+| `connectToMpvIpc(gen)` | 1038 | Connects to MPV Unix socket, observes properties, binds keys |
+| `killMpv()` | 1190 | Kills MPV, cleans up IPC, resolves pending queries |
+| `sendMpvCommand(command, args)` | 1229 | Sends JSON command to MPV via IPC |
+| `queryProperty(property, timeoutMs)` | 1248 | Queries MPV property (returns Promise) |
+| `startProgressPoll()` | 1271 | 1s interval: polls `time-pos`/`duration`, triggers next episode near end |
+| `stopProgressPoll()` | 1315 | Clears progress poll timer |
+| `handleMpvEvent(event)` | 1322 | Processes MPV IPC events (file-loaded, property changes, keybinds) |
 
 ### Queue & episode transitions
 
 | Function | Line | Description |
 |----------|------|-------------|
-| `playNextEpisode()` | 1416 | Advances to next episode (queue → season → NextUp → end) |
-| `playPreviousEpisode()` | 1529 | Goes to previous episode (restart if >30s, queue, or season prev) |
+| `playNextEpisode()` | 1497 | Advances to next episode (queue → season → NextUp → end) |
+| `playPreviousEpisode()` | 1618 | Goes to previous episode (restart if >30s, queue, or season prev) |
 
 ### Auto-skip & OSD
 
 | Function | Line | Description |
 |----------|------|-------------|
-| `getIntroSegments(itemId)` | 683 | Fetches intro/outro segments from Jellyfin MediaSegments API |
-| `skipIntro()` | 712 | Seeks to end of current intro/outro segment |
-| `checkIntroSegment(positionTicks)` | 727 | Checks if position is inside an intro/outro segment |
-| `showSkipOsd(text)` | 747 | Shows bottom-right OSD (skip prompts, next-up notification) |
-| `showErrorOsd(text)` | 759 | Shows top-right OSD (connection/auth errors, rate limited) |
+| `getIntroSegments(itemId)` | 705 | Fetches intro/outro segments from Jellyfin MediaSegments API |
+| `skipIntro()` | 734 | Seeks to end of current intro/outro segment |
+| `checkIntroSegment(positionTicks)` | 751 | Checks if position is inside an intro/outro segment |
+| `showSkipOsd(text)` | 773 | Shows bottom-right OSD (skip prompts, next-up notification) |
+| `showErrorOsd(text)` | 787 | Shows top-right OSD (connection/auth errors, rate limited) |
 
 ### Playback reporting
 
 | Function | Line | Description |
 |----------|------|-------------|
-| `reportPlaybackStart(itemId, positionTicks)` | 1589 | Reports start to `/Sessions/Playing` |
-| `reportPlaybackProgress(itemId, positionTicks)` | 1640 | Reports progress to `/Sessions/Playing/Progress` |
-| `reportPlaybackStop(itemId, positionTicks)` | 1663 | Reports stop to `/Sessions/Playing/Stopped` |
-| `startProgressReporting(itemId)` | 1621 | 10s interval: saves local playback positions |
-| `markItemAsWatched(itemId)` | 1126 | Marks item as played, clears local position |
-| `savePlaybackPosition(itemId, positionTicks)` | 206 | Persists position to `data/playback_positions_{deviceId}.json` |
-| `loadPlaybackPositions()` | 194 | Reads saved positions from disk |
+| `reportPlaybackStart(itemId, positionTicks)` | 1677 | Reports start to `/Sessions/Playing` |
+| `reportPlaybackProgress(itemId, positionTicks)` | 1730 | Reports progress to `/Sessions/Playing/Progress` |
+| `reportPlaybackStop(itemId, positionTicks)` | 1753 | Reports stop to `/Sessions/Playing/Stopped` |
+| `startProgressReporting(itemId)` | 1709 | 10s interval: saves local playback positions |
+| `markItemAsWatched(itemId)` | 1171 | Marks item as played, clears local position |
+| `savePlaybackPosition(itemId, positionTicks)` | 213 | Persists position to `data/playback_positions_{deviceId}.json` |
+| `loadPlaybackPositions()` | 201 | Reads saved positions from disk |
 
 ### Shutdown
 
 | Function | Line | Description |
 |----------|------|-------------|
-| `shutdown(signal)` | 1691 | Graceful exit: saves positions, kills MPV, sends SessionsStop, closes WS |
+| `shutdown(signal)` | 1782 | Graceful exit: saves positions, kills MPV, sends SessionsStop, closes WS |
 
 ## State management
 
@@ -247,7 +247,7 @@ All state is module-level variables. No state machine or stores — just mutable
 
 ### Adding a new PlaystateCommand
 
-1. Add the `case` to `handleMessage()` under the `"Playstate"` switch (line ~500)
+1. Add the `case` to `handleMessage()` under the `"Playstate"` switch (line 522)
 2. Implement the actual MPV command via `sendMpvCommand()`
 3. If it requires new state, add a module-level variable with a clear name
 4. Update `reportCapabilities()` to include the new command in `SupportedCommands`
@@ -255,7 +255,7 @@ All state is module-level variables. No state machine or stores — just mutable
 
 ### Adding a new GeneralCommand
 
-1. Add the `case` to `handleMessage()` under the `"GeneralCommand"` switch (line ~560)
+1. Add the `case` to `handleMessage()` under the `"GeneralCommand"` switch (line 558)
 2. Use the exact `GeneralCommandType` enum name from Jellyfin source — wrong names cause 400 errors
 3. If it requires new MPV IPC, use `sendMpvCommand()` or `queryProperty()`
 4. Update `reportCapabilities()` to include the new command
@@ -276,7 +276,7 @@ Use patterns like:
 ### Adding a new IPC property observer
 
 1. Add `observe_property` command in `connectToMpvIpc()` (around line 940)
-2. Add a `case` in `handleMpvEvent()` under `property-change` (line ~1170)
+2. Add a `case` in `handleMpvEvent()` under `property-change` (line 1431)
 3. Update the corresponding state variable
 4. If the change should be reported to Jellyfin, include it in `reportPlaybackProgress()` fields
 
