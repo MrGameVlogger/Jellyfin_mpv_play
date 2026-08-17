@@ -162,7 +162,8 @@ function loadToken() {
 
 function saveToken(authResponse) {
     try {
-        fs.writeFileSync(TOKEN_FILE, JSON.stringify(authResponse, null, 2), { mode: 0o600 });
+        fs.writeFileSync(TOKEN_FILE, JSON.stringify(authResponse, null, 2));
+        fs.chmodSync(TOKEN_FILE, 0o600);
         accessToken = authResponse.AccessToken;
         userId = authResponse.User?.Id;
         log('info', 'auth', '💾 Token saved successfully');
