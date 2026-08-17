@@ -18,6 +18,35 @@ All notable changes to Jellyfin MPV Play are documented here.
 
 -->
 
+## v1.9.0
+
+### New Features
+- **Auto-skip intros/outros** — Uses Jellyfin's MediaSegments API to detect intro/outro segments. Config option `autoSkipIntros: true` auto-skips after 3s; when false, shows "Press S to skip" OSD. Supports the S key and SkipIntro GeneralCommand from Jellyfin web UI.
+- **Next-up notification** — Shows "Next up: SeriesName - SxEp - EpisodeName" at bottom-right 10 seconds before episode ends
+- **Error OSD messages** — Connection/auth errors shown in MPV OSD with 30s rate limiting (top-right)
+- **Better logging** — Structured `[timestamp] [component]` format with `verbose: true` config option for debug output
+- **ForceKeepAlive handling** — Server can now specify required keep-alive interval via WebSocket
+
+### Bug Fixes
+- **Fixed session keep-alive** — Progress reports now sent every 10s to server, preventing 5-minute idle timeout disconnect
+- **Fixed intro skip repeating** — Clear all segments after skipping to prevent re-triggering when keyframe lands inside segment
+- **Fixed IPC socket connection** — Wait for socket file to exist before connecting, reducing noisy ENOENT errors
+- **Fixed token file permissions** — Use chmodSync to fix permissions on existing token files
+- **Fixed queue desync** — Sync queue position when using MPV native playlist navigation
+- **Fixed OSD corruption** — Save/restore OSD settings when showing skip/error messages
+- **Fixed status bar icon** — Use SymbolConfiguration for colored icons, fix log pattern matching with emojis
+- **Fixed headless mode** — Write to both stdout and log file so macOS app receives status updates
+- **Fixed file picker** — Remove empty allowedContentTypes that prevented browsing for MPV binary
+
+### Internal
+- **Automated tests** — Added test suite using Node.js built-in test module (`npm test`)
+- **Structured logging** — All logs use `[component]` prefix (ws, mpv, queue, episode, auth, ipc, main, handler, report, position, segments)
+- **macOS app parsing** — Updated NodeProcessManager to match new log format
+- **Code audit** — Fixed 24+ bugs across shim.js, Swift files, and launch scripts
+- **Documentation** — Updated AGENTS.md line numbers, config table, state variables, and log contracts
+
+---
+
 ## v1.8.3
 
 ### New Features

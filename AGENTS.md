@@ -441,6 +441,7 @@ This project started as a simple MPV shim for Jellyfin and grew significantly:
 - **v1.8.1**: Pre-release (no assets — CI failed due to missing sync-output directory)
 - **v1.8.2**: Bug sweep — CI fix, Info.plist version stuck at 1.7.6, security audit, documentation overhaul
 - **v1.8.3**: Documentation polish — README troubleshooting expanded, CONTRIBUTING architecture docs, AGENTS.md audit checklist, .editorconfig, signed commits
+- **v1.9.0**: Feature release — auto-skip intros/outros, error OSD messages, next-up notification, better logging with structured format, automated tests, comprehensive bug audit (24+ fixes)
 
 Key architectural decisions:
 - **No classes, no modules** — entire app is one procedural file with module-level state. This was intentional for simplicity and easy deployment (single file).
