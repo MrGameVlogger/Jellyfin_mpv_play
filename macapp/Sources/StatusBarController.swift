@@ -28,7 +28,10 @@ class StatusBarController: NSObject, NSMenuDelegate {
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
 
         if let button = statusItem.button {
-            if let image = NSImage(systemSymbolName: "play.circle", accessibilityDescription: "Jellyfin MPV Play") {
+            if let appIcon = NSApp.applicationIconImage {
+                appIcon.isTemplate = true
+                button.image = appIcon
+            } else if let image = NSImage(systemSymbolName: "play.circle", accessibilityDescription: "Jellyfin MPV Play") {
                 image.isTemplate = true
                 button.image = image
             }
