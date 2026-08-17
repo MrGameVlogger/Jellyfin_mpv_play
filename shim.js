@@ -110,6 +110,7 @@ let introSegments = [];
 let skipIntroTimeout = null;
 let isInIntroSegment = false;
 let lastErrorOsdTime = 0;
+let nextUpShown = false;
 
 function generateOrLoadDeviceId() {
     const idFile = path.join(__dirname, 'data', '.device-id');
@@ -1143,6 +1144,7 @@ function killMpv() {
     stopProgressPoll();
     introSegments = [];
     isInIntroSegment = false;
+    nextUpShown = false;
     if (skipIntroTimeout) { clearTimeout(skipIntroTimeout); skipIntroTimeout = null; }
     for (const [, q] of pendingQueries) { if (q.timer) clearTimeout(q.timer); q.resolve(null); }
     pendingQueries.clear();
@@ -1239,6 +1241,13 @@ function startProgressPoll() {
         if (introSegments.length > 0) {
             checkIntroSegment(Math.round(currentPositionSeconds * 10000000));
         }
+        if (!nextUpShown && !isMpvPaused && currentDuration > 0 && currentPositionSeconds >= currentDuration - 10 && currentEpisodeInfo?.nextEpisode) {
+            nextUpShown = true;
+            const next = currentEpisodeInfo.nextEpisode;
+            const title = `${currentEpisodeInfo.seriesName} - ${next.ParentIndexNumber}x${next.IndexNumber} - ${next.Name}`;
+            log('info', 'queue', `Next up: ${title}`);
+            showSkipOsd(`Next up: ${title}`);
+        }
         if (!isMpvPaused && currentDuration > 0 && currentPositionSeconds >= currentDuration - 1 && !isPlayingNext && currentItemId) {
             const isLastInPlaylist = queuePosition >= playQueue.length - 1;
             if (isLastInPlaylist) {
@@ -1303,6 +1312,7 @@ function handleMpvEvent(event) {
         console.log('✅ File loaded by MPV. Preparing Seek if necessary...');
         isPlayingNext = false;
         currentDuration = 0;
+        nextUpShown = false;
         markedWatched.clear();
         
         if (pendingTitle) {
