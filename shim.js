@@ -286,7 +286,8 @@ async function connectWebSocket() {
         ws.on('message', (data) => {
             try {
                 const msg = JSON.parse(data);
-                if (msg.MessageType !== 'KeepAlive' && msg.MessageType !== 'ForceKeepAlive') {
+                const noisyTypes = ['KeepAlive', 'ForceKeepAlive', 'RefreshProgress', 'Sessions'];
+                if (!noisyTypes.includes(msg.MessageType)) {
                     log('info', 'ws', 'Message received:', msg.MessageType);
                 }
                 handleMessage(msg).catch(e => log('error', 'ws', 'Error handling message:', e.message));
@@ -714,7 +715,7 @@ function skipIntro() {
     if (segment) {
         const seekTo = segment.endTicks / 10000000;
         console.log(`⏩ Skipping ${segment.type} segment (seeking to ${seekTo.toFixed(2)}s)`);
-        sendMpvCommand('seek', [seekTo, 'absolute']);
+        sendMpvCommand('seek', [seekTo, 'absolute+keyframes']);
         currentPositionSeconds = seekTo;
         if (currentItemId) reportPlaybackProgress(currentItemId, segment.endTicks);
         showSkipOsd(`Skipped ${segment.type.toLowerCase()}`);
@@ -748,11 +749,6 @@ function showSkipOsd(text) {
     sendMpvCommand('set_property', ['osd-align-x', 'right']);
     sendMpvCommand('set_property', ['osd-align-y', 'bottom']);
     sendMpvCommand('show-text', [text, 3000]);
-    setTimeout(() => {
-        sendMpvCommand('set_property', ['osd-font-size', 55]);
-        sendMpvCommand('set_property', ['osd-align-x', 'center']);
-        sendMpvCommand('set_property', ['osd-align-y', 'bottom']);
-    }, 3100);
 }
 
 function showErrorOsd(text) {
@@ -763,11 +759,6 @@ function showErrorOsd(text) {
     sendMpvCommand('set_property', ['osd-align-x', 'right']);
     sendMpvCommand('set_property', ['osd-align-y', 'top']);
     sendMpvCommand('show-text', [text, 3000]);
-    setTimeout(() => {
-        sendMpvCommand('set_property', ['osd-font-size', 55]);
-        sendMpvCommand('set_property', ['osd-align-x', 'center']);
-        sendMpvCommand('set_property', ['osd-align-y', 'bottom']);
-    }, 3100);
 }
 
 async function loadNewQueue(itemId, startTicks) {
@@ -1355,7 +1346,6 @@ function handleMpvEvent(event) {
 
     if (event.event === 'property-change' && event.name === 'time-pos' && typeof event.data === 'number') {
         currentPositionSeconds = event.data;
-        log('debug', 'mpv', 'time-pos:', event.data.toFixed(2));
         return;
     }
 
@@ -1368,13 +1358,11 @@ function handleMpvEvent(event) {
 
     if (event.event === 'property-change' && event.name === 'mute' && typeof event.data === 'boolean') {
         isMuted = event.data;
-        log('debug', 'mpv', 'mute:', event.data);
         return;
     }
 
     if (event.event === 'property-change' && event.name === 'volume' && typeof event.data === 'number') {
         volumeLevel = Math.round(event.data);
-        log('debug', 'mpv', 'volume:', event.data);
         return;
     }
 
