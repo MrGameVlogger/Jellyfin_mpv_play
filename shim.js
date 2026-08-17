@@ -748,9 +748,9 @@ function skipIntro() {
         currentPositionSeconds = seekTo;
         if (currentItemId) reportPlaybackProgress(currentItemId, segment.endTicks);
         showSkipOsd(`Skipped ${segment.type.toLowerCase()}`);
-        // Remove this segment so we don't skip again
-        introSegments = introSegments.filter(s => s !== segment);
     }
+    // Clear all segments to prevent re-triggering
+    introSegments = [];
     isInIntroSegment = false;
     if (skipIntroTimeout) { clearTimeout(skipIntroTimeout); skipIntroTimeout = null; }
 }
