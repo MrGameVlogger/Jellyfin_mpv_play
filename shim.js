@@ -742,14 +742,13 @@ function showErrorOsd(text) {
     const now = Date.now();
     if (now - lastErrorOsdTime < 30000) return;
     lastErrorOsdTime = now;
-    sendMpvCommand('set_property', ['osd-font-size', 50]);
+    sendMpvCommand('set_property', ['osd-font-size', 35]);
     sendMpvCommand('set_property', ['osd-align-x', 'center']);
-    sendMpvCommand('set_property', ['osd-align-y', 'center']);
-    sendMpvCommand('show-text', [text, 5000]);
+    sendMpvCommand('set_property', ['osd-align-y', 'bottom']);
+    sendMpvCommand('show-text', [text, 3000]);
     setTimeout(() => {
         sendMpvCommand('set_property', ['osd-font-size', 55]);
-        sendMpvCommand('set_property', ['osd-align-y', 'bottom']);
-    }, 5100);
+    }, 3100);
 }
 
 async function loadNewQueue(itemId, startTicks) {
