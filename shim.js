@@ -772,14 +772,18 @@ let osdRestoreTimeout = null;
 
 function showSkipOsd(text) {
     if (osdRestoreTimeout) { clearTimeout(osdRestoreTimeout); osdRestoreTimeout = null; }
+    if (displayMessageTimeout) { clearTimeout(displayMessageTimeout); displayMessageTimeout = null; }
+    const savedSize = displayMessageOriginalFontSize || 55;
+    const savedAlignX = displayMessageOriginalAlignX || 'center';
+    const savedAlignY = displayMessageOriginalAlignY || 'bottom';
     sendMpvCommand('set_property', ['osd-font-size', 40]);
     sendMpvCommand('set_property', ['osd-align-x', 'right']);
     sendMpvCommand('set_property', ['osd-align-y', 'bottom']);
     sendMpvCommand('show-text', [text, 3000]);
     osdRestoreTimeout = setTimeout(() => {
-        sendMpvCommand('set_property', ['osd-font-size', 55]);
-        sendMpvCommand('set_property', ['osd-align-x', 'center']);
-        sendMpvCommand('set_property', ['osd-align-y', 'bottom']);
+        sendMpvCommand('set_property', ['osd-font-size', savedSize]);
+        sendMpvCommand('set_property', ['osd-align-x', savedAlignX]);
+        sendMpvCommand('set_property', ['osd-align-y', savedAlignY]);
         osdRestoreTimeout = null;
     }, 3100);
 }
@@ -789,14 +793,18 @@ function showErrorOsd(text) {
     if (now - lastErrorOsdTime < 30000) return;
     lastErrorOsdTime = now;
     if (osdRestoreTimeout) { clearTimeout(osdRestoreTimeout); osdRestoreTimeout = null; }
+    if (displayMessageTimeout) { clearTimeout(displayMessageTimeout); displayMessageTimeout = null; }
+    const savedSize = displayMessageOriginalFontSize || 55;
+    const savedAlignX = displayMessageOriginalAlignX || 'center';
+    const savedAlignY = displayMessageOriginalAlignY || 'bottom';
     sendMpvCommand('set_property', ['osd-font-size', 35]);
     sendMpvCommand('set_property', ['osd-align-x', 'right']);
     sendMpvCommand('set_property', ['osd-align-y', 'top']);
     sendMpvCommand('show-text', [text, 3000]);
     osdRestoreTimeout = setTimeout(() => {
-        sendMpvCommand('set_property', ['osd-font-size', 55]);
-        sendMpvCommand('set_property', ['osd-align-x', 'center']);
-        sendMpvCommand('set_property', ['osd-align-y', 'bottom']);
+        sendMpvCommand('set_property', ['osd-font-size', savedSize]);
+        sendMpvCommand('set_property', ['osd-align-x', savedAlignX]);
+        sendMpvCommand('set_property', ['osd-align-y', savedAlignY]);
         osdRestoreTimeout = null;
     }, 3100);
 }
