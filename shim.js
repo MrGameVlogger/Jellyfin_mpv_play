@@ -1327,6 +1327,7 @@ function handleMpvEvent(event) {
                 playSessionId = crypto.randomUUID();
                 reportPlaybackStart(currentItemId, 0);
                 startProgressReporting(currentItemId);
+                getIntroSegments(currentItemId);
                 startProgressPoll();
             });
         } else {
