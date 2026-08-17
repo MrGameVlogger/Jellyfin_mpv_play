@@ -12,13 +12,13 @@ module.exports = {
     // macOS:   '/opt/homebrew/bin/mpv' (Apple Silicon) or '/usr/local/bin/mpv' (Intel)
     // Linux:   '/usr/bin/mpv' (or just 'mpv' if in PATH)
     // Windows: 'C:\\Program Files\\mpv\\mpv.exe' (or just 'mpv' if in PATH)
-    mpvPath: '/opt/homebrew/bin/mpv',
+    mpvPath: 'mpv',
     
     // Device name (will appear in Jellyfin's device list)
-    deviceName: 'Mac',
+    deviceName: 'Jellyfin MPV Play',
     
     // Any name, but different from the one you put in deviceName
-    deviceId: 'mac-mpv',
+    deviceId: 'jellyfin-mpv-play',
     
     // IPC socket path (optional — defaults to /tmp/mpv-ipc.sock on Linux/macOS, \\.\pipe\mpv-ipc on Windows)
     // ipcSocketPath: '/tmp/mpv-ipc.sock'

@@ -751,6 +751,11 @@ function showSkipOsd(text) {
     sendMpvCommand('set_property', ['osd-align-x', 'right']);
     sendMpvCommand('set_property', ['osd-align-y', 'bottom']);
     sendMpvCommand('show-text', [text, 3000]);
+    setTimeout(() => {
+        sendMpvCommand('set_property', ['osd-font-size', 55]);
+        sendMpvCommand('set_property', ['osd-align-x', 'center']);
+        sendMpvCommand('set_property', ['osd-align-y', 'bottom']);
+    }, 3100);
 }
 
 function showErrorOsd(text) {
@@ -761,6 +766,11 @@ function showErrorOsd(text) {
     sendMpvCommand('set_property', ['osd-align-x', 'right']);
     sendMpvCommand('set_property', ['osd-align-y', 'top']);
     sendMpvCommand('show-text', [text, 3000]);
+    setTimeout(() => {
+        sendMpvCommand('set_property', ['osd-font-size', 55]);
+        sendMpvCommand('set_property', ['osd-align-x', 'center']);
+        sendMpvCommand('set_property', ['osd-align-y', 'bottom']);
+    }, 3100);
 }
 
 async function loadNewQueue(itemId, startTicks) {
@@ -817,6 +827,8 @@ async function loadNewQueue(itemId, startTicks) {
 
     const savedAudioIndex = pendingAudioStreamIndex;
     const savedSubIndex = pendingSubtitleStreamIndex;
+    pendingAudioStreamIndex = undefined;
+    pendingSubtitleStreamIndex = undefined;
 
     sendMpvCommand('playlist-clear');
     const firstUrl = `${CONFIG.serverUrl}/Videos/${itemId}/stream?static=true&api_key=${accessToken}`;
@@ -829,24 +841,19 @@ async function loadNewQueue(itemId, startTicks) {
 
     if (savedAudioIndex !== undefined) {
         sendMpvCommand('set_property', ['aid', savedAudioIndex]);
-        pendingAudioStreamIndex = undefined;
     }
     if (savedSubIndex !== undefined) {
         isSettingSubtitleFromJellyfin = true;
         if (subtitleFlagTimeout) clearTimeout(subtitleFlagTimeout);
         subtitleFlagTimeout = setTimeout(() => { isSettingSubtitleFromJellyfin = false; subtitleFlagTimeout = null; }, 5000);
         sendMpvCommand('set_property', ['sid', savedSubIndex]);
-        pendingSubtitleStreamIndex = undefined;
     }
 
     if (startTicks > 0) {
         pendingStartSeconds = startTicks / 10000000;
     }
 
-    pendingAudioStreamIndex = savedAudioIndex;
-    pendingSubtitleStreamIndex = savedSubIndex;
     reportPlaybackStart(itemId, startTicks);
-    pendingAudioStreamIndex = undefined;
     pendingSubtitleStreamIndex = undefined;
     startProgressReporting(itemId);
     sendMpvCommand('set_property', ['force-media-title', `Jellyfin - ${titleText}`]);
@@ -1230,6 +1237,10 @@ function startProgressPoll() {
             console.log('⚠️ isPlayingNext stuck for 30s, resetting');
             isPlayingNext = false;
         }
+        if (isManualSkip && Date.now() - isPlayingNextTimestamp > 10000) {
+            console.log('⚠️ isManualSkip stuck for 10s, resetting');
+            isManualSkip = false;
+        }
 
         const pos = await queryProperty('time-pos');
         const dur = await queryProperty('duration');
@@ -1580,8 +1591,7 @@ async function playPreviousEpisode() {
     }
     const url = `${CONFIG.serverUrl}/Videos/${prevEp.Id}/stream?static=true&api_key=${accessToken}`;
     previousItemId = currentItemId;
-    playQueue.splice(queuePosition, 0, prevEp.Id);
-    currentItemId = playQueue[queuePosition];
+    currentItemId = prevEp.Id;
     isManualSkip = true;
     sendMpvCommand('loadfile', [url, 'insert-at-index', queuePosition]);
     sendMpvCommand('playlist-prev');
