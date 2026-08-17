@@ -520,7 +520,7 @@ async function handleMessage(msg) {
         } else if (command === 'Seek') {
             if (data.SeekPositionTicks !== undefined) {
                 const seekSeconds = data.SeekPositionTicks / 10000000;
-                sendMpvCommand('seek', [seekSeconds, 'keyframes']);
+                sendMpvCommand('seek', [seekSeconds, 'absolute+keyframes']);
                 console.log(`⏩ Seek requested to ${seekSeconds.toFixed(2)}s`);
                 currentPositionSeconds = seekSeconds;
                 if (currentItemId) reportPlaybackProgress(currentItemId, data.SeekPositionTicks);
@@ -1334,7 +1334,7 @@ function handleMpvEvent(event) {
         }
 
         if (pendingStartSeconds > 0) {
-            sendMpvCommand('seek', [pendingStartSeconds, 'keyframes']);
+            sendMpvCommand('seek', [pendingStartSeconds, 'absolute+keyframes']);
             console.log(`⏩ Automatic seek to saved position: ${pendingStartSeconds.toFixed(2)}s`);
             currentPositionSeconds = pendingStartSeconds;
         } else {
@@ -1526,7 +1526,7 @@ async function playPreviousEpisode() {
     if (currentPositionSeconds > 30) {
         console.log('↩️ Restarting current episode (time > 30s)');
         isSeeking = true;
-        sendMpvCommand('seek', [0, 'keyframes']);
+        sendMpvCommand('seek', [0, 'absolute+keyframes']);
         currentPositionSeconds = 0;
         if (currentItemId) reportPlaybackProgress(currentItemId, 0);
         isPlayingNext = false;
