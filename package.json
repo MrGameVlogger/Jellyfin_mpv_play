@@ -4,7 +4,8 @@
   "description": "Control MPV from Jellyfin's web interface. Play movies and series with hardware acceleration, auto-resume, and auto-play next episode.",
   "main": "shim.js",
   "scripts": {
-    "start": "node shim.js"
+    "start": "node shim.js",
+    "test": "node --test tests/*.test.js"
   },
   "keywords": [
     "jellyfin",
