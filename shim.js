@@ -23,7 +23,8 @@ const CONFIG = {
     fullscreen: userConfig.fullscreen || false,
     autoClose: userConfig.autoClose || false,
     mpvFlags: userConfig.mpvFlags || [],
-    headless: userConfig.headless || false
+    headless: userConfig.headless || false,
+    autoSkipIntros: userConfig.autoSkipIntros || false
 };
 
 if (CONFIG.headless) {
@@ -89,6 +90,10 @@ let isSeeking = false;
 let isNewQueueLoad = false;
 let isPlayingNextTimestamp = 0;
 let previousItemId = null;
+
+let introSegments = [];
+let skipIntroTimeout = null;
+let isInIntroSegment = false;
 
 function generateOrLoadDeviceId() {
     const idFile = path.join(__dirname, 'data', '.device-id');
@@ -364,7 +369,8 @@ function reportCapabilities() {
             "VolumeDown",
             "SetVolume",
             "DisplayMessage",
-            "ToggleFullscreen"
+            "ToggleFullscreen",
+            "SkipIntro"
         ],
         SupportsMediaControl: true,
         SupportsPersistentIdentifier: true,
@@ -582,6 +588,8 @@ async function handleMessage(msg) {
             playNextEpisode();
         } else if (command === 'ToggleFullscreen') {
             sendMpvCommand('cycle', ['fullscreen']);
+        } else if (command === 'SkipIntro') {
+            skipIntro();
         }
     }
     else if (msg.MessageType === "RestartRequired") {
@@ -647,6 +655,80 @@ async function getEpisodeInfo(itemId, silent = false) {
         console.error('⚠️ Error getting episode info:', error.message);
         return { isSeries: false, playable: false };
     }
+}
+
+async function getIntroSegments(itemId) {
+    introSegments = [];
+    isInIntroSegment = false;
+    if (skipIntroTimeout) { clearTimeout(skipIntroTimeout); skipIntroTimeout = null; }
+    try {
+        const headers = getAuthHeaders();
+        const response = await axios.get(`${CONFIG.serverUrl}/MediaSegments/${itemId}`, {
+            headers,
+            params: { includeSegmentTypes: ['Intro', 'Outro'] }
+        });
+        if (response.data && response.data.Items) {
+            introSegments = response.data.Items.map(seg => ({
+                startTicks: seg.StartTicks,
+                endTicks: seg.EndTicks,
+                type: seg.Type
+            }));
+            if (introSegments.length > 0) {
+                console.log(`🎬 Found ${introSegments.length} intro/outro segment(s)`);
+            }
+        }
+    } catch (error) {
+        if (error.response && error.response.status === 404) {
+            console.log('ℹ️ Media segments API not available (server may not support it)');
+        } else {
+            console.error('⚠️ Error fetching intro segments:', error.message);
+        }
+    }
+}
+
+function skipIntro() {
+    const posTicks = Math.round(currentPositionSeconds * 10000000);
+    const segment = introSegments.find(seg => posTicks >= seg.startTicks && posTicks <= seg.endTicks);
+    if (segment) {
+        const seekTo = segment.endTicks / 10000000;
+        console.log(`⏩ Skipping ${segment.type} segment (seeking to ${seekTo.toFixed(2)}s)`);
+        sendMpvCommand('seek', [seekTo, 'absolute']);
+        currentPositionSeconds = seekTo;
+        if (currentItemId) reportPlaybackProgress(currentItemId, segment.endTicks);
+        showSkipOsd(`Skipped ${segment.type.toLowerCase()}`);
+    }
+    isInIntroSegment = false;
+    if (skipIntroTimeout) { clearTimeout(skipIntroTimeout); skipIntroTimeout = null; }
+}
+
+function checkIntroSegment(positionTicks) {
+    const segment = introSegments.find(seg => positionTicks >= seg.startTicks && positionTicks <= seg.endTicks);
+    if (segment) {
+        if (!isInIntroSegment) {
+            isInIntroSegment = true;
+            if (CONFIG.autoSkipIntros) {
+                console.log(`🎬 Auto-skip: ${segment.type} detected, skipping in 3s...`);
+                showSkipOsd(`Skipping ${segment.type.toLowerCase()} in 3s...`);
+                skipIntroTimeout = setTimeout(skipIntro, 3000);
+            } else {
+                console.log(`🎬 ${segment.type} detected — press S to skip`);
+                showSkipOsd(`Press S to skip ${segment.type.toLowerCase()}`);
+            }
+        }
+    } else if (isInIntroSegment) {
+        isInIntroSegment = false;
+        if (skipIntroTimeout) { clearTimeout(skipIntroTimeout); skipIntroTimeout = null; }
+    }
+}
+
+async function showSkipOsd(text) {
+    sendMpvCommand('set_property', ['osd-font-size', 40]);
+    sendMpvCommand('set_property', ['osd-align-x', 'center']);
+    sendMpvCommand('set_property', ['osd-align-y', 'bottom']);
+    sendMpvCommand('show-text', [text, 3000]);
+    setTimeout(() => {
+        sendMpvCommand('set_property', ['osd-font-size', 55]);
+    }, 3100);
 }
 
 async function loadNewQueue(itemId, startTicks) {
@@ -751,6 +833,7 @@ async function playMedia(itemId, startTicks) {
     currentItemId = itemId;
     currentPositionSeconds = startTicks / 10000000;
     currentEpisodeInfo = await getEpisodeInfo(itemId);
+    await getIntroSegments(itemId);
 
     if (gen !== playbackGeneration) return;
 
@@ -939,7 +1022,8 @@ function connectToMpvIpc(gen) {
             
             sendMpvCommand('keybind', ['>', 'script-message jellyfin-next']);
             sendMpvCommand('keybind', ['<', 'script-message jellyfin-prev']);
-            console.log('⌨️ Keys bound (>/< overridden for Jellyfin remote control)');
+            sendMpvCommand('keybind', ['s', 'script-message jellyfin-skip-intro']);
+            console.log('⌨️ Keys bound (>/< overridden for Jellyfin remote control, S for skip intro)');
         });
 
         ipcClient.on('data', (data) => {
@@ -1019,6 +1103,9 @@ async function markItemAsWatched(itemId) {
 
 function killMpv() {
     stopProgressPoll();
+    introSegments = [];
+    isInIntroSegment = false;
+    if (skipIntroTimeout) { clearTimeout(skipIntroTimeout); skipIntroTimeout = null; }
     for (const [, q] of pendingQueries) { if (q.timer) clearTimeout(q.timer); q.resolve(null); }
     pendingQueries.clear();
     if (displayMessageTimeout) {
@@ -1109,6 +1196,9 @@ function startProgressPoll() {
             currentDuration = dur;
         } else if (pos === null) {
             currentDuration = 0;
+        }
+        if (introSegments.length > 0) {
+            checkIntroSegment(Math.round(currentPositionSeconds * 10000000));
         }
         if (!isMpvPaused && currentDuration > 0 && currentPositionSeconds >= currentDuration - 1 && !isPlayingNext && currentItemId) {
             const isLastInPlaylist = queuePosition >= playQueue.length - 1;
@@ -1262,6 +1352,9 @@ function handleMpvEvent(event) {
         } else if (event.args[0] === 'jellyfin-prev') {
             console.log('⏮️ Previous episode requested (Keypress)');
             playPreviousEpisode();
+        } else if (event.args[0] === 'jellyfin-skip-intro') {
+            console.log('⏩ Skip intro requested (Keypress)');
+            skipIntro();
         }
     }
 }

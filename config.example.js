@@ -35,4 +35,8 @@ module.exports = {
     // Headless mode — suppress console output, log to data/shim.log (optional — default: false)
     // Useful for running as a background service on Linux/Windows
     // headless: true,
+
+    // Auto-skip intros and outros (optional — default: false)
+    // true = auto-skip after 3s, false = show "Press S to skip" OSD
+    // autoSkipIntros: true,
 };
