@@ -1108,6 +1108,12 @@ function connectToMpvIpc(gen) {
 
         ipcClient.on('data', (data) => {
             buffer += data.toString();
+            // Prevent unbounded buffer growth
+            if (buffer.length > 1024 * 1024) { // 1MB limit
+                log('warn', 'ipc', 'IPC buffer too large, clearing');
+                buffer = '';
+                return;
+            }
             const lines = buffer.split('\n');
             buffer = lines.pop();
 
