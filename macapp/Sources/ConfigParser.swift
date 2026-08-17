@@ -1,28 +1,40 @@
 import Foundation
 
 enum ConfigParser {
+    private static func stripComments(from content: String) -> String {
+        return content.components(separatedBy: .newlines)
+            .map { line in
+                if let range = line.range(of: "//") {
+                    return String(line[..<range.lowerBound])
+                }
+                return line
+            }
+            .joined(separator: "\n")
+    }
+
     static func extractValue(from content: String, key: String) -> String {
+        let stripped = stripComments(from: content)
         let escapedKey = NSRegularExpression.escapedPattern(for: key)
         // Match: key: 'value' or key: "value" (quoted strings)
         let quotedPattern = "\(escapedKey):\\s*(['\"])([^'\"]*(?:\\\\.[^'\"]*)*)\\1"
         if let regex = try? NSRegularExpression(pattern: quotedPattern),
-           let match = regex.firstMatch(in: content, range: NSRange(content.startIndex..., in: content)),
-           let range = Range(match.range(at: 2), in: content) {
-            return unescapeConfigValue(String(content[range]))
+           let match = regex.firstMatch(in: stripped, range: NSRange(stripped.startIndex..., in: stripped)),
+           let range = Range(match.range(at: 2), in: stripped) {
+            return unescapeConfigValue(String(stripped[range]))
         }
         // Match: key: true/false (booleans)
         let boolPattern = "\(escapedKey):\\s*(true|false)"
         if let regex = try? NSRegularExpression(pattern: boolPattern),
-           let match = regex.firstMatch(in: content, range: NSRange(content.startIndex..., in: content)),
-           let range = Range(match.range(at: 1), in: content) {
-            return String(content[range])
+           let match = regex.firstMatch(in: stripped, range: NSRange(stripped.startIndex..., in: stripped)),
+           let range = Range(match.range(at: 1), in: stripped) {
+            return String(stripped[range])
         }
         // Match: key: 123 (numbers)
         let numberPattern = "\(escapedKey):\\s*(\\d+)"
         if let regex = try? NSRegularExpression(pattern: numberPattern),
-           let match = regex.firstMatch(in: content, range: NSRange(content.startIndex..., in: content)),
-           let range = Range(match.range(at: 1), in: content) {
-            return String(content[range])
+           let match = regex.firstMatch(in: stripped, range: NSRange(stripped.startIndex..., in: stripped)),
+           let range = Range(match.range(at: 1), in: stripped) {
+            return String(stripped[range])
         }
         return ""
     }

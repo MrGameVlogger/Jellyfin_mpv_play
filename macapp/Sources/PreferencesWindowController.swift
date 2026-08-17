@@ -208,18 +208,28 @@ class PreferencesWindowController: NSWindowController {
 
         if fullscreenCheckbox.state == .on {
             lines.append("    fullscreen: true,")
+        } else {
+            lines.append("    fullscreen: false,")
         }
         if autoCloseCheckbox.state == .on {
             lines.append("    autoClose: true,")
+        } else {
+            lines.append("    autoClose: false,")
         }
         if headlessCheckbox.state == .on {
             lines.append("    headless: true,")
+        } else {
+            lines.append("    headless: false,")
         }
         if autoSkipIntrosCheckbox.state == .on {
             lines.append("    autoSkipIntros: true,")
+        } else {
+            lines.append("    autoSkipIntros: false,")
         }
         if verboseCheckbox.state == .on {
             lines.append("    verbose: true,")
+        } else {
+            lines.append("    verbose: false,")
         }
 
         lines.append("};")
