@@ -136,13 +136,13 @@ function loadToken() {
             if (tokenData.AccessToken && tokenData.User?.Id) {
                 accessToken = tokenData.AccessToken;
                 userId = tokenData.User.Id;
-                console.log('✅ Saved token loaded successfully');
+                log('info', 'auth', '✅ Saved token loaded successfully');
                 return true;
             }
-            console.log('⚠️ Token file missing required fields, re-authenticating');
+            log('warn', 'auth', '⚠️ Token file missing required fields, re-authenticating');
         }
     } catch (error) {
-        console.error('⚠️ Error loading saved token:', error.message);
+        log('error', 'auth', '⚠️ Error loading saved token:', error.message);
     }
     return false;
 }
@@ -152,15 +152,15 @@ function saveToken(authResponse) {
         fs.writeFileSync(TOKEN_FILE, JSON.stringify(authResponse, null, 2), { mode: 0o600 });
         accessToken = authResponse.AccessToken;
         userId = authResponse.User?.Id;
-        console.log('💾 Token saved successfully');
+        log('info', 'auth', '💾 Token saved successfully');
     } catch (error) {
-        console.error('⚠️ Error saving token:', error.message);
+        log('error', 'auth', '⚠️ Error saving token:', error.message);
     }
 }
 
 async function authenticateUser() {
     try {
-        console.log('🔐 Authenticating user...');
+        log('info', 'auth', '🔐 Authenticating user...');
         
         const authHeader = `MediaBrowser Client="${CONFIG.deviceName}", Device="${CONFIG.deviceName}", DeviceId="${CONFIG.deviceId}", Version="${CONFIG.clientVersion}"`;
         
@@ -179,13 +179,13 @@ async function authenticateUser() {
         );
 
         saveToken(response.data);
-        console.log(`✅ Authentication successful for user: ${CONFIG.username}`);
-        console.log(`🆔 User ID: ${userId}`);
+        log('info', 'auth', `✅ Authentication successful for user: ${CONFIG.username}`);
+        log('info', 'auth', `🆔 User ID: ${userId}`);
         return true;
     } catch (error) {
-        console.error('❌ Authentication error:', error.message);
+        log('error', 'auth', '❌ Authentication error:', error.message);
         if (error.response) {
-            console.error('📄 HTTP status:', error.response.status);
+            log('error', 'auth', '📄 HTTP status:', error.response.status);
         }
         return false;
     }
@@ -198,7 +198,7 @@ function loadPlaybackPositions() {
             return JSON.parse(data);
         }
     } catch (error) {
-        console.error('⚠️ Error loading saved positions:', error.message);
+        log('error', 'position', '⚠️ Error loading saved positions:', error.message);
     }
     return {};
 }
@@ -211,9 +211,9 @@ function savePlaybackPosition(itemId, positionTicks) {
             lastUpdated: new Date().toISOString()
         };
         fs.writeFileSync(POSITIONS_FILE, JSON.stringify(positions, null, 2));
-        console.log(`💾 Position saved locally: ${(positionTicks / 10000000).toFixed(2)}s for ${itemId}`);
+        log('info', 'position', `💾 Position saved locally: ${(positionTicks / 10000000).toFixed(2)}s for ${itemId}`);
     } catch (error) {
-        console.error('⚠️ Error saving position:', error.message);
+        log('error', 'position', '⚠️ Error saving position:', error.message);
     }
 }
 
@@ -247,13 +247,13 @@ async function connectWebSocket() {
     
     const wsUrl = CONFIG.serverUrl.replace(/^http/, 'ws') + `/socket?api_key=${accessToken}&deviceId=${CONFIG.deviceId}`;
     
-    console.log('🔌 Connecting to Jellyfin...');
+    log('info', 'ws', '🔌 Connecting to Jellyfin...');
     
     try {
         ws = new WebSocket(wsUrl);
         
         ws.on('open', () => {
-            console.log('✅ WebSocket connection established.');
+            logContract('✅ WebSocket connection established.');
             isReconnecting = false;
             reconnectAttempts = 0;
             lastErrorOsdTime = 0;
@@ -264,7 +264,7 @@ async function connectWebSocket() {
                 Data: "0,1500"
             };
             ws.send(JSON.stringify(msg));
-            console.log('📤 SessionsStart message sent');
+            log('info', 'ws', '📤 SessionsStart message sent');
             reportCapabilities();
             
             keepAliveInterval = setInterval(() => {
@@ -315,7 +315,7 @@ async function connectWebSocket() {
         });
         
     } catch (error) {
-        console.error('❌ Error creating WebSocket:', error.message);
+        log('error', 'ws', '❌ Error creating WebSocket:', error.message);
         isReconnecting = false;
         scheduleReconnect();
     }
@@ -330,7 +330,7 @@ function scheduleReconnect() {
     let delaySeconds = Math.min(30, 5 * Math.pow(2, reconnectAttempts - 1));
     if (reconnectAttempts === 1) delaySeconds = 5;
     
-    console.log(`🔄 Scheduling automatic reconnection in ${delaySeconds} seconds (Attempt ${reconnectAttempts})...`);
+    log('info', 'ws', `🔄 Scheduling automatic reconnection in ${delaySeconds} seconds (Attempt ${reconnectAttempts})...`);
     
     reconnectInterval = setTimeout(async () => {
         if (ws && ws.readyState === WebSocket.OPEN) {
@@ -340,32 +340,32 @@ function scheduleReconnect() {
         }
 
         try {
-            console.log('📡 Checking network connection before reconnecting...');
+            log('info', 'ws', '📡 Checking network connection before reconnecting...');
             const headers = getAuthHeaders();
             await axios.get(`${CONFIG.serverUrl}/System/Info`, { 
                 headers,
                 timeout: 3000
             });
             
-            console.log('✅ Network connection active. Attempting WebSocket reconnection...');
+            log('info', 'ws', '✅ Network connection active. Attempting WebSocket reconnection...');
             await connectWebSocket();
             
         } catch (error) {
             if (error.response && error.response.status === 401) {
-                console.log('🔐 Token expired, reauthenticating...');
+                log('info', 'auth', '🔐 Token expired, reauthenticating...');
                 showErrorOsd('Authentication expired — reconnecting...');
                 const authenticated = await authenticateUser();
                 if (authenticated) {
                     await connectWebSocket();
                 } else {
-                    console.error('❌ Reauthentication failed. Waiting for next attempt.');
+                    log('error', 'auth', '❌ Reauthentication failed. Waiting for next attempt.');
                     showErrorOsd('Authentication failed');
                     clearTimeout(reconnectInterval);
                     reconnectInterval = null;
                     scheduleReconnect();
                 }
             } else {
-                console.log(`⚠️ Server unavailable or network down. Retrying in ${delaySeconds}s...`);
+                log('warn', 'ws', `⚠️ Server unavailable or network down. Retrying in ${delaySeconds}s...`);
                 showErrorOsd('Server unreachable — retrying...');
                 clearTimeout(reconnectInterval);
                 reconnectInterval = null;
@@ -407,7 +407,7 @@ function reportCapabilities() {
     })
         .catch(err => {
             if (err.response && err.response.status !== 401) {
-                console.error('❌ Error registering capabilities:', err.message);
+                log('error', 'ws', '❌ Error registering capabilities:', err.message);
             }
         });
 }
@@ -429,26 +429,26 @@ async function handleMessage(msg) {
         return;
     }
     if (msg.MessageType === "Play") {
-        console.log('▶️ PLAY command received from web!');
+        log('info', 'handler', '▶️ PLAY command received from web!');
         const data = msg.Data || {};
         const itemIds = data.ItemIds || [];
         const hasStartPosition = 'StartPositionTicks' in data;
         const startPosition = hasStartPosition ? data.StartPositionTicks : null;
         const playCommand = data.PlayCommand || 'PlayNow';
         
-        console.log('📋 Play command data:', { itemIds, startPositionTicks: startPosition, hasStartPosition, playCommand });
+        log('info', 'handler', '📋 Play command data:', { itemIds, startPositionTicks: startPosition, hasStartPosition, playCommand });
         
         if (itemIds.length > 0) {
             let finalStartPosition = 0;
             if (hasStartPosition) {
                 finalStartPosition = startPosition || 0;
                 if (startPosition === 0) {
-                    console.log('🎯 Playing from beginning');
+                    log('info', 'handler', '🎯 Playing from beginning');
                 } else {
-                    console.log(`🎯 Resume position from server: ${(startPosition / 10000000).toFixed(2)}s`);
+                    log('info', 'handler', `🎯 Resume position from server: ${(startPosition / 10000000).toFixed(2)}s`);
                 }
             } else {
-                console.log('🎯 No start position in message, playing from beginning');
+                log('info', 'handler', '🎯 No start position in message, playing from beginning');
             }
             
             let orderedItems = [...itemIds];
@@ -457,16 +457,16 @@ async function handleMessage(msg) {
                     const j = Math.floor(Math.random() * (i + 1));
                     [orderedItems[i], orderedItems[j]] = [orderedItems[j], orderedItems[i]];
                 }
-                console.log('🔀 Shuffled playlist');
+                log('info', 'queue', '🔀 Shuffled playlist');
             } else if (playCommand === 'PlayInstantMix') {
-                console.log('ℹ️ PlayInstantMix not supported, playing first item');
+                log('info', 'queue', 'ℹ️ PlayInstantMix not supported, playing first item');
             }
             
             const startIndex = data.StartIndex || 0;
             let targetId = orderedItems[startIndex] || orderedItems[0];
             
             if (startIndex > 0) {
-                console.log(`🎯 Starting from index ${startIndex}`);
+                log('info', 'queue', `🎯 Starting from index ${startIndex}`);
             }
             
             if (playCommand === 'PlayNext') {
@@ -476,7 +476,7 @@ async function handleMessage(msg) {
                     const url = `${CONFIG.serverUrl}/Videos/${orderedItems[i]}/stream?static=true&api_key=${accessToken}`;
                     sendMpvCommand('loadfile', [url, 'insert-at-index', insertAt + i]);
                 }
-                console.log(`➕ Added ${orderedItems.length} item(s) to queue after position ${queuePosition}`);
+                log('info', 'queue', `➕ Added ${orderedItems.length} item(s) to queue after position ${queuePosition}`);
                 return;
             } else if (playCommand === 'PlayLast') {
                 playQueue.push(...orderedItems);
@@ -484,12 +484,12 @@ async function handleMessage(msg) {
                     const url = `${CONFIG.serverUrl}/Videos/${id}/stream?static=true&api_key=${accessToken}`;
                     sendMpvCommand('loadfile', [url, 'append']);
                 }
-                console.log(`➕ Appended ${orderedItems.length} item(s) to queue (total: ${playQueue.length})`);
+                log('info', 'queue', `➕ Appended ${orderedItems.length} item(s) to queue (total: ${playQueue.length})`);
                 return;
             } else {
                 playQueue = [...orderedItems];
                 queuePosition = startIndex;
-                console.log(`📋 Queue set: ${playQueue.length} items, starting at index ${queuePosition}`);
+                log('info', 'queue', `📋 Queue set: ${playQueue.length} items, starting at index ${queuePosition}`);
             }
             
             if (data.AudioStreamIndex !== undefined) {
@@ -501,21 +501,21 @@ async function handleMessage(msg) {
 
             if (ipcClient && !ipcClient.destroyed && mpvProcess) {
                 loadNewQueue(targetId, finalStartPosition).catch(err => {
-                    console.error('⚠️ Error loading new queue:', err.message);
+                    log('error', 'queue', '⚠️ Error loading new queue:', err.message);
                 });
             } else {
                 playMedia(targetId, finalStartPosition).catch(err => {
-                    console.error('⚠️ Error playing media:', err.message);
+                    log('error', 'mpv', '⚠️ Error playing media:', err.message);
                 });
             }
         } else {
-            console.error('⚠️ No ItemIds received in Play command');
+            log('error', 'handler', '⚠️ No ItemIds received in Play command');
         }
     } 
     else if (msg.MessageType === "Playstate") {
         const data = msg.Data || {};
         const command = data.Command;
-        console.log(`⏯️ State command received: ${command}`);
+        log('info', 'handler', `⏯️ State command received: ${command}`);
         
         if (command === 'Stop') {
             if (currentItemId && !isReportingStop) {
@@ -536,23 +536,23 @@ async function handleMessage(msg) {
             if (data.SeekPositionTicks !== undefined) {
                 const seekSeconds = data.SeekPositionTicks / 10000000;
                 sendMpvCommand('seek', [seekSeconds, 'absolute+keyframes']);
-                console.log(`⏩ Seek requested to ${seekSeconds.toFixed(2)}s`);
+                log('info', 'handler', `⏩ Seek requested to ${seekSeconds.toFixed(2)}s`);
                 currentPositionSeconds = seekSeconds;
                 if (currentItemId) reportPlaybackProgress(currentItemId, data.SeekPositionTicks);
             }
         } else if (command === 'Rewind') {
             sendMpvCommand('seek', [-10, 'relative']);
-            console.log('⏪ Rewind 10s');
+            log('info', 'handler', '⏪ Rewind 10s');
         } else if (command === 'FastForward') {
             sendMpvCommand('seek', [10, 'relative']);
-            console.log('⏩ Fast forward 10s');
+            log('info', 'handler', '⏩ Fast forward 10s');
         }
     }
     else if (msg.MessageType === "GeneralCommand") {
         const data = msg.Data || {};
         const command = data.Name;
         const args = data.Arguments || {};
-        console.log(`🎛️ General command received: ${command}`);
+        log('info', 'handler', `🎛️ General command received: ${command}`);
         
         if (command === 'SetAudioStreamIndex') {
             const index = parseInt(args.Index, 10);
@@ -588,7 +588,7 @@ async function handleMessage(msg) {
         } else if (command === 'DisplayMessage') {
             const header = args.Header || '';
             const text = args.Text || '';
-            console.log(`💬 Jellyfin message: ${header} - ${text}`);
+            log('info', 'handler', `💬 Jellyfin message: ${header} - ${text}`);
             const osdText = header ? `Message from Jellyfin Server\n${header}\n${text}` : `Message from Jellyfin Server\n${text}`;
             const duration = 10000;
             const wasPaused = await queryProperty('pause');
@@ -631,13 +631,13 @@ async function handleMessage(msg) {
         }
     }
     else if (msg.MessageType === "RestartRequired") {
-        console.log('🔄 Server requires restart');
+        log('info', 'ws', '🔄 Server requires restart');
     }
     else if (msg.MessageType === "ServerShuttingDown") {
-        console.log('🔴 Server is shutting down');
+        log('info', 'ws', '🔴 Server is shutting down');
     }
     else if (msg.MessageType === "ServerRestarting") {
-        console.log('🔄 Server is restarting, will reconnect...');
+        log('info', 'ws', '🔄 Server is restarting, will reconnect...');
     }
 }
 
@@ -662,7 +662,7 @@ async function getEpisodeInfo(itemId, silent = false) {
             const currentIndex = episodes.findIndex(ep => ep.Id === itemId);
             const epName = currentIndex >= 0 ? (episodes[currentIndex].Name || '') : (item.Name || '');
             const epLogTitle = [item.SeriesName, `${item.ParentIndexNumber}x${item.IndexNumber}`, epName].filter(Boolean).join(' - ');
-            if (!silent) console.log(`📺 Episode detected: ${epLogTitle}`);
+            if (!silent) logContract(`📺 Episode detected: ${epLogTitle}`);
 
             return {
                 isSeries: true,
@@ -690,7 +690,7 @@ async function getEpisodeInfo(itemId, silent = false) {
             userData: item.UserData || {}
         };
     } catch (error) {
-        console.error('⚠️ Error getting episode info:', error.message);
+        log('error', 'episode', '⚠️ Error getting episode info:', error.message);
         return { isSeries: false, playable: false };
     }
 }
@@ -712,14 +712,14 @@ async function getIntroSegments(itemId) {
                 type: seg.Type
             }));
             if (introSegments.length > 0) {
-                console.log(`🎬 Found ${introSegments.length} intro/outro segment(s)`);
+                log('info', 'segments', `🎬 Found ${introSegments.length} intro/outro segment(s)`);
             }
         }
     } catch (error) {
         if (error.response && error.response.status === 404) {
-            console.log('ℹ️ Media segments API not available (server may not support it)');
+            log('info', 'segments', 'ℹ️ Media segments API not available (server may not support it)');
         } else {
-            console.error('⚠️ Error fetching intro segments:', error.message);
+            log('error', 'segments', '⚠️ Error fetching intro segments:', error.message);
         }
     }
 }
@@ -729,7 +729,7 @@ function skipIntro() {
     const segment = introSegments.find(seg => posTicks >= seg.startTicks && posTicks <= seg.endTicks);
     if (segment) {
         const seekTo = segment.endTicks / 10000000;
-        console.log(`⏩ Skipping ${segment.type} segment (seeking to ${seekTo.toFixed(2)}s)`);
+        log('info', 'segments', `⏩ Skipping ${segment.type} segment (seeking to ${seekTo.toFixed(2)}s)`);
         sendMpvCommand('seek', [seekTo, 'absolute+keyframes']);
         currentPositionSeconds = seekTo;
         if (currentItemId) reportPlaybackProgress(currentItemId, segment.endTicks);
@@ -747,11 +747,11 @@ function checkIntroSegment(positionTicks) {
         if (!isInIntroSegment) {
             isInIntroSegment = true;
             if (CONFIG.autoSkipIntros) {
-                console.log(`🎬 Auto-skip: ${segment.type} detected, skipping in 3s...`);
+                log('info', 'segments', `🎬 Auto-skip: ${segment.type} detected, skipping in 3s...`);
                 showSkipOsd(`Skipping ${segment.type.toLowerCase()} in 3s...`);
                 skipIntroTimeout = setTimeout(skipIntro, 3000);
             } else {
-                console.log(`🎬 ${segment.type} detected — press S to skip`);
+                log('info', 'segments', `🎬 ${segment.type} detected — press S to skip`);
                 showSkipOsd(`Press S to skip ${segment.type.toLowerCase()}`);
             }
         }
@@ -809,7 +809,7 @@ async function loadNewQueue(itemId, startTicks) {
         currentEpisodeInfo = await getEpisodeInfo(itemId);
         await getIntroSegments(itemId);
     } catch (e) {
-        console.error('⚠️ Error getting episode info for new queue:', e.message);
+        log('error', 'queue', '⚠️ Error getting episode info for new queue:', e.message);
         currentItemId = null;
         currentEpisodeInfo = null;
         isPlayingNext = false;
@@ -817,15 +817,15 @@ async function loadNewQueue(itemId, startTicks) {
     }
 
     if (!ipcClient || ipcClient.destroyed || !mpvProcess) {
-        console.log('⚠️ MPV/IPC no longer available after loading queue info, falling back to playMedia');
+        log('warn', 'queue', '⚠️ MPV/IPC no longer available after loading queue info, falling back to playMedia');
         playMedia(itemId, startTicks).catch(err => {
-            console.error('⚠️ Error playing media:', err.message);
+            log('error', 'mpv', '⚠️ Error playing media:', err.message);
         });
         return;
     }
 
     if (!currentEpisodeInfo.playable) {
-        console.log(`⏭️ Skipping non-playable item: ${currentEpisodeInfo.title}`);
+        log('info', 'queue', `⏭️ Skipping non-playable item: ${currentEpisodeInfo.title}`);
         currentItemId = null;
         currentEpisodeInfo = null;
         return;
@@ -838,7 +838,7 @@ async function loadNewQueue(itemId, startTicks) {
         ? [currentEpisodeInfo.seriesName, `${currentEpisodeInfo.seasonNumber}x${currentEpisodeInfo.episodeNumber}`, currentEpisodeInfo.title].filter(Boolean).join(' - ')
         : (currentEpisodeInfo.title || String(itemId));
 
-    console.log(`📺 Loading new queue: ${titleText}`);
+    log('info', 'queue', `📺 Loading new queue: ${titleText}`);
 
     const savedAudioIndex = pendingAudioStreamIndex;
     const savedSubIndex = pendingSubtitleStreamIndex;
@@ -852,7 +852,7 @@ async function loadNewQueue(itemId, startTicks) {
         const url = `${CONFIG.serverUrl}/Videos/${playQueue[i]}/stream?static=true&api_key=${accessToken}`;
         sendMpvCommand('loadfile', [url, 'append']);
     }
-    console.log(`📋 Loaded ${playQueue.length} items into MPV playlist.`);
+    log('info', 'queue', `📋 Loaded ${playQueue.length} items into MPV playlist.`);
 
     if (savedAudioIndex !== undefined) {
         sendMpvCommand('set_property', ['aid', savedAudioIndex]);
@@ -893,7 +893,7 @@ async function playMedia(itemId, startTicks) {
     if (gen !== playbackGeneration) return;
 
     if (!currentEpisodeInfo.playable) {
-        console.log(`⏭️ Skipping non-playable item: ${currentEpisodeInfo.title} (type: ${currentEpisodeInfo.isSeries ? 'series' : 'other'})`);
+        log('info', 'queue', `⏭️ Skipping non-playable item: ${currentEpisodeInfo.title} (type: ${currentEpisodeInfo.isSeries ? 'series' : 'other'})`);
         currentItemId = null;
         currentEpisodeInfo = null;
         return;
@@ -904,10 +904,10 @@ async function playMedia(itemId, startTicks) {
     pendingStreamUrl = `${CONFIG.serverUrl}/Videos/${itemId}/stream?static=true&api_key=${accessToken}`;
     pendingStartSeconds = startTicks / 10000000;
 
-    console.log('🍿 Launching MPV (Idle Mode)...');
-    console.log(`    Item ID: ${itemId}`);
-    console.log(`    Stream URL: ${CONFIG.serverUrl}/Videos/${itemId}/stream?static=true&api_key=***`);
-    console.log(`    MPV Path: ${CONFIG.mpvPath}`);
+    log('info', 'mpv', '🍿 Launching MPV (Idle Mode)...');
+    log('info', 'mpv', `    Item ID: ${itemId}`);
+    log('info', 'mpv', `    Stream URL: ${CONFIG.serverUrl}/Videos/${itemId}/stream?static=true&api_key=***`);
+    log('info', 'mpv', `    MPV Path: ${CONFIG.mpvPath}`);
 
     const titleText = currentEpisodeInfo.isSeries 
         ? [currentEpisodeInfo.seriesName, `${currentEpisodeInfo.seasonNumber}x${currentEpisodeInfo.episodeNumber}`, currentEpisodeInfo.title].filter(Boolean).join(' - ')
@@ -931,7 +931,7 @@ async function playMedia(itemId, startTicks) {
         args.push(...CONFIG.mpvFlags);
     }
 
-    console.log('🔧 MPV arguments:', args.join(' '));
+    log('info', 'mpv', '🔧 MPV arguments:', args.join(' '));
 
     try {
         mpvProcess = spawn(CONFIG.mpvPath, args, {
@@ -939,7 +939,7 @@ async function playMedia(itemId, startTicks) {
             windowsHide: false
         });
         
-        console.log(`✅ MPV started with PID: ${mpvProcess.pid}`);
+        log('info', 'mpv', `✅ MPV started with PID: ${mpvProcess.pid}`);
 
         reportPlaybackStart(itemId, startTicks);
         startProgressReporting(itemId);
@@ -953,30 +953,30 @@ async function playMedia(itemId, startTicks) {
         mpvProcess.stdout.on('data', (data) => { 
             const line = data.toString().trim();
             if (line && !line.startsWith('AV:')) {
-                console.log(`MPV: ${line}`);
+                log('debug', 'mpv', `MPV: ${line}`);
             }
         });
         
         mpvProcess.stderr.on('data', (data) => { 
-            console.error(`MPV stderr: ${data.toString().trim()}`); 
+            log('error', 'mpv', `MPV stderr: ${data.toString().trim()}`); 
         });
 
         mpvProcess.on('error', (err) => {
-            console.error('❌ Error executing MPV:', err.message);
-            console.error('   Check mpvPath configuration:', CONFIG.mpvPath);
+            log('error', 'mpv', '❌ Error executing MPV:', err.message);
+            log('error', 'mpv', '   Check mpvPath configuration:', CONFIG.mpvPath);
         });
 
         mpvProcess.on('close', (code, signal) => {
             if (gen !== playbackGeneration) return;
 
-            console.log(`🛑 MPV closed (code ${code}, signal: ${signal})`);
+            logContract(`🛑 MPV closed (code ${code}, signal: ${signal})`);
             
             if (code === 1) {
-                console.error('⚠️ MPV closed with error. Possible causes:');
-                console.error('   - Command line argument issue');
-                console.error('   - Cannot create window');
-                console.error('   - Video driver problem');
-                console.error('   - Insufficient permissions');
+                log('error', 'mpv', '⚠️ MPV closed with error. Possible causes:');
+                log('error', 'mpv', '   - Command line argument issue');
+                log('error', 'mpv', '   - Cannot create window');
+                log('error', 'mpv', '   - Video driver problem');
+                log('error', 'mpv', '   - Insufficient permissions');
             }
             
             if (currentItemId && currentPositionSeconds > 0) {
@@ -1009,8 +1009,8 @@ async function playMedia(itemId, startTicks) {
             isNewQueueLoad = false;
         });
     } catch (err) {
-        console.error('❌ Critical error executing MPV:', err);
-        console.error('   Stack:', err.stack);
+        log('error', 'mpv', '❌ Critical error executing MPV:', err);
+        log('error', 'mpv', '   Stack:', err.stack);
         currentItemId = null;
         currentEpisodeInfo = null;
         stopProgressPoll();
@@ -1031,11 +1031,11 @@ function connectToMpvIpc(gen) {
         connectionAttempts++;
         
         if (!mpvProcess || mpvProcess.exitCode !== null) {
-            console.error('❌ MPV not running, canceling IPC connection');
+            log('error', 'ipc', '❌ MPV not running, canceling IPC connection');
             return;
         }
 
-        console.log(`🔗 Attempting to connect to MPV IPC (attempt ${connectionAttempts}/${maxAttempts})...`);
+        log('info', 'ipc', `🔗 Attempting to connect to MPV IPC (attempt ${connectionAttempts}/${maxAttempts})...`);
         
         if (ipcClient) {
             ipcClient.removeAllListeners();
@@ -1045,20 +1045,20 @@ function connectToMpvIpc(gen) {
         let buffer = '';
 
         ipcClient.on('connect', () => {
-            console.log('✅ Connected to MPV IPC');
+            log('info', 'ipc', '✅ Connected to MPV IPC');
 
             setTimeout(() => {
                 if (pendingStreamUrl && gen === playbackGeneration) {
-                    console.log('📡 Loading playlist into MPV...');
+                    log('info', 'ipc', '📡 Loading playlist into MPV...');
                     sendMpvCommand('loadfile', [pendingStreamUrl, 'replace']);
-                    console.log(`    ✅ Item 1/${playQueue.length} loaded.`);
+                    log('info', 'ipc', `    ✅ Item 1/${playQueue.length} loaded.`);
 
                     for (let i = 1; i < playQueue.length; i++) {
                         const url = `${CONFIG.serverUrl}/Videos/${playQueue[i]}/stream?static=true&api_key=${accessToken}`;
                         sendMpvCommand('loadfile', [url, 'append']);
                     }
                     if (playQueue.length > 1) {
-                        console.log(`    ✅ Appended ${playQueue.length - 1} more items to playlist.`);
+                        log('info', 'ipc', `    ✅ Appended ${playQueue.length - 1} more items to playlist.`);
                     }
 
                     if (pendingAudioStreamIndex !== undefined) {
@@ -1085,7 +1085,7 @@ function connectToMpvIpc(gen) {
             sendMpvCommand('keybind', ['>', 'script-message jellyfin-next']);
             sendMpvCommand('keybind', ['<', 'script-message jellyfin-prev']);
             sendMpvCommand('keybind', ['s', 'script-message jellyfin-skip-intro']);
-            console.log('⌨️ Keys bound (>/< overridden for Jellyfin remote control, S for skip intro)');
+            log('info', 'ipc', '⌨️ Keys bound (>/< overridden for Jellyfin remote control, S for skip intro)');
         });
 
         ipcClient.on('data', (data) => {
@@ -1109,23 +1109,23 @@ function connectToMpvIpc(gen) {
                         handleMpvEvent(response);
                         
                         if (response.error && response.error !== 'success') {
-                            console.error('⚠️ MPV Error:', response.error, JSON.stringify(response.command));
+                            log('error', 'ipc', '⚠️ MPV Error:', response.error, JSON.stringify(response.command));
                         }
                     } catch (e) {
-                        console.error('⚠️ Failed to parse MPV IPC response:', line.substring(0, 200));
+                        log('error', 'ipc', '⚠️ Failed to parse MPV IPC response:', line.substring(0, 200));
                     }
                 }
             });
         });
 
         ipcClient.on('error', (err) => {
-            console.error(`⚠️ IPC error (attempt ${connectionAttempts}):`, err.message);
+            log('error', 'ipc', `⚠️ IPC error (attempt ${connectionAttempts}):`, err.message);
             
             if (connectionAttempts < maxAttempts && mpvProcess && mpvProcess.exitCode === null) {
-                console.log(`🔄 Retrying IPC connection in ${retryDelay}ms...`);
+                log('info', 'ipc', `🔄 Retrying IPC connection in ${retryDelay}ms...`);
                 setTimeout(attemptConnection, retryDelay);
             } else if (connectionAttempts >= maxAttempts) {
-                console.error('❌ Maximum IPC connection attempts reached');
+                log('error', 'ipc', '❌ Maximum IPC connection attempts reached');
                 if (currentItemId && !isReportingStop) {
                     reportPlaybackStop(currentItemId, Math.round(currentPositionSeconds * 10000000));
                 }
@@ -1134,7 +1134,7 @@ function connectToMpvIpc(gen) {
         });
 
         ipcClient.on('close', () => {
-            console.log('🔌 Disconnected from MPV IPC');
+            log('info', 'ipc', '🔌 Disconnected from MPV IPC');
             for (const [, q] of pendingQueries) { if (q.timer) clearTimeout(q.timer); q.resolve(null); }
             pendingQueries.clear();
             ipcClient = null;
@@ -1150,16 +1150,16 @@ async function markItemAsWatched(itemId) {
     try {
         const headers = getAuthHeaders();
         await axios.post(`${CONFIG.serverUrl}/Users/${userId}/PlayedItems/${itemId}`, {}, { headers });
-        console.log('✅ Item marked as watched in Jellyfin');
+        log('info', 'report', '✅ Item marked as watched in Jellyfin');
 
         const positions = loadPlaybackPositions();
         if (positions[itemId]) {
             delete positions[itemId];
             fs.writeFileSync(POSITIONS_FILE, JSON.stringify(positions, null, 2));
-            console.log('🗑️ Local position cleared (content watched)');
+            log('info', 'report', '🗑️ Local position cleared (content watched)');
         }
     } catch (error) {
-        console.error('⚠️ Error marking item as watched:', error.message);
+        log('error', 'report', '⚠️ Error marking item as watched:', error.message);
     }
 }
 
@@ -1180,7 +1180,7 @@ function killMpv() {
         displayMessageOriginalAlignY = null;
     }
     if (mpvProcess) {
-        console.log('⏹️ Forcing previous MPV shutdown...');
+        log('info', 'mpv', '⏹️ Forcing previous MPV shutdown...');
         mpvProcess.kill();
         mpvProcess = null;
     }
@@ -1249,11 +1249,11 @@ function startProgressPoll() {
         if (!currentItemId) return;
 
         if (isPlayingNext && Date.now() - isPlayingNextTimestamp > 30000) {
-            console.log('⚠️ isPlayingNext stuck for 30s, resetting');
+            log('warn', 'queue', '⚠️ isPlayingNext stuck for 30s, resetting');
             isPlayingNext = false;
         }
         if (isManualSkip && Date.now() - isPlayingNextTimestamp > 10000) {
-            console.log('⚠️ isManualSkip stuck for 10s, resetting');
+            log('warn', 'queue', '⚠️ isManualSkip stuck for 10s, resetting');
             isManualSkip = false;
         }
 
@@ -1278,7 +1278,7 @@ function startProgressPoll() {
         if (!isMpvPaused && currentDuration > 0 && currentPositionSeconds >= currentDuration - 1 && !isPlayingNext && currentItemId) {
             const isLastInPlaylist = queuePosition >= playQueue.length - 1;
             if (isLastInPlaylist) {
-                console.log(`🎬 Near end of last item (${currentPositionSeconds.toFixed(1)}s / ${currentDuration.toFixed(1)}s), querying NextUp`);
+                log('info', 'queue', `🎬 Near end of last item (${currentPositionSeconds.toFixed(1)}s / ${currentDuration.toFixed(1)}s), querying NextUp`);
                 markItemAsWatched(currentItemId);
                 reportPlaybackStop(currentItemId, Math.round(currentPositionSeconds * 10000000));
                 playNextEpisode();
@@ -1319,15 +1319,15 @@ function handleMpvEvent(event) {
             queuePosition++;
             if (queuePosition >= 0 && queuePosition < playQueue.length) {
                 currentItemId = playQueue[queuePosition];
-                console.log(`📋 Auto-advance: queuePosition=${queuePosition}, itemId=${currentItemId}`);
+                log('info', 'queue', `📋 Auto-advance: queuePosition=${queuePosition}, itemId=${currentItemId}`);
             } else {
-                console.log(`📋 Auto-advance: queue exhausted (position=${queuePosition}, length=${playQueue.length})`);
+                log('info', 'queue', `📋 Auto-advance: queue exhausted (position=${queuePosition}, length=${playQueue.length})`);
                 currentItemId = null;
             }
             currentPositionSeconds = 0;
             isPlayingNext = false;
         } else if (isManualSkipEvent && previousItemId) {
-            console.log(`📋 Manual skip: prevItemId=${previousItemId}, newPos=${queuePosition}, newItemId=${currentItemId}`);
+            log('info', 'queue', `📋 Manual skip: prevItemId=${previousItemId}, newPos=${queuePosition}, newItemId=${currentItemId}`);
             reportPlaybackStop(previousItemId, Math.round(currentPositionSeconds * 10000000));
             previousItemId = null;
             stopProgressPoll();
@@ -1336,7 +1336,7 @@ function handleMpvEvent(event) {
         }
 
         isReportingStop = false;
-        console.log('✅ File loaded by MPV. Preparing Seek if necessary...');
+        logContract('✅ File loaded by MPV. Preparing Seek if necessary...');
         isPlayingNext = false;
         currentDuration = 0;
         nextUpShown = false;
@@ -1354,7 +1354,7 @@ function handleMpvEvent(event) {
                 const titleText = info.isSeries
                     ? [info.seriesName, `${info.seasonNumber}x${info.episodeNumber}`, info.title].filter(Boolean).join(' - ')
                     : (info.title || String(currentItemId));
-                console.log(`▶️ Starting next episode: ${titleText}`);
+                logContract(`▶️ Starting next episode: ${titleText}`);
                 sendMpvCommand('set_property', ['force-media-title', `Jellyfin - ${titleText}`]);
                 sendMpvCommand('set_property', ['title', `Jellyfin - ${titleText}`]);
                 playSessionId = crypto.randomUUID();
@@ -1363,7 +1363,7 @@ function handleMpvEvent(event) {
                 getIntroSegments(currentItemId);
                 startProgressPoll();
             }).catch(err => {
-                console.error('⚠️ Error getting episode info for auto-advance:', err.message);
+                log('error', 'episode', '⚠️ Error getting episode info for auto-advance:', err.message);
                 startProgressPoll();
             });
         } else {
@@ -1372,7 +1372,7 @@ function handleMpvEvent(event) {
 
         if (pendingStartSeconds > 0) {
             sendMpvCommand('seek', [pendingStartSeconds, 'absolute+keyframes']);
-            console.log(`⏩ Automatic seek to saved position: ${pendingStartSeconds.toFixed(2)}s`);
+            log('info', 'mpv', `⏩ Automatic seek to saved position: ${pendingStartSeconds.toFixed(2)}s`);
             currentPositionSeconds = pendingStartSeconds;
         } else {
             currentPositionSeconds = 0;
@@ -1390,7 +1390,7 @@ function handleMpvEvent(event) {
 
     if (event.event === 'property-change' && event.name === 'pause' && typeof event.data === 'boolean') {
         isMpvPaused = event.data;
-        console.log(event.data ? '⏸️ Playback paused' : '▶️ Playback resumed');
+        logContract(event.data ? '⏸️ Playback paused' : '▶️ Playback resumed');
         if (currentItemId) reportPlaybackProgress(currentItemId, Math.round(currentPositionSeconds * 10000000));
         return;
     }
@@ -1414,7 +1414,7 @@ function handleMpvEvent(event) {
         }
         if (currentItemId) {
             const sid = event.data;
-            console.log(`🔤 Subtitle changed in MPV: track ${sid}`);
+            log('info', 'mpv', `🔤 Subtitle changed in MPV: track ${sid}`);
             reportPlaybackProgress(currentItemId, Math.round(currentPositionSeconds * 10000000));
         }
         return;
@@ -1427,13 +1427,13 @@ function handleMpvEvent(event) {
 
     if (event.event === 'client-message' && event.args && event.args[0]) {
         if (event.args[0] === 'jellyfin-next') {
-            console.log('⏭️ Next episode requested (Keypress)');
+            log('info', 'episode', '⏭️ Next episode requested (Keypress)');
             playNextEpisode();
         } else if (event.args[0] === 'jellyfin-prev') {
-            console.log('⏮️ Previous episode requested (Keypress)');
+            log('info', 'episode', '⏮️ Previous episode requested (Keypress)');
             playPreviousEpisode();
         } else if (event.args[0] === 'jellyfin-skip-intro') {
-            console.log('⏩ Skip intro requested (Keypress)');
+            log('info', 'segments', '⏩ Skip intro requested (Keypress)');
             skipIntro();
         }
     }
@@ -1441,7 +1441,7 @@ function handleMpvEvent(event) {
 
 async function playNextEpisode() {
     if (isPlayingNext) {
-        console.log('⏭️ Already playing next episode, skipping duplicate call.');
+        log('info', 'queue', '⏭️ Already playing next episode, skipping duplicate call.');
         return;
     }
     isPlayingNext = true;
@@ -1452,9 +1452,9 @@ async function playNextEpisode() {
         isManualSkip = true;
         queuePosition++;
         currentItemId = playQueue[queuePosition];
-        console.log(`▶️ Next in queue (${queuePosition + 1}/${playQueue.length})`);
+        log('info', 'queue', `▶️ Next in queue (${queuePosition + 1}/${playQueue.length})`);
         if (!ipcClient || ipcClient.destroyed || !mpvProcess) {
-            console.log('⚠️ MPV/IPC not available, cannot skip to next');
+            log('warn', 'queue', '⚠️ MPV/IPC not available, cannot skip to next');
             isPlayingNext = false;
             isManualSkip = false;
             return;
@@ -1464,7 +1464,7 @@ async function playNextEpisode() {
     }
 
     if (!currentEpisodeInfo || !currentEpisodeInfo.isSeries) {
-        console.log('ℹ️ Not a series, ending playback.');
+        log('info', 'queue', 'ℹ️ Not a series, ending playback.');
         playQueue = [];
         queuePosition = -1;
         isPlayingNext = false;
@@ -1479,10 +1479,10 @@ async function playNextEpisode() {
     if (currentEpisodeInfo.nextEpisode) {
         const nextEp = currentEpisodeInfo.nextEpisode;
         const nextTitle = [currentEpisodeInfo.seriesName, `${currentEpisodeInfo.seasonNumber}x${nextEp.IndexNumber}`, nextEp.Name].filter(Boolean).join(' - ');
-        console.log(`▶️ Starting next episode: ${nextTitle}`);
+                logContract(`▶️ Starting next episode: ${nextTitle}`);
         if (!ipcClient || ipcClient.destroyed || !mpvProcess) {
             playMedia(nextEp.Id, 0).catch(err => {
-                console.error('⚠️ Error playing next episode:', err.message);
+                    log('error', 'episode', '⚠️ Error playing next episode:', err.message);
                 isPlayingNext = false;
             });
             return;
@@ -1498,7 +1498,7 @@ async function playNextEpisode() {
         return;
     }
 
-    console.log('🔍 End of season, querying NextUp...');
+    log('info', 'queue', '🔍 End of season, querying NextUp...');
     try {
         const nextUpId = await queryNextUp(currentEpisodeInfo.seriesId);
         if (nextUpId) {
@@ -1506,10 +1506,10 @@ async function playNextEpisode() {
             const nextUpTitle = nextUpInfo.isSeries
                 ? [nextUpInfo.seriesName, `${nextUpInfo.seasonNumber}x${nextUpInfo.episodeNumber}`, nextUpInfo.title].filter(Boolean).join(' - ')
                 : (nextUpInfo.title || String(nextUpId));
-            console.log(`▶️ Starting next episode: ${nextUpTitle}`);
+            logContract(`▶️ Starting next episode: ${nextUpTitle}`);
             if (!ipcClient || ipcClient.destroyed || !mpvProcess) {
                 playMedia(nextUpId, 0).catch(err => {
-                    console.error('⚠️ Error playing next episode:', err.message);
+                log('error', 'episode', '⚠️ Error playing next episode:', err.message);
                     isPlayingNext = false;
                 });
                 return;
@@ -1523,7 +1523,7 @@ async function playNextEpisode() {
             sendMpvCommand('loadfile', [url, 'append']);
             sendMpvCommand('playlist-next');
         } else {
-            console.log('ℹ️ No more episodes, ending playback.');
+            logContract('ℹ️ No more episodes, ending playback.');
             playQueue = [];
             queuePosition = -1;
             isPlayingNext = false;
@@ -1534,7 +1534,7 @@ async function playNextEpisode() {
             }
         }
     } catch (e) {
-        console.log('⚠️ NextUp query failed, keeping playback alive:', e.message);
+        log('warn', 'queue', '⚠️ NextUp query failed, keeping playback alive:', e.message);
         isPlayingNext = false;
     }
 }
@@ -1547,7 +1547,7 @@ async function queryNextUp(seriesId) {
     });
     if (response.data?.Items && response.data.Items.length > 0) {
         const nextEp = response.data.Items[0];
-        console.log(`📺 NextUp from Jellyfin: ${nextEp.SeriesName} - S${nextEp.ParentIndexNumber}E${nextEp.IndexNumber} - ${nextEp.Name}`);
+        log('info', 'episode', `📺 NextUp from Jellyfin: ${nextEp.SeriesName} - S${nextEp.ParentIndexNumber}E${nextEp.IndexNumber} - ${nextEp.Name}`);
         return nextEp.Id;
     }
     return null;
@@ -1555,14 +1555,14 @@ async function queryNextUp(seriesId) {
 
 async function playPreviousEpisode() {
     if (isPlayingNext) {
-        console.log('⏭️ Already transitioning, skipping.');
+        log('info', 'queue', '⏭️ Already transitioning, skipping.');
         return;
     }
     isPlayingNext = true;
     isPlayingNextTimestamp = Date.now();
 
     if (currentPositionSeconds > 30) {
-        console.log('↩️ Restarting current episode (time > 30s)');
+        log('info', 'episode', '↩️ Restarting current episode (time > 30s)');
         isSeeking = true;
         sendMpvCommand('seek', [0, 'absolute+keyframes']);
         currentPositionSeconds = 0;
@@ -1577,29 +1577,29 @@ async function playPreviousEpisode() {
         queuePosition--;
         currentItemId = playQueue[queuePosition];
         isManualSkip = true;
-        console.log(`⏮️ Previous in queue (${queuePosition + 1}/${playQueue.length})`);
+        log('info', 'queue', `⏮️ Previous in queue (${queuePosition + 1}/${playQueue.length})`);
         sendMpvCommand('playlist-prev');
         return;
     }
 
     if (!currentEpisodeInfo || !currentEpisodeInfo.isSeries) {
-        console.log('ℹ️ Not a series, ignoring Previous command.');
+        log('info', 'queue', 'ℹ️ Not a series, ignoring Previous command.');
         isPlayingNext = false;
         return;
     }
 
     if (!currentEpisodeInfo.previousEpisode) {
-        console.log('ℹ️ This is the first episode.');
+        log('info', 'queue', 'ℹ️ This is the first episode.');
         isPlayingNext = false;
         return;
     }
 
     const prevEp = currentEpisodeInfo.previousEpisode;
     const prevTitle = [currentEpisodeInfo.seriesName, `${currentEpisodeInfo.seasonNumber}x${prevEp.IndexNumber}`, prevEp.Name].filter(Boolean).join(' - ');
-    console.log(`◀️ Starting previous episode: ${prevTitle}`);
+    logContract(`◀️ Starting previous episode: ${prevTitle}`);
     if (!ipcClient || ipcClient.destroyed || !mpvProcess) {
         playMedia(prevEp.Id, 0).catch(err => {
-            console.error('⚠️ Error playing previous episode:', err.message);
+            log('error', 'episode', '⚠️ Error playing previous episode:', err.message);
             isPlayingNext = false;
         });
         return;
@@ -1632,16 +1632,16 @@ function reportPlaybackStart(itemId, positionTicks) {
         SubtitleStreamIndex: pendingSubtitleStreamIndex !== undefined ? pendingSubtitleStreamIndex : (typeof currentSubtitleTrack === 'number' ? currentSubtitleTrack : undefined)
     };
 
-    console.log('📡 Reporting playback start...');
+    log('info', 'report', '📡 Reporting playback start...');
     
     axios.post(`${CONFIG.serverUrl}/Sessions/Playing`, data, { headers })
         .then(() => {
-            console.log('✅ Playback start reported');
+            log('info', 'report', '✅ Playback start reported');
         })
         .catch(e => {
             const status = e.response?.status || 'unknown';
             const body = e.response?.data ? JSON.stringify(e.response.data) : e.message;
-            console.error(`⚠️ Error reporting start (${status}):`, body);
+            log('error', 'report', `⚠️ Error reporting start (${status}):`, body);
         });
 }
 
@@ -1685,7 +1685,7 @@ function reportPlaybackProgress(itemId, positionTicks) {
 
     axios.post(`${CONFIG.serverUrl}/Sessions/Playing/Progress`, data, { headers })
         .catch(e => {
-            console.error('⚠️ Failed to report progress:', e.message);
+            log('error', 'report', '⚠️ Failed to report progress:', e.message);
         });
 }
 
@@ -1705,20 +1705,20 @@ function reportPlaybackStop(itemId, positionTicks) {
         PlaySessionId: playSessionId
     };
 
-    console.log(`📡 Reporting playback stop (position: ${(positionTicks / 10000000).toFixed(2)}s)...`);
+    log('info', 'report', `📡 Reporting playback stop (position: ${(positionTicks / 10000000).toFixed(2)}s)...`);
     
     axios.post(`${CONFIG.serverUrl}/Sessions/Playing/Stopped`, data, { headers })
         .then(() => {
-            console.log('✅ Playback stop reported correctly');
+            log('info', 'report', '✅ Playback stop reported correctly');
         })
         .catch(e => {
-            console.error('⚠️ Error reporting stop:', e.message);
+            log('error', 'report', '⚠️ Error reporting stop:', e.message);
             isReportingStop = false;
         });
 }
 
 function shutdown(signal) {
-    console.log(`\n👋 Closing application (${signal})...`);
+    log('info', 'main', `\n👋 Closing application (${signal})...`);
     
     stopProgressPoll();
     for (const [, q] of pendingQueries) { if (q.timer) clearTimeout(q.timer); q.resolve(null); }
@@ -1761,16 +1761,16 @@ function shutdown(signal) {
 process.on('SIGINT', () => shutdown('SIGINT'));
 process.on('SIGTERM', () => shutdown('SIGTERM'));
 process.on('uncaughtException', (err) => {
-    console.error('❌ Uncaught exception:', err);
+    log('error', 'main', '❌ Uncaught exception:', err);
     shutdown('uncaughtException');
 });
 process.on('unhandledRejection', (reason) => {
-    console.error('❌ Unhandled rejection:', reason);
+    log('error', 'main', '❌ Unhandled rejection:', reason);
     shutdown('unhandledRejection');
 });
 
 async function main() {
-    console.log('\n🚀 Starting Jellyfin MPV Shim...\n');
+    log('info', 'main', '\n🚀 Starting Jellyfin MPV Shim...\n');
     
     const dataDir = path.join(__dirname, 'data');
     if (!fs.existsSync(dataDir)) {
@@ -1782,21 +1782,21 @@ async function main() {
     if (!hasToken || !accessToken) {
         const authenticated = await authenticateUser();
         if (!authenticated) {
-            console.error('❌ Could not authenticate. Check your CONFIG credentials.');
+            log('error', 'main', '❌ Could not authenticate. Check your CONFIG credentials.');
             process.exit(1);
         }
     }
     
     await connectWebSocket();
     
-    console.log('\n✅ Script started correctly');
-    console.log('💡 Open Jellyfin in your browser and use "Play on" to select this device.');
-    console.log('💾 Local position system active');
-    console.log('🔄 Automatic reconnection enabled with Exponential Backoff');
-    console.log('⏭️ Use media keys or > and < keys to change episodes.\n');
+    log('info', 'main', '\n✅ Script started correctly');
+    log('info', 'main', '💡 Open Jellyfin in your browser and use "Play on" to select this device.');
+    log('info', 'main', '💾 Local position system active');
+    log('info', 'main', '🔄 Automatic reconnection enabled with Exponential Backoff');
+    log('info', 'main', '⏭️ Use media keys or > and < keys to change episodes.\n');
 }
 
 main().catch(error => {
-    console.error('❌ Fatal error!:', error);
+    log('error', 'main', '❌ Fatal error!:', error);
     process.exit(1);
 });
