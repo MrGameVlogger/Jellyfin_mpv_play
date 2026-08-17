@@ -1646,6 +1646,8 @@ function startProgressReporting(itemId) {
         if (currentPositionSeconds > 10) {
             savePlaybackPosition(currentItemId, currentTicks);
         }
+        // Report progress to server to keep session alive
+        reportPlaybackProgress(currentItemId, currentTicks);
     }, 10000);
 }
 
