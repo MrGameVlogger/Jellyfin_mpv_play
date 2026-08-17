@@ -178,8 +178,7 @@ class NodeProcessManager {
             }
             proc.terminate()
 
-            DispatchQueue.global().asyncAfter(deadline: .now() + 2) { [weak self] in
-                guard let self = self else { return }
+            DispatchQueue.global().asyncAfter(deadline: .now() + 2) {
                 if proc.isRunning {
                     kill(pid_t(proc.processIdentifier), SIGKILL)
                 }
