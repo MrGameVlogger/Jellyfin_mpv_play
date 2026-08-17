@@ -123,7 +123,7 @@ function generateOrLoadDeviceId() {
     try {
         const dataDir = path.join(__dirname, 'data');
         if (!fs.existsSync(dataDir)) fs.mkdirSync(dataDir);
-        fs.writeFileSync(idFile, id);
+        fs.writeFileSync(idFile, id, { mode: 0o600 });
     } catch {}
     return id;
 }
@@ -744,7 +744,7 @@ function checkIntroSegment(positionTicks) {
     }
 }
 
-async function showSkipOsd(text) {
+function showSkipOsd(text) {
     sendMpvCommand('set_property', ['osd-font-size', 40]);
     sendMpvCommand('set_property', ['osd-align-x', 'right']);
     sendMpvCommand('set_property', ['osd-align-y', 'bottom']);
@@ -752,6 +752,7 @@ async function showSkipOsd(text) {
     setTimeout(() => {
         sendMpvCommand('set_property', ['osd-font-size', 55]);
         sendMpvCommand('set_property', ['osd-align-x', 'center']);
+        sendMpvCommand('set_property', ['osd-align-y', 'bottom']);
     }, 3100);
 }
 
@@ -789,6 +790,7 @@ async function loadNewQueue(itemId, startTicks) {
 
     try {
         currentEpisodeInfo = await getEpisodeInfo(itemId);
+        await getIntroSegments(itemId);
     } catch (e) {
         console.error('⚠️ Error getting episode info for new queue:', e.message);
         currentItemId = null;
@@ -1225,8 +1227,8 @@ function startProgressPoll() {
     progressPollTimer = setInterval(async () => {
         if (!currentItemId) return;
 
-        if (isPlayingNext && Date.now() - isPlayingNextTimestamp > 10000) {
-            console.log('⚠️ isPlayingNext stuck for 10s, resetting');
+        if (isPlayingNext && Date.now() - isPlayingNextTimestamp > 30000) {
+            console.log('⚠️ isPlayingNext stuck for 30s, resetting');
             isPlayingNext = false;
         }
 
