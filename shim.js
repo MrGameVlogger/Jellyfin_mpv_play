@@ -132,6 +132,12 @@ function generateOrLoadDeviceId() {
 function loadToken() {
     try {
         if (fs.existsSync(TOKEN_FILE)) {
+            const stats = fs.statSync(TOKEN_FILE);
+            const mode = stats.mode & 0o777;
+            if (mode !== 0o600) {
+                log('warn', 'auth', '⚠️ Token file has insecure permissions, re-authenticating');
+                return false;
+            }
             const data = fs.readFileSync(TOKEN_FILE, 'utf8');
             const tokenData = JSON.parse(data);
             if (tokenData.AccessToken && tokenData.User?.Id) {
