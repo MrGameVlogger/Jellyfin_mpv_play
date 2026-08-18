@@ -712,7 +712,13 @@ async function getEpisodeInfo(itemId, silent = false) {
 }
 
 async function getIntroSegments(itemId) {
-    if (CONFIG.disableSkipIntro) return;
+    if (CONFIG.disableSkipIntro) {
+        introSegments = [];
+        skippedSegmentIds = new Set();
+        isInIntroSegment = false;
+        if (skipIntroTimeout) { clearTimeout(skipIntroTimeout); skipIntroTimeout = null; }
+        return;
+    }
     introSegments = [];
     skippedSegmentIds = new Set();
     isInIntroSegment = false;
@@ -1055,6 +1061,7 @@ async function playMedia(itemId, startTicks) {
         currentItemId = null;
         currentEpisodeInfo = null;
         stopProgressPoll();
+        throw err;
     }
 }
 
@@ -1464,11 +1471,12 @@ function handleMpvEvent(event) {
 
         if (pendingStartSeconds > 0) {
             // Delay seek to allow MPV to initialize audio decoder
+            const seekTo = pendingStartSeconds;
+            pendingStartSeconds = 0;
             setTimeout(() => {
-                sendMpvCommand('seek', [pendingStartSeconds, 'absolute+keyframes']);
-                log('info', 'mpv', `⏩ Automatic seek to saved position: ${pendingStartSeconds.toFixed(2)}s`);
-                currentPositionSeconds = pendingStartSeconds;
-                pendingStartSeconds = 0;
+                sendMpvCommand('seek', [seekTo, 'absolute+keyframes']);
+                log('info', 'mpv', `⏩ Automatic seek to saved position: ${seekTo.toFixed(2)}s`);
+                currentPositionSeconds = seekTo;
             }, 500);
         } else {
             currentPositionSeconds = 0;
