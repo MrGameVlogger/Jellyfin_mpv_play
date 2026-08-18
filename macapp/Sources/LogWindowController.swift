@@ -85,7 +85,7 @@ class LogWindowController: NSWindowController {
     }
 
     private func colorForLine(_ line: String) -> NSColor {
-        if line.hasPrefix("ERROR") || line.contains("STDERR") || line.contains("FATAL") {
+        if line.hasPrefix("ERROR") || line.contains("STDERR") || line.contains("FATAL") || line.contains("❌") || line.contains("⚠️") {
             return .systemRed
         } else if line.contains("WARNING") || line.contains("WARN") || line.contains("warn") {
             return .systemYellow

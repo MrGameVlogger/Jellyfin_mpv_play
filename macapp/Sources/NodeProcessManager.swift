@@ -358,7 +358,7 @@ class NodeProcessManager {
         } else if line.contains("Closing application") || line.contains("MPV closed") || line.contains("Process terminated") {
             isStoppingPlayback = false
             resetPlaybackState()
-        } else if line.contains("[error]") || line.contains("ERROR") || line.contains("❌") || line.contains("FATAL") {
+        } else if line.contains("ERROR") || line.contains("❌") || line.contains("FATAL") || line.hasPrefix("STDERR:") {
             notificationHandler("Error", line)
         }
     }
