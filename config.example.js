@@ -40,6 +40,10 @@ module.exports = {
     // true = auto-skip after 3s, false = show "Press S to skip" OSD
     // autoSkipIntros: true,
 
+    // Completely disable intro/outro skip feature (optional — default: false)
+    // Hides skip prompts and does not bind the S key
+    // disableSkipIntro: true,
+
     // Verbose logging (optional — default: false)
     // Show debug-level logs with timestamps and component names
     // verbose: true,

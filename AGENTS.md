@@ -68,6 +68,7 @@ All options go in `config.js` (copy from `config.example.js`):
 | `mpvFlags` | array | `[]` | Additional MPV arguments (e.g. `["--hwdec=auto"]`) |
 | `headless` | boolean | `false` | Redirect logs to `data/shim.log`, suppress stdout/stderr |
 | `autoSkipIntros` | boolean | `false` | Auto-skip intros/outros after 3s (or show "Press S to skip" OSD) |
+| `disableSkipIntro` | boolean | `false` | Completely disable intro/outro skip feature (hides prompts, no S key) |
 | `verbose` | boolean | `false` | Show debug-level logs with timestamps and component names |
 
 `config.js` is gitignored. Missing file → `MODULE_NOT_FOUND` on start.

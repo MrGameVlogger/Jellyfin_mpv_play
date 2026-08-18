@@ -25,6 +25,7 @@ const CONFIG = {
     mpvFlags: userConfig.mpvFlags || [],
     headless: userConfig.headless || false,
     autoSkipIntros: userConfig.autoSkipIntros || false,
+    disableSkipIntro: userConfig.disableSkipIntro || false,
     verbose: userConfig.verbose || false
 };
 
@@ -711,6 +712,7 @@ async function getEpisodeInfo(itemId, silent = false) {
 }
 
 async function getIntroSegments(itemId) {
+    if (CONFIG.disableSkipIntro) return;
     introSegments = [];
     skippedSegmentIds = new Set();
     isInIntroSegment = false;
@@ -1133,8 +1135,12 @@ function connectToMpvIpc(gen) {
             
             sendMpvCommand('keybind', ['>', 'script-message jellyfin-next']);
             sendMpvCommand('keybind', ['<', 'script-message jellyfin-prev']);
-            sendMpvCommand('keybind', ['s', 'script-message jellyfin-skip-intro']);
-            log('info', 'ipc', '⌨️ Keys bound (>/< overridden for Jellyfin remote control, S for skip intro)');
+            if (!CONFIG.disableSkipIntro) {
+                sendMpvCommand('keybind', ['s', 'script-message jellyfin-skip-intro']);
+                log('info', 'ipc', '⌨️ Keys bound (>/< overridden for Jellyfin remote control, S for skip intro)');
+            } else {
+                log('info', 'ipc', '⌨️ Keys bound (>/< overridden for Jellyfin remote control)');
+            }
         });
 
         ipcClient.on('data', (data) => {
