@@ -142,7 +142,7 @@ else
     "$NODE_BIN" "$SCRIPT_DIR/shim.js" &
     NODE_PID=$!
     trap 'kill $NODE_PID 2>/dev/null' INT TERM
-    wait $NODE_PID || true
+    wait $NODE_PID
 fi
 
 EXIT_CODE=$?

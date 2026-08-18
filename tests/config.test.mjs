@@ -46,6 +46,7 @@ test('CONFIG object in shim.js has all expected properties', () => {
     'mpvFlags',
     'headless',
     'autoSkipIntros',
+    'disableSkipIntro',
     'verbose'
   ];
 
@@ -73,6 +74,7 @@ test('config.example.js documents all CONFIG options', () => {
     'mpvFlags',
     'headless',
     'autoSkipIntros',
+    'disableSkipIntro',
     'verbose'
   ];
 

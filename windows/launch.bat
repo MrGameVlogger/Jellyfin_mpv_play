@@ -79,7 +79,7 @@ set "JELLYFIN_MPV_PATH=%MPV_PATH%"
 set "IS_HEADLESS=false"
 if "%~1"=="--headless" set "IS_HEADLESS=true"
 if "%IS_HEADLESS%"=="false" (
-    findstr /i "headless.*true" "%CONFIG_FILE%" >nul 2>nul
+    findstr /i /r "headless.*true" "%CONFIG_FILE%" >nul 2>nul
     if not errorlevel 1 set "IS_HEADLESS=true"
 )
 
