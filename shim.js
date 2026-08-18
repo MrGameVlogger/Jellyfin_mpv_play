@@ -1463,14 +1463,18 @@ function handleMpvEvent(event) {
         }
 
         if (pendingStartSeconds > 0) {
-            sendMpvCommand('seek', [pendingStartSeconds, 'absolute+keyframes']);
-            log('info', 'mpv', `⏩ Automatic seek to saved position: ${pendingStartSeconds.toFixed(2)}s`);
-            currentPositionSeconds = pendingStartSeconds;
+            // Delay seek to allow MPV to initialize audio decoder
+            setTimeout(() => {
+                sendMpvCommand('seek', [pendingStartSeconds, 'absolute+keyframes']);
+                log('info', 'mpv', `⏩ Automatic seek to saved position: ${pendingStartSeconds.toFixed(2)}s`);
+                currentPositionSeconds = pendingStartSeconds;
+                pendingStartSeconds = 0;
+            }, 500);
         } else {
             currentPositionSeconds = 0;
+            pendingStartSeconds = 0;
         }
         if (currentItemId && !isAutoAdvance) reportPlaybackProgress(currentItemId, Math.round(currentPositionSeconds * 10000000));
-        pendingStartSeconds = 0;
         pendingStreamUrl = null;
         return;
     }
