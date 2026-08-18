@@ -1,5 +1,21 @@
 # AGENTS.md
 
+## ⚠️ CRITICAL: NEVER PUSH DIRECTLY TO MAIN ⚠️
+
+**You MUST create a branch and PR for ALL changes.** The pre-push hook will block direct pushes, but you must also remember this workflow:
+
+```
+git checkout -b fix/my-fix
+git add ...
+git commit -m "fix: description"
+git push origin fix/my-fix
+gh pr create --repo MrGameVlogger/Jellyfin_mpv_play --head fix/my-fix --base main --title "fix: description" --body "description"
+gh pr merge <PR_NUMBER> --repo MrGameVlogger/Jellyfin_mpv_play --squash
+git checkout main && git pull origin main && git branch -D fix/my-fix
+```
+
+**NEVER do:** `git push origin main`
+
 ## What this is
 
 Node.js shim (`shim.js`, ~1895 lines) that connects to Jellyfin via WebSocket, receives play commands, and controls MPV via Unix socket IPC. Optional macOS menubar app (`macapp/`) spawns the shim and parses its stdout for UI state. Linux and Windows users run `shim.js` directly via platform-specific launcher scripts.
