@@ -4,8 +4,9 @@ enum ConfigParser {
     private static func stripComments(from content: String) -> String {
         return content.components(separatedBy: .newlines)
             .map { line in
-                if let range = line.range(of: "//") {
-                    return String(line[..<range.lowerBound])
+                // Only strip // if preceded by whitespace (not inside URLs like https://)
+                if let range = line.range(of: "\\s//", options: .regularExpression) {
+                    return String(line[line.startIndex..<range.lowerBound])
                 }
                 return line
             }
