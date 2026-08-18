@@ -5,7 +5,7 @@
   "main": "shim.js",
   "scripts": {
     "start": "node shim.js",
-    "test": "node --test tests/*.test.js"
+    "test": "node --test tests/*.test.mjs"
   },
   "keywords": [
     "jellyfin",
