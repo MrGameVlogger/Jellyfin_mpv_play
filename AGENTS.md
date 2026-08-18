@@ -5,7 +5,7 @@
 **You MUST create a branch and PR for ALL changes.** The pre-push hook will block direct pushes, but you must also remember this workflow:
 
 ```
-git checkout -b fix/my-fix
+git checkout -b fix/my-fix      # Create branch FIRST
 git add ...
 git commit -m "fix: description"
 git push origin fix/my-fix
@@ -14,7 +14,12 @@ gh pr merge <PR_NUMBER> --repo MrGameVlogger/Jellyfin_mpv_play --squash
 git checkout main && git pull origin main && git branch -D fix/my-fix
 ```
 
-**NEVER do:** `git push origin main`
+**NEVER do:**
+- `git push origin main` — pre-push hook will block this
+- `git commit` on main — you must be on a branch BEFORE committing
+- `git push origin fix/my-fix` when you're still on main — branch doesn't exist yet
+
+**Common mistake:** Committing to main first, then trying to push to a branch. The branch doesn't exist on the remote yet, so the push fails. Always `git checkout -b <branch>` BEFORE `git add` and `git commit`.
 
 ## What this is
 
