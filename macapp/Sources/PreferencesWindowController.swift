@@ -32,8 +32,11 @@ class PreferencesWindowController: NSWindowController {
         self.init(window: window)
         setupUI()
         loadConfig()
-        // Prevent auto-focus on any field
-        window.initialFirstResponder = nil
+    }
+
+    override func showWindow(_ sender: Any?) {
+        super.showWindow(sender)
+        window?.makeFirstResponder(nil)
     }
 
     private func setupUI() {
