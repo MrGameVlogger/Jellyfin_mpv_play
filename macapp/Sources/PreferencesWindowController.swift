@@ -85,15 +85,17 @@ class PreferencesWindowController: NSWindowController {
         contentView.addSubview(testButton)
 
         statusLabel = NSTextField(labelWithString: "")
-        statusLabel.frame = NSRect(x: 270, y: yOffset + 4, width: 270, height: 20)
+        statusLabel.frame = NSRect(x: 270, y: yOffset + 4, width: 290, height: 20)
         statusLabel.font = NSFont.systemFont(ofSize: 12)
+        statusLabel.maximumNumberOfLines = 1
+        statusLabel.lineBreakMode = .byTruncatingTail
         contentView.addSubview(statusLabel)
-        yOffset -= 20
+        yOffset -= 30
 
         // Separator
         let separator1 = NSBox()
         separator1.boxType = .separator
-        separator1.frame = NSRect(x: 20, y: yOffset, width: 520, height: 1)
+        separator1.frame = NSRect(x: 20, y: yOffset, width: 540, height: 1)
         contentView.addSubview(separator1)
         yOffset -= 20
 
@@ -139,18 +141,18 @@ class PreferencesWindowController: NSWindowController {
         deviceIdField = NSTextField()
         deviceIdField.frame = NSRect(x: 130, y: yOffset, width: 410, height: 24)
         contentView.addSubview(deviceIdField)
-        yOffset -= 20
+        yOffset -= 30
 
         // Separator
         let separator2 = NSBox()
         separator2.boxType = .separator
-        separator2.frame = NSRect(x: 20, y: yOffset, width: 520, height: 1)
+        separator2.frame = NSRect(x: 20, y: yOffset, width: 540, height: 1)
         contentView.addSubview(separator2)
         yOffset -= 20
 
         // MARK: - Options Section
         let optionsLabel = sectionLabel("Options")
-        optionsLabel.frame = NSRect(x: 20, y: yOffset, width: 520, height: 20)
+        optionsLabel.frame = NSRect(x: 20, y: yOffset, width: 540, height: 20)
         contentView.addSubview(optionsLabel)
         yOffset -= 28
 
