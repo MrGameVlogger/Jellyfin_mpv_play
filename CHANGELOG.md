@@ -18,6 +18,25 @@ All notable changes to Jellyfin MPV Play are documented here.
 
 -->
 
+## v1.9.2
+
+### Bug Fixes
+- **Fixed ConfigParser URL parsing** — Comment stripping no longer corrupts URLs containing `//` (e.g., `https://...`)
+- **Fixed Preferences auto-focus** — Server URL field no longer auto-highlights when opening Preferences
+- **Fixed Preferences layout** — Improved spacing, error label truncation, separator widths
+- **Fixed Info.plist version** — Updated from 1.8.3 to 1.9.1 to match package.json
+- **Fixed queue load counter** — Multi-item queues now auto-advance correctly
+- **Fixed Windows headless detection** — `findstr` now uses regex matching for config parsing
+- **Fixed Linux exit code capture** — Shim exit code is now properly reported
+- **Fixed MPV stderr false alarms** — MPV informational output no longer triggers error notifications
+
+### Internal
+- **Pre-push hook** — Blocks direct pushes to main branch
+- **Test coverage** — Added `disableSkipIntro` to config test assertions
+- **Documentation** — Updated AGENTS.md with branch-before-commit workflow
+
+---
+
 ## v1.9.1
 
 ### New Features
