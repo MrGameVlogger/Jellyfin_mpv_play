@@ -18,6 +18,25 @@ All notable changes to Jellyfin MPV Play are documented here.
 
 -->
 
+## v1.9.1
+
+### New Features
+- **Disable skip intro option** — New config option `disableSkipIntro: true` completely disables the intro/outro skip feature (hides prompts, does not bind S key, does not fetch segments)
+
+### Bug Fixes
+- **Fixed audio loss on resume** — Added 500ms delay before seeking to saved position to allow MPV to initialize audio decoder
+- **Fixed seek delay race condition** — Capture seek position in local variable before setTimeout to prevent stale reads
+- **Fixed error propagation** — `playMedia()` now re-throws errors so callers' catch blocks execute properly
+- **Fixed intro state reset** — Reset intro segments and flags when `disableSkipIntro` is enabled
+- **Fixed error pattern matching** — Added STDERR: prefix check and emoji patterns for Swift error detection
+- **Fixed bare mpvPath search** — Bare command names like `mpv` now correctly search PATH instead of treating as literal filename
+
+### Internal
+- **Code audit** — Fixed 5 additional bugs found in comprehensive audit (seek race, state reset, error propagation)
+- **Documentation** — Updated AGENTS.md with new config option
+
+---
+
 ## v1.9.0
 
 ### New Features
