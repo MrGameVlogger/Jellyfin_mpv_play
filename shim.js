@@ -890,7 +890,7 @@ async function loadNewQueue(itemId, startTicks) {
     sendMpvCommand('playlist-clear');
     const firstUrl = `${CONFIG.serverUrl}/Videos/${itemId}/stream?static=true&api_key=${accessToken}`;
     sendMpvCommand('loadfile', [firstUrl, 'replace']);
-    queueLoadCounter = playQueue.length;
+    queueLoadCounter = 1; // Only the 'replace' load triggers file-loaded
     for (let i = 1; i < playQueue.length; i++) {
         const url = `${CONFIG.serverUrl}/Videos/${playQueue[i]}/stream?static=true&api_key=${accessToken}`;
         sendMpvCommand('loadfile', [url, 'append']);
@@ -1004,8 +1004,11 @@ async function playMedia(itemId, startTicks) {
             }
         });
         
-        mpvProcess.stderr.on('data', (data) => { 
-            log('error', 'mpv', `MPV stderr: ${data.toString().trim()}`); 
+        mpvProcess.stderr.on('data', (data) => {
+            const line = data.toString().trim();
+            if (line && !line.startsWith('AV:') && !line.includes('File tags:')) {
+                log('debug', 'mpv', `MPV stderr: ${line}`);
+            }
         });
 
         mpvProcess.on('error', (err) => {
