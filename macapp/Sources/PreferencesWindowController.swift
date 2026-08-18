@@ -12,6 +12,7 @@ class PreferencesWindowController: NSWindowController {
     private var autoCloseCheckbox: NSButton!
     private var headlessCheckbox: NSButton!
     private var autoSkipIntrosCheckbox: NSButton!
+    private var disableSkipIntroCheckbox: NSButton!
     private var verboseCheckbox: NSButton!
     private var testButton: NSButton!
     private var statusLabel: NSTextField!
@@ -20,7 +21,7 @@ class PreferencesWindowController: NSWindowController {
 
     convenience init() {
         let window = NSWindow(
-            contentRect: NSRect(x: 0, y: 0, width: 560, height: 520),
+            contentRect: NSRect(x: 0, y: 0, width: 560, height: 600),
             styleMask: [.titled, .closable],
             backing: .buffered,
             defer: false
@@ -36,63 +37,174 @@ class PreferencesWindowController: NSWindowController {
     private func setupUI() {
         guard let contentView = window?.contentView else { return }
 
-        let labels = ["Server URL:", "Username:", "Password:", "MPV Path:", "Device Name:", "Device ID:"]
+        var yOffset: CGFloat = 560
+
+        // MARK: - Connection Section
+        let connectionLabel = sectionLabel("Connection")
+        connectionLabel.frame = NSRect(x: 20, y: yOffset, width: 520, height: 20)
+        contentView.addSubview(connectionLabel)
+        yOffset -= 30
+
+        // Server URL
+        let serverLabel = NSTextField(labelWithString: "Server URL:")
+        serverLabel.frame = NSRect(x: 20, y: yOffset, width: 100, height: 24)
+        serverLabel.alignment = .right
+        contentView.addSubview(serverLabel)
 
         serverUrlField = NSTextField()
+        serverUrlField.frame = NSRect(x: 130, y: yOffset, width: 410, height: 24)
+        contentView.addSubview(serverUrlField)
+        yOffset -= 36
+
+        // Username
+        let userLabel = NSTextField(labelWithString: "Username:")
+        userLabel.frame = NSRect(x: 20, y: yOffset, width: 100, height: 24)
+        userLabel.alignment = .right
+        contentView.addSubview(userLabel)
+
         usernameField = NSTextField()
+        usernameField.frame = NSRect(x: 130, y: yOffset, width: 410, height: 24)
+        contentView.addSubview(usernameField)
+        yOffset -= 36
+
+        // Password
+        let passLabel = NSTextField(labelWithString: "Password:")
+        passLabel.frame = NSRect(x: 20, y: yOffset, width: 100, height: 24)
+        passLabel.alignment = .right
+        contentView.addSubview(passLabel)
+
         passwordField = NSSecureTextField()
-        mpvPathField = NSTextField()
-        deviceNameField = NSTextField()
-        deviceIdField = NSTextField()
+        passwordField.frame = NSRect(x: 130, y: yOffset, width: 410, height: 24)
+        contentView.addSubview(passwordField)
+        yOffset -= 36
 
-        let fields: [NSTextField] = [serverUrlField, usernameField, passwordField, mpvPathField, deviceNameField, deviceIdField]
-
-        for (i, label) in labels.enumerated() {
-            let labelView = NSTextField(labelWithString: label)
-            labelView.frame = NSRect(x: 20, y: 470 - i * 40, width: 100, height: 24)
-            labelView.alignment = .right
-            contentView.addSubview(labelView)
-
-            fields[i].frame = NSRect(x: 130, y: 472 - i * 40, width: 310, height: 24)
-            contentView.addSubview(fields[i])
-        }
-
-        let browseButton = NSButton(title: "Browse...", target: self, action: #selector(browseMpvPath))
-        browseButton.frame = NSRect(x: 448, y: 470 - 3 * 40, width: 80, height: 24)
-        browseButton.bezelStyle = .rounded
-        contentView.addSubview(browseButton)
-
-        // Checkboxes for options
-        fullscreenCheckbox = NSButton(checkboxWithTitle: "Start MPV in fullscreen", target: nil, action: nil)
-        fullscreenCheckbox.frame = NSRect(x: 130, y: 210, width: 300, height: 22)
-        contentView.addSubview(fullscreenCheckbox)
-
-        autoCloseCheckbox = NSButton(checkboxWithTitle: "Close app when playback ends", target: nil, action: nil)
-        autoCloseCheckbox.frame = NSRect(x: 130, y: 184, width: 300, height: 22)
-        contentView.addSubview(autoCloseCheckbox)
-
-        headlessCheckbox = NSButton(checkboxWithTitle: "Headless mode (log to file, suppress output)", target: nil, action: nil)
-        headlessCheckbox.frame = NSRect(x: 130, y: 158, width: 300, height: 22)
-        contentView.addSubview(headlessCheckbox)
-
-        autoSkipIntrosCheckbox = NSButton(checkboxWithTitle: "Auto-skip intros and outros", target: nil, action: nil)
-        autoSkipIntrosCheckbox.frame = NSRect(x: 130, y: 132, width: 300, height: 22)
-        contentView.addSubview(autoSkipIntrosCheckbox)
-
-        verboseCheckbox = NSButton(checkboxWithTitle: "Verbose logging (debug output)", target: nil, action: nil)
-        verboseCheckbox.frame = NSRect(x: 130, y: 106, width: 300, height: 22)
-        contentView.addSubview(verboseCheckbox)
-
+        // Test Connection
         testButton = NSButton(title: "Test Connection", target: self, action: #selector(testConnection))
-        testButton.frame = NSRect(x: 130, y: 70, width: 130, height: 32)
+        testButton.frame = NSRect(x: 130, y: yOffset, width: 130, height: 28)
         testButton.bezelStyle = .rounded
         contentView.addSubview(testButton)
 
         statusLabel = NSTextField(labelWithString: "")
-        statusLabel.frame = NSRect(x: 270, y: 76, width: 270, height: 20)
+        statusLabel.frame = NSRect(x: 270, y: yOffset + 4, width: 270, height: 20)
         statusLabel.font = NSFont.systemFont(ofSize: 12)
         contentView.addSubview(statusLabel)
+        yOffset -= 20
 
+        // Separator
+        let separator1 = NSBox()
+        separator1.boxType = .separator
+        separator1.frame = NSRect(x: 20, y: yOffset, width: 520, height: 1)
+        contentView.addSubview(separator1)
+        yOffset -= 20
+
+        // MARK: - Playback Section
+        let playbackLabel = sectionLabel("Playback")
+        playbackLabel.frame = NSRect(x: 20, y: yOffset, width: 520, height: 20)
+        contentView.addSubview(playbackLabel)
+        yOffset -= 30
+
+        // MPV Path with Browse button
+        let mpvLabel = NSTextField(labelWithString: "MPV Path:")
+        mpvLabel.frame = NSRect(x: 20, y: yOffset, width: 100, height: 24)
+        mpvLabel.alignment = .right
+        contentView.addSubview(mpvLabel)
+
+        mpvPathField = NSTextField()
+        mpvPathField.frame = NSRect(x: 130, y: yOffset, width: 320, height: 24)
+        contentView.addSubview(mpvPathField)
+
+        let browseButton = NSButton(title: "Browse...", target: self, action: #selector(browseMpvPath))
+        browseButton.frame = NSRect(x: 458, y: yOffset, width: 80, height: 24)
+        browseButton.bezelStyle = .rounded
+        contentView.addSubview(browseButton)
+        yOffset -= 36
+
+        // Device Name
+        let deviceNameLabel = NSTextField(labelWithString: "Device Name:")
+        deviceNameLabel.frame = NSRect(x: 20, y: yOffset, width: 100, height: 24)
+        deviceNameLabel.alignment = .right
+        contentView.addSubview(deviceNameLabel)
+
+        deviceNameField = NSTextField()
+        deviceNameField.frame = NSRect(x: 130, y: yOffset, width: 410, height: 24)
+        contentView.addSubview(deviceNameField)
+        yOffset -= 36
+
+        // Device ID
+        let deviceIdLabel = NSTextField(labelWithString: "Device ID:")
+        deviceIdLabel.frame = NSRect(x: 20, y: yOffset, width: 100, height: 24)
+        deviceIdLabel.alignment = .right
+        contentView.addSubview(deviceIdLabel)
+
+        deviceIdField = NSTextField()
+        deviceIdField.frame = NSRect(x: 130, y: yOffset, width: 410, height: 24)
+        contentView.addSubview(deviceIdField)
+        yOffset -= 20
+
+        // Separator
+        let separator2 = NSBox()
+        separator2.boxType = .separator
+        separator2.frame = NSRect(x: 20, y: yOffset, width: 520, height: 1)
+        contentView.addSubview(separator2)
+        yOffset -= 20
+
+        // MARK: - Options Section
+        let optionsLabel = sectionLabel("Options")
+        optionsLabel.frame = NSRect(x: 20, y: yOffset, width: 520, height: 20)
+        contentView.addSubview(optionsLabel)
+        yOffset -= 28
+
+        // Checkboxes in two columns
+        let leftX: CGFloat = 130
+        let rightX: CGFloat = 340
+        let checkboxWidth: CGFloat = 200
+        let checkboxHeight: CGFloat = 22
+        let rowSpacing: CGFloat = 26
+
+        // Row 1
+        fullscreenCheckbox = NSButton(checkboxWithTitle: "Start in fullscreen", target: nil, action: nil)
+        fullscreenCheckbox.frame = NSRect(x: leftX, y: yOffset, width: checkboxWidth, height: checkboxHeight)
+        contentView.addSubview(fullscreenCheckbox)
+
+        autoCloseCheckbox = NSButton(checkboxWithTitle: "Close when playback ends", target: nil, action: nil)
+        autoCloseCheckbox.frame = NSRect(x: rightX, y: yOffset, width: checkboxWidth, height: checkboxHeight)
+        contentView.addSubview(autoCloseCheckbox)
+        yOffset -= rowSpacing
+
+        // Row 2
+        headlessCheckbox = NSButton(checkboxWithTitle: "Headless mode", target: nil, action: nil)
+        headlessCheckbox.frame = NSRect(x: leftX, y: yOffset, width: checkboxWidth, height: checkboxHeight)
+        contentView.addSubview(headlessCheckbox)
+
+        autoSkipIntrosCheckbox = NSButton(checkboxWithTitle: "Auto-skip intros/outros", target: nil, action: nil)
+        autoSkipIntrosCheckbox.frame = NSRect(x: rightX, y: yOffset, width: checkboxWidth, height: checkboxHeight)
+        contentView.addSubview(autoSkipIntrosCheckbox)
+        yOffset -= rowSpacing
+
+        // Row 3
+        disableSkipIntroCheckbox = NSButton(checkboxWithTitle: "Disable skip intro feature", target: nil, action: nil)
+        disableSkipIntroCheckbox.frame = NSRect(x: leftX, y: yOffset, width: checkboxWidth, height: checkboxHeight)
+        contentView.addSubview(disableSkipIntroCheckbox)
+
+        verboseCheckbox = NSButton(checkboxWithTitle: "Verbose logging", target: nil, action: nil)
+        verboseCheckbox.frame = NSRect(x: rightX, y: yOffset, width: checkboxWidth, height: checkboxHeight)
+        contentView.addSubview(verboseCheckbox)
+        yOffset -= 20
+
+        // Separator
+        let separator3 = NSBox()
+        separator3.boxType = .separator
+        separator3.frame = NSRect(x: 20, y: yOffset, width: 520, height: 1)
+        contentView.addSubview(separator3)
+        yOffset -= 20
+
+        // MARK: - General Section
+        launchAtLoginCheckbox = NSButton(checkboxWithTitle: "Launch at login", target: self, action: #selector(toggleLaunchAtLogin))
+        launchAtLoginCheckbox.frame = NSRect(x: 130, y: yOffset, width: 200, height: 22)
+        launchAtLoginCheckbox.state = SMAppService.mainApp.status == .enabled ? .on : .off
+        contentView.addSubview(launchAtLoginCheckbox)
+
+        // MARK: - Bottom buttons
         let saveButton = NSButton(title: "Save", target: self, action: #selector(saveConfig))
         saveButton.frame = NSRect(x: 380, y: 20, width: 80, height: 32)
         saveButton.keyEquivalent = "\r"
@@ -101,11 +213,13 @@ class PreferencesWindowController: NSWindowController {
         let cancelButton = NSButton(title: "Cancel", target: self, action: #selector(cancel))
         cancelButton.frame = NSRect(x: 470, y: 20, width: 80, height: 32)
         contentView.addSubview(cancelButton)
+    }
 
-        launchAtLoginCheckbox = NSButton(checkboxWithTitle: "Launch at login", target: self, action: #selector(toggleLaunchAtLogin))
-        launchAtLoginCheckbox.frame = NSRect(x: 130, y: 44, width: 200, height: 22)
-        launchAtLoginCheckbox.state = SMAppService.mainApp.status == .enabled ? .on : .off
-        contentView.addSubview(launchAtLoginCheckbox)
+    private func sectionLabel(_ text: String) -> NSTextField {
+        let label = NSTextField(labelWithString: text)
+        label.font = NSFont.boldSystemFont(ofSize: 13)
+        label.textColor = .secondaryLabelColor
+        return label
     }
 
     private func loadConfig() {
@@ -127,20 +241,12 @@ class PreferencesWindowController: NSWindowController {
         if deviceId.isEmpty { deviceId = "mac-mpv" }
         deviceIdField.stringValue = deviceId
 
-        let fullscreen = ConfigParser.extractValue(from: content, key: "fullscreen")
-        fullscreenCheckbox.state = (fullscreen == "true") ? .on : .off
-
-        let autoClose = ConfigParser.extractValue(from: content, key: "autoClose")
-        autoCloseCheckbox.state = (autoClose == "true") ? .on : .off
-
-        let headless = ConfigParser.extractValue(from: content, key: "headless")
-        headlessCheckbox.state = (headless == "true") ? .on : .off
-
-        let autoSkipIntros = ConfigParser.extractValue(from: content, key: "autoSkipIntros")
-        autoSkipIntrosCheckbox.state = (autoSkipIntros == "true") ? .on : .off
-
-        let verbose = ConfigParser.extractValue(from: content, key: "verbose")
-        verboseCheckbox.state = (verbose == "true") ? .on : .off
+        fullscreenCheckbox.state = ConfigParser.extractValue(from: content, key: "fullscreen") == "true" ? .on : .off
+        autoCloseCheckbox.state = ConfigParser.extractValue(from: content, key: "autoClose") == "true" ? .on : .off
+        headlessCheckbox.state = ConfigParser.extractValue(from: content, key: "headless") == "true" ? .on : .off
+        autoSkipIntrosCheckbox.state = ConfigParser.extractValue(from: content, key: "autoSkipIntros") == "true" ? .on : .off
+        disableSkipIntroCheckbox.state = ConfigParser.extractValue(from: content, key: "disableSkipIntro") == "true" ? .on : .off
+        verboseCheckbox.state = ConfigParser.extractValue(from: content, key: "verbose") == "true" ? .on : .off
     }
 
     @objc private func browseMpvPath() {
@@ -206,32 +312,12 @@ class PreferencesWindowController: NSWindowController {
             "    deviceId: '\(ConfigParser.escapeConfigValue(deviceIdField.stringValue))',",
         ]
 
-        if fullscreenCheckbox.state == .on {
-            lines.append("    fullscreen: true,")
-        } else {
-            lines.append("    fullscreen: false,")
-        }
-        if autoCloseCheckbox.state == .on {
-            lines.append("    autoClose: true,")
-        } else {
-            lines.append("    autoClose: false,")
-        }
-        if headlessCheckbox.state == .on {
-            lines.append("    headless: true,")
-        } else {
-            lines.append("    headless: false,")
-        }
-        if autoSkipIntrosCheckbox.state == .on {
-            lines.append("    autoSkipIntros: true,")
-        } else {
-            lines.append("    autoSkipIntros: false,")
-        }
-        if verboseCheckbox.state == .on {
-            lines.append("    verbose: true,")
-        } else {
-            lines.append("    verbose: false,")
-        }
-
+        lines.append("    fullscreen: \(fullscreenCheckbox.state == .on ? "true" : "false"),")
+        lines.append("    autoClose: \(autoCloseCheckbox.state == .on ? "true" : "false"),")
+        lines.append("    headless: \(headlessCheckbox.state == .on ? "true" : "false"),")
+        lines.append("    autoSkipIntros: \(autoSkipIntrosCheckbox.state == .on ? "true" : "false"),")
+        lines.append("    disableSkipIntro: \(disableSkipIntroCheckbox.state == .on ? "true" : "false"),")
+        lines.append("    verbose: \(verboseCheckbox.state == .on ? "true" : "false"),")
         lines.append("};")
 
         let config = lines.joined(separator: "\n")
