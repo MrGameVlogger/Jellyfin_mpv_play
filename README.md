@@ -27,6 +27,9 @@
 - **Smart Resume** — Remembers where you left off; "Play from beginning" in Jellyfin starts fresh
 - **Auto-Play Next Episode** — Binge-watch series seamlessly with cross-season support
 - **Full Queue System** — Native MPV playlist; Play Next / Play Last from Jellyfin UI; next/prev navigation
+- **Auto-Skip Intros/Outros** — MediaSegments API integration; auto-skip after 3s or press S to skip; `autoSkipIntros` config option
+- **Next-Up Notification** — Shows "Next up: SeriesName - SxEp" 10 seconds before episode ends
+- **Error OSD Messages** — Connection/auth errors shown in MPV with rate limiting
 - **Hardware Acceleration** — Smooth playback powered by MPV
 - **Auto-Reconnect** — Handles network interruptions with exponential backoff
 - **Subtitle Sync** — Change subtitles in MPV, Jellyfin tracks the change
@@ -35,6 +38,7 @@
 - **Auto-Close** — Optional shutdown when playback queue is exhausted
 - **Custom MPV Flags** — Pass any MPV options from config
 - **Headless Mode** — Run as a background service on Linux (systemd support)
+- **Better Logging** — Structured `[timestamp] [component]` format with `verbose` config option
 - **Native macOS App** — Menubar icon, notifications, preferences editor, log viewer, setup wizard
 - **Self-Contained Bundles** — All platforms bundle Node.js 22 LTS; just install MPV and go
 - **Built-in Help** — Reference guide accessible from the menu bar (macOS)
@@ -349,6 +353,12 @@ Jellyfin_mpv_play/
 See [CHANGELOG.md](CHANGELOG.md) for full release history.
 
 ### Recent Releases
+
+**v1.9.2** — ConfigParser fix, Preferences UI, bug fixes ([details](CHANGELOG.md#v192))
+
+**v1.9.1** — Audio loss fix, seek race condition, disableSkipIntro option ([details](CHANGELOG.md#v191))
+
+**v1.9.0** — Auto-skip intros/outros, error OSD, next-up notification, better logging ([details](CHANGELOG.md#v190))
 
 **v1.8.3** — Windows headless, troubleshooting, macOS app docs ([details](CHANGELOG.md#v183))
 - Windows headless mode, expanded troubleshooting, macOS app architecture docs
