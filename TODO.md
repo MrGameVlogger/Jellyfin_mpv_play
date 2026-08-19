@@ -17,11 +17,11 @@ Features, bugs, and improvements planned for Jellyfin MPV Play.
 | Subtitle sync | v1.8.0 | Bidirectional sync between MPV and Jellyfin server |
 | Windows support | v1.8.3 | `launch.bat` with headless support |
 | CI version sync | v1.8.3 | Info.plist auto-synced from package.json in CI |
-| Seek progress reports | v1.8.4 | Report progress immediately on user-initiated seeks (MPV seeking property) |
-| Auto-skip intros/outros | v1.8.4 | MediaSegments API, auto-skip or S key, config option `autoSkipIntros` |
-| Error OSD messages | v1.8.4 | Connection/auth errors shown in MPV OSD with rate limiting |
-| Better logging | v1.8.4 | Log levels, timestamps, component names, `verbose` config option |
-| Next-up notification | v1.8.4 | Show next episode title 10s before current episode ends |
+| Seek progress reports | v1.9.0 | Report progress immediately on user-initiated seeks (MPV seeking property) |
+| Auto-skip intros/outros | v1.9.0 | MediaSegments API, auto-skip or S key, config option `autoSkipIntros` |
+| Error OSD messages | v1.9.0 | Connection/auth errors shown in MPV OSD with rate limiting |
+| Better logging | v1.9.0 | Log levels, timestamps, component names, `verbose` config option |
+| Next-up notification | v1.9.0 | Show next episode title 10s before current episode ends |
 
 ---
 
