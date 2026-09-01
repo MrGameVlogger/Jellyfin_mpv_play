@@ -1021,7 +1021,13 @@ async function playMedia(itemId, startTicks) {
         mpvProcess.on('close', (code, signal) => {
             if (gen !== playbackGeneration) return;
 
-            log('info', 'mpv', `🛑 MPV closed (code ${code}, signal: ${signal})`);
+            if (code === 4) {
+                log('info', 'mpv', `🛑 MPV closed (code ${code}, signal: ${signal}) — normal for forced quit`);
+            } else if (code === 0) {
+                log('info', 'mpv', `🛑 MPV closed (code ${code}, signal: ${signal})`);
+            } else {
+                log('info', 'mpv', `🛑 MPV closed (code ${code}, signal: ${signal})`);
+            }
             
             if (code === 1) {
                 log('error', 'mpv', '⚠️ MPV closed with error. Possible causes:');
