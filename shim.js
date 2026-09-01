@@ -287,6 +287,7 @@ async function connectWebSocket() {
                 if (ws && ws.readyState === WebSocket.OPEN) {
                     try {
                         ws.send(JSON.stringify({ MessageType: 'KeepAlive' }));
+                        log('debug', 'ws', '💓 Keep-alive sent');
                     } catch (e) {
                         log('error', 'ws', 'Error sending keep-alive:', e.message);
                     }
@@ -437,6 +438,7 @@ async function handleMessage(msg) {
             if (ws && ws.readyState === WebSocket.OPEN) {
                 try {
                     ws.send(JSON.stringify({ MessageType: 'KeepAlive' }));
+                    log('debug', 'ws', '💓 Keep-alive sent');
                 } catch (e) {
                     log('error', 'ws', 'Error sending keep-alive:', e.message);
                 }
