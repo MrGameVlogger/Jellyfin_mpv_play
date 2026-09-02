@@ -433,7 +433,21 @@ async function handleMessage(msg) {
     if (msg.MessageType === "ForceKeepAlive") {
         const interval = msg.Data || 30;
         log('info', 'ws', `Server requested keep-alive every ${interval}s`);
+        
+        // Immediately respond to ForceKeepAlive
+        if (ws && ws.readyState === WebSocket.OPEN) {
+            try {
+                ws.send(JSON.stringify({ MessageType: 'KeepAlive' }));
+                log('debug', 'ws', '💓 Keep-alive sent (immediate response)');
+            } catch (e) {
+                log('error', 'ws', 'Error sending keep-alive:', e.message);
+            }
+        }
+        
+        // Set up periodic keep-alive at half the server's requested interval
+        // to avoid race conditions with server timeout checks
         if (keepAliveInterval) clearInterval(keepAliveInterval);
+        const keepAliveMs = Math.min(interval * 1000, 30000); // Cap at 30s for safety
         keepAliveInterval = setInterval(() => {
             if (ws && ws.readyState === WebSocket.OPEN) {
                 try {
@@ -443,7 +457,7 @@ async function handleMessage(msg) {
                     log('error', 'ws', 'Error sending keep-alive:', e.message);
                 }
             }
-        }, interval * 1000);
+        }, keepAliveMs);
         return;
     }
     if (msg.MessageType === "Play") {
