@@ -1587,13 +1587,16 @@ async function playNextEpisode() {
 
     if (!currentEpisodeInfo || !currentEpisodeInfo.isSeries) {
         log('info', 'queue', 'ℹ️ Not a series, ending playback.');
-        playQueue = [];
-        queuePosition = -1;
-        isPlayingNext = false;
         if (CONFIG.autoClose) {
+            playQueue = [];
+            queuePosition = -1;
+            isPlayingNext = false;
             shutdown('auto-close');
         } else {
-            killMpv();
+            playQueue = [];
+            queuePosition = -1;
+            isPlayingNext = false;
+            log('info', 'queue', 'ℹ️ Playlist ended, MPV staying open (--keep-open=yes)');
         }
         return;
     }
@@ -1646,13 +1649,16 @@ async function playNextEpisode() {
             sendMpvCommand('playlist-next');
         } else {
             log('info', 'queue', 'ℹ️ No more episodes, ending playback.');
-            playQueue = [];
-            queuePosition = -1;
-            isPlayingNext = false;
             if (CONFIG.autoClose) {
+                playQueue = [];
+                queuePosition = -1;
+                isPlayingNext = false;
                 shutdown('auto-close');
             } else {
-                killMpv();
+                playQueue = [];
+                queuePosition = -1;
+                isPlayingNext = false;
+                log('info', 'queue', 'ℹ️ Playlist ended, MPV staying open (--keep-open=yes)');
             }
         }
     } catch (e) {
