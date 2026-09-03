@@ -107,12 +107,10 @@ let displayMessageOriginalPause = null;
 let displayMessageOriginalFontSize = null;
 let displayMessageOriginalAlignX = null;
 let displayMessageOriginalAlignY = null;
-let isManualSkip = false;
 let isSeeking = false;
 let isNewQueueLoad = false;
 let queueLoadCounter = 0;
 let isPlayingNextTimestamp = 0;
-let previousItemId = null;
 
 let introSegments = [];
 let skipIntroTimeout = null;
@@ -1097,7 +1095,6 @@ async function playMedia(itemId, startTicks) {
             currentEpisodeInfo = null;
             isReportingStop = false;
             isPlayingNext = false;
-            isManualSkip = false;
             isSeeking = false;
             isNewQueueLoad = false;
         });
@@ -1368,10 +1365,6 @@ function startProgressPoll() {
             log('warn', 'queue', '⚠️ isPlayingNext stuck for 30s, resetting');
             isPlayingNext = false;
         }
-        if (isManualSkip && Date.now() - isPlayingNextTimestamp > 10000) {
-            log('warn', 'queue', '⚠️ isManualSkip stuck for 10s, resetting');
-            isManualSkip = false;
-        }
 
         const pos = await queryProperty('time-pos');
         const dur = await queryProperty('duration');
@@ -1512,7 +1505,6 @@ function handleMpvEvent(event) {
 
             queuePosition = newPos;
             currentItemId = playQueue[newPos];
-            previousItemId = null;
             currentPositionSeconds = 0;
 
             log('info', 'queue', `📋 Playlist changed: queuePosition=${queuePosition}, itemId=${currentItemId}`);
@@ -1568,15 +1560,23 @@ async function playNextEpisode() {
     }, 31000);
 
     if (playQueue.length > 0 && queuePosition < playQueue.length - 1) {
-        previousItemId = currentItemId;
-        isManualSkip = true;
+        const prevItemId = currentItemId;
+        const prevPos = currentPositionSeconds;
+        const prevRuntime = currentEpisodeInfo?.itemRuntime || 0;
+        if (prevItemId) {
+            if (prevRuntime > 0 && prevPos >= prevRuntime * 0.9) {
+                markItemAsWatched(prevItemId);
+            }
+            reportPlaybackStop(prevItemId, Math.round(prevPos * 10000000));
+        }
+        stopProgressPoll();
         queuePosition++;
         currentItemId = playQueue[queuePosition];
+        currentPositionSeconds = 0;
         log('info', 'queue', `▶️ Next in queue (${queuePosition + 1}/${playQueue.length})`);
         if (!ipcClient || ipcClient.destroyed || !mpvProcess) {
             log('warn', 'queue', '⚠️ MPV/IPC not available, cannot skip to next');
             isPlayingNext = false;
-            isManualSkip = false;
             return;
         }
         getEpisodeInfo(currentItemId).then(info => {
@@ -1623,10 +1623,8 @@ async function playNextEpisode() {
         }
         const url = `${CONFIG.serverUrl}/Videos/${nextEp.Id}/stream?static=true&api_key=${accessToken}`;
         playQueue.push(nextEp.Id);
-        previousItemId = currentItemId;
         queuePosition = playQueue.length - 1;
         currentItemId = nextEp.Id;
-        isManualSkip = true;
         sendMpvCommand('loadfile', [url, 'append']);
         sendMpvCommand('playlist-next');
         return;
@@ -1650,10 +1648,8 @@ async function playNextEpisode() {
             }
             const url = `${CONFIG.serverUrl}/Videos/${nextUpId}/stream?static=true&api_key=${accessToken}`;
             playQueue.push(nextUpId);
-            previousItemId = currentItemId;
             queuePosition = playQueue.length - 1;
             currentItemId = nextUpId;
-            isManualSkip = true;
             sendMpvCommand('loadfile', [url, 'append']);
             sendMpvCommand('playlist-next');
         } else {
@@ -1717,10 +1713,19 @@ async function playPreviousEpisode() {
     }
 
     if (playQueue.length > 0 && queuePosition > 0) {
-        previousItemId = currentItemId;
+        const prevItemId = currentItemId;
+        const prevPos = currentPositionSeconds;
+        const prevRuntime = currentEpisodeInfo?.itemRuntime || 0;
+        if (prevItemId) {
+            if (prevRuntime > 0 && prevPos >= prevRuntime * 0.9) {
+                markItemAsWatched(prevItemId);
+            }
+            reportPlaybackStop(prevItemId, Math.round(prevPos * 10000000));
+        }
+        stopProgressPoll();
         queuePosition--;
         currentItemId = playQueue[queuePosition];
-        isManualSkip = true;
+        currentPositionSeconds = 0;
         log('info', 'queue', `⏮️ Previous in queue (${queuePosition + 1}/${playQueue.length})`);
         getEpisodeInfo(currentItemId).then(info => {
             currentEpisodeInfo = info;
