@@ -1164,6 +1164,7 @@ function connectToMpvIpc(gen) {
             sendMpvCommand('observe_property', [4, 'volume']);
             sendMpvCommand('observe_property', [5, 'sid']);
             sendMpvCommand('observe_property', [6, 'seeking']);
+            sendMpvCommand('observe_property', [7, 'playlist-pos']);
             
             sendMpvCommand('keybind', ['>', 'script-message jellyfin-next']);
             sendMpvCommand('keybind', ['<', 'script-message jellyfin-prev']);
@@ -1573,6 +1574,49 @@ function handleMpvEvent(event) {
 
     if (event.event === 'property-change' && event.name === 'seeking' && event.data === false) {
         if (currentItemId) reportPlaybackProgress(currentItemId, Math.round(currentPositionSeconds * 10000000));
+        return;
+    }
+
+    if (event.event === 'property-change' && event.name === 'playlist-pos' && typeof event.data === 'number') {
+        const newPos = event.data;
+        if (playQueue.length > 0 && newPos >= 0 && newPos < playQueue.length && newPos !== queuePosition) {
+            const prevItemId = currentItemId;
+            const prevPos = currentPositionSeconds;
+            const prevRuntime = currentEpisodeInfo?.itemRuntime || 0;
+
+            if (prevItemId && prevItemId !== playQueue[newPos]) {
+                if (prevRuntime > 0 && prevPos >= prevRuntime * 0.9) {
+                    markItemAsWatched(prevItemId);
+                }
+                reportPlaybackStop(prevItemId, Math.round(prevPos * 10000000));
+            }
+            stopProgressPoll();
+
+            queuePosition = newPos;
+            currentItemId = playQueue[newPos];
+            previousItemId = null;
+            currentPositionSeconds = 0;
+
+            log('info', 'queue', `📋 Playlist changed: queuePosition=${queuePosition}, itemId=${currentItemId}`);
+
+            getEpisodeInfo(currentItemId).then(info => {
+                currentEpisodeInfo = info;
+                const titleText = info.isSeries
+                    ? [info.seriesName, `${info.seasonNumber}x${info.episodeNumber}`, info.title].filter(Boolean).join(' - ')
+                    : (info.title || String(currentItemId));
+                log('info', 'queue', `▶️ Starting next episode: ${titleText}`);
+                sendMpvCommand('set_property', ['force-media-title', `Jellyfin - ${titleText}`]);
+                sendMpvCommand('set_property', ['title', `Jellyfin - ${titleText}`]);
+                playSessionId = crypto.randomUUID();
+                reportPlaybackStart(currentItemId, 0);
+                startProgressReporting(currentItemId);
+                getIntroSegments(currentItemId);
+                startProgressPoll();
+            }).catch(err => {
+                log('error', 'episode', '⚠️ Error getting episode info:', err.message);
+                startProgressPoll();
+            });
+        }
         return;
     }
 
