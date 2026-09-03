@@ -101,6 +101,7 @@ const pendingQueries = new Map();
 const markedWatched = new Set();
 
 let playQueue = [];
+let playQueueTitles = [];
 let queuePosition = -1;
 let displayMessageTimeout = null;
 let displayMessageOriginalPause = null;
@@ -502,6 +503,7 @@ async function handleMessage(msg) {
             if (playCommand === 'PlayNext') {
                 const insertAt = queuePosition + 1;
                 playQueue.splice(insertAt, 0, ...orderedItems);
+                for (let i = 0; i < orderedItems.length; i++) { playQueueTitles.splice(insertAt + i, 0, ''); }
                 for (let i = 0; i < orderedItems.length; i++) {
                     const url = `${CONFIG.serverUrl}/Videos/${orderedItems[i]}/stream?static=true&api_key=${accessToken}`;
                     sendMpvCommand('loadfile', [url, 'insert-at-index', insertAt + i]);
@@ -510,6 +512,7 @@ async function handleMessage(msg) {
                 return;
             } else if (playCommand === 'PlayLast') {
                 playQueue.push(...orderedItems);
+                for (let i = 0; i < orderedItems.length; i++) { playQueueTitles.push(''); }
                 for (const id of orderedItems) {
                     const url = `${CONFIG.serverUrl}/Videos/${id}/stream?static=true&api_key=${accessToken}`;
                     sendMpvCommand('loadfile', [url, 'append']);
@@ -523,6 +526,7 @@ async function handleMessage(msg) {
                         const info = await getEpisodeInfo(orderedItems[0], true);
                         if (info.isSeries && info.seasonNumber > 0 && info.episodes && info.episodes.length > orderedItems.length) {
                             playQueue = info.episodes.map(ep => ep.Id);
+                            playQueueTitles = info.episodes.map(ep => `${info.seriesName} - ${info.seasonNumber}x${ep.IndexNumber} - ${ep.Name}`);
                             queuePosition = info.currentIndex >= 0 ? info.currentIndex : 0;
                             targetId = playQueue[queuePosition];
                             log('info', 'queue', `📋 Full season queue: ${playQueue.length} episodes, starting at ${queuePosition + 1} (${info.seriesName} S${info.seasonNumber})`);
@@ -533,11 +537,13 @@ async function handleMessage(msg) {
                                 const nextUpInfo = await getEpisodeInfo(nextUpId, true);
                                 if (nextUpInfo.isSeries && nextUpInfo.episodes && nextUpInfo.episodes.length > 0) {
                                     playQueue = nextUpInfo.episodes.map(ep => ep.Id);
+                                    playQueueTitles = nextUpInfo.episodes.map(ep => `${nextUpInfo.seriesName} - ${nextUpInfo.seasonNumber}x${ep.IndexNumber} - ${ep.Name}`);
                                     queuePosition = nextUpInfo.currentIndex >= 0 ? nextUpInfo.currentIndex : 0;
                                     targetId = playQueue[queuePosition];
                                     log('info', 'queue', `📋 Full season queue: ${playQueue.length} episodes, starting at ${queuePosition + 1} (${nextUpInfo.seriesName} S${nextUpInfo.seasonNumber})`);
                                 } else {
                                     playQueue = [...orderedItems];
+                                    playQueueTitles = [];
                                     queuePosition = startIndex;
                                     log('info', 'queue', `📋 Queue set: ${playQueue.length} items, starting at index ${queuePosition}`);
                                 }
@@ -559,32 +565,38 @@ async function handleMessage(msg) {
                                     const eps = [...epsResponse.data.Items].sort((a, b) => a.IndexNumber - b.IndexNumber);
                                     if (eps.length > 0) {
                                         playQueue = eps.map(ep => ep.Id);
+                                        playQueueTitles = eps.map(ep => `${info.seriesName} - ${season1.IndexNumber}x${ep.IndexNumber} - ${ep.Name}`);
                                         queuePosition = 0;
                                         targetId = playQueue[0];
                                         log('info', 'queue', `📋 Full season queue: ${playQueue.length} episodes, starting at 1 (${info.seriesName} S${season1.IndexNumber})`);
                                     } else {
                                         playQueue = [...orderedItems];
+                                        playQueueTitles = [];
                                         queuePosition = startIndex;
                                         log('info', 'queue', `📋 Queue set: ${playQueue.length} items, starting at index ${queuePosition}`);
                                     }
                                 } else {
                                     playQueue = [...orderedItems];
+                                    playQueueTitles = [];
                                     queuePosition = startIndex;
                                     log('info', 'queue', `📋 Queue set: ${playQueue.length} items, starting at index ${queuePosition}`);
                                 }
                             }
                         } else {
                             playQueue = [...orderedItems];
+                                    playQueueTitles = [];
                             queuePosition = startIndex;
                             log('info', 'queue', `📋 Queue set: ${playQueue.length} items, starting at index ${queuePosition}`);
                         }
                     } catch (e) {
                         playQueue = [...orderedItems];
+                                    playQueueTitles = [];
                         queuePosition = startIndex;
                         log('info', 'queue', `📋 Queue set: ${playQueue.length} items, starting at index ${queuePosition}`);
                     }
                 } else {
                     playQueue = [...orderedItems];
+                                    playQueueTitles = [];
                     queuePosition = startIndex;
                     log('info', 'queue', `📋 Queue set: ${playQueue.length} items, starting at index ${queuePosition}`);
                 }
@@ -972,7 +984,8 @@ async function loadNewQueue(itemId, startTicks) {
     sendMpvCommand('playlist-clear');
     for (let i = 0; i < playQueue.length; i++) {
         const url = `${CONFIG.serverUrl}/Videos/${playQueue[i]}/stream?static=true&api_key=${accessToken}`;
-        sendMpvCommand('loadfile', [url, i === 0 ? 'replace' : 'append']);
+        const opts = playQueueTitles[i] ? {title: playQueueTitles[i]} : undefined;
+        sendMpvCommand('loadfile', [url, i === 0 ? 'replace' : 'append', 0, opts]);
     }
     queueLoadCounter = 1;
     log('info', 'queue', `📋 Loaded ${playQueue.length} items into MPV playlist.`);
@@ -1203,7 +1216,8 @@ function connectToMpvIpc(gen) {
                     log('info', 'ipc', '📡 Loading playlist into MPV...');
                     for (let i = 0; i < playQueue.length; i++) {
                         const url = `${CONFIG.serverUrl}/Videos/${playQueue[i]}/stream?static=true&api_key=${accessToken}`;
-                        sendMpvCommand('loadfile', [url, i === 0 ? 'replace' : 'append']);
+                        const opts = playQueueTitles[i] ? {title: playQueueTitles[i]} : undefined;
+                        sendMpvCommand('loadfile', [url, i === 0 ? 'replace' : 'append', 0, opts]);
                     }
                     log('info', 'ipc', `    ✅ Loaded ${playQueue.length} items into playlist.`);
 
@@ -1671,10 +1685,12 @@ async function playNextEpisode() {
             return;
         }
         const url = `${CONFIG.serverUrl}/Videos/${nextEp.Id}/stream?static=true&api_key=${accessToken}`;
+        const nextTitle = `${currentEpisodeInfo.seriesName} - ${currentEpisodeInfo.seasonNumber}x${nextEp.IndexNumber} - ${nextEp.Name}`;
         playQueue.push(nextEp.Id);
+        playQueueTitles.push(nextTitle);
         queuePosition = playQueue.length - 1;
         currentItemId = nextEp.Id;
-        sendMpvCommand('loadfile', [url, 'append']);
+        sendMpvCommand('loadfile', [url, 'append', 0, {title: nextTitle}]);
         sendMpvCommand('playlist-next');
         return;
     }
@@ -1697,9 +1713,10 @@ async function playNextEpisode() {
             }
             const url = `${CONFIG.serverUrl}/Videos/${nextUpId}/stream?static=true&api_key=${accessToken}`;
             playQueue.push(nextUpId);
+            playQueueTitles.push(nextUpTitle);
             queuePosition = playQueue.length - 1;
             currentItemId = nextUpId;
-            sendMpvCommand('loadfile', [url, 'append']);
+            sendMpvCommand('loadfile', [url, 'append', 0, {title: nextUpTitle}]);
             sendMpvCommand('playlist-next');
         } else {
             log('info', 'queue', 'ℹ️ No more episodes, ending playback.');
