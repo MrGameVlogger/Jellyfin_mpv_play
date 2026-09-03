@@ -254,7 +254,12 @@ class NodeProcessManager {
             let pathBytes = Array(path.utf8CString)
             withUnsafeMutableBytes(of: &addr.sun_path) { buf in
                 guard let baseAddr = buf.baseAddress else { return }
-                _ = memcpy(baseAddr, pathBytes, min(pathBytes.count, buf.count))
+                // Truncate to fit in sun_path with null terminator
+                let maxLen = min(pathBytes.count, buf.count - 1)
+                _ = memcpy(baseAddr, pathBytes, maxLen)
+                // Ensure null termination
+                let nullPos = min(maxLen, buf.count - 1)
+                baseAddr.storeBytes(of: 0, toByteOffset: nullPos, as: UInt8.self)
             }
 
             let addrLen = socklen_t(MemoryLayout<sockaddr_un>.size)
@@ -375,27 +380,34 @@ class NodeProcessManager {
 
     private func extractTitleFromEpisode(_ line: String) -> String? {
         if let range = line.range(of: "Episode detected: ") {
-            return String(line[range.upperBound...])
+            let title = String(line[range.upperBound...]).trimmingCharacters(in: .whitespaces)
+            return title.isEmpty ? nil : title
         }
         if let range = line.range(of: "--force-media-title=") {
             let after = String(line[range.upperBound...])
             if after.hasPrefix("\"") {
                 let withoutQuote = String(after.dropFirst())
                 if let endQuote = withoutQuote.range(of: "\"") {
-                    return String(withoutQuote[..<endQuote.lowerBound])
+                    let title = String(withoutQuote[..<endQuote.lowerBound]).trimmingCharacters(in: .whitespaces)
+                    return title.isEmpty ? nil : title
                 }
-                return withoutQuote.trimmingCharacters(in: .whitespaces)
+                let title = withoutQuote.trimmingCharacters(in: .whitespaces)
+                return title.isEmpty ? nil : title
             } else if after.hasPrefix("'") {
                 let withoutQuote = String(after.dropFirst())
                 if let endQuote = withoutQuote.range(of: "'") {
-                    return String(withoutQuote[..<endQuote.lowerBound])
+                    let title = String(withoutQuote[..<endQuote.lowerBound]).trimmingCharacters(in: .whitespaces)
+                    return title.isEmpty ? nil : title
                 }
-                return withoutQuote.trimmingCharacters(in: .whitespaces)
+                let title = withoutQuote.trimmingCharacters(in: .whitespaces)
+                return title.isEmpty ? nil : title
             }
             if let end = after.range(of: " ") {
-                return String(after[..<end.lowerBound])
+                let title = String(after[..<end.lowerBound]).trimmingCharacters(in: .whitespaces)
+                return title.isEmpty ? nil : title
             }
-            return after.trimmingCharacters(in: .whitespaces)
+            let title = after.trimmingCharacters(in: .whitespaces)
+            return title.isEmpty ? nil : title
         }
         return nil
     }

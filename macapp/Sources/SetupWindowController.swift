@@ -369,24 +369,40 @@ class SetupWindowController: NSWindowController, NSWindowDelegate {
         let name = deviceNameField?.stringValue ?? "Mac"
         let id = deviceIdField?.stringValue ?? "mac-mpv"
 
-        let config = """
-        module.exports = {
-            serverUrl: '\(ConfigParser.escapeConfigValue(server))',
-            username: '\(ConfigParser.escapeConfigValue(user))',
-            password: '\(ConfigParser.escapeConfigValue(pass))',
-            mpvPath: '\(ConfigParser.escapeConfigValue(mpv))',
-            deviceName: '\(ConfigParser.escapeConfigValue(name))',
-            deviceId: '\(ConfigParser.escapeConfigValue(id))'
-        };
-        """
+        var lines: [String] = [
+            "module.exports = {",
+            "    serverUrl: '\(ConfigParser.escapeConfigValue(server))',",
+            "    username: '\(ConfigParser.escapeConfigValue(user))',",
+            "    password: '\(ConfigParser.escapeConfigValue(pass))',",
+            "    mpvPath: '\(ConfigParser.escapeConfigValue(mpv))',",
+            "    deviceName: '\(ConfigParser.escapeConfigValue(name))',",
+            "    deviceId: '\(ConfigParser.escapeConfigValue(id))',",
+        ]
+
+        // Preserve existing config options that the setup wizard doesn't set
+        if let content = ConfigParser.loadConfigContent() {
+            let preserveKeys = ["ipcSocketPath", "mpvFlags", "fullscreen", "autoClose", "headless", "autoSkipIntros", "disableSkipIntro", "verbose"]
+            for key in preserveKeys {
+                let value = ConfigParser.extractValue(from: content, key: key)
+                if !value.isEmpty {
+                    if value == "true" || value == "false" {
+                        lines.append("    \(key): \(value),")
+                    } else {
+                        lines.append("    \(key): '\(ConfigParser.escapeConfigValue(value))',")
+                    }
+                }
+            }
+        }
+
+        lines.append("};")
 
         let configPath = ConfigParser.configPath()
 
         do {
             let configDir = (configPath as NSString).deletingLastPathComponent
             try FileManager.default.createDirectory(atPath: configDir, withIntermediateDirectories: true)
-            let dedented = config.components(separatedBy: "\n").map { $0.trimmingCharacters(in: .whitespaces) }.joined(separator: "\n")
-            try dedented.write(toFile: configPath, atomically: true, encoding: .utf8)
+            let config = lines.joined(separator: "\n")
+            try config.write(toFile: configPath, atomically: true, encoding: .utf8)
             didComplete = true
             onComplete?()
             window?.close()
