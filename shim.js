@@ -923,14 +923,17 @@ async function loadNewQueue(itemId, startTicks) {
     pendingSubtitleStreamIndex = undefined;
 
     sendMpvCommand('playlist-clear');
-    const firstUrl = `${CONFIG.serverUrl}/Videos/${itemId}/stream?static=true&api_key=${accessToken}`;
-    sendMpvCommand('loadfile', [firstUrl, 'replace']);
-    queueLoadCounter = 1; // Only the 'replace' load triggers file-loaded
-    for (let i = 1; i < playQueue.length; i++) {
+    for (let i = 0; i < playQueue.length; i++) {
         const url = `${CONFIG.serverUrl}/Videos/${playQueue[i]}/stream?static=true&api_key=${accessToken}`;
-        sendMpvCommand('loadfile', [url, 'append']);
+        sendMpvCommand('loadfile', [url, i === 0 ? 'replace' : 'append']);
     }
+    queueLoadCounter = 1;
     log('info', 'queue', `📋 Loaded ${playQueue.length} items into MPV playlist.`);
+
+    // If the requested item isn't the first in the queue, seek MPV to the right playlist position
+    if (queuePosition > 0) {
+        sendMpvCommand('set_property', ['playlist-pos', queuePosition]);
+    }
 
     if (savedAudioIndex !== undefined) {
         sendMpvCommand('set_property', ['aid', savedAudioIndex]);
