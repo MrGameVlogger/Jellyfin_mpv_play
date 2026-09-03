@@ -984,8 +984,9 @@ async function loadNewQueue(itemId, startTicks) {
     sendMpvCommand('playlist-clear');
     for (let i = 0; i < playQueue.length; i++) {
         const url = `${CONFIG.serverUrl}/Videos/${playQueue[i]}/stream?static=true&api_key=${accessToken}`;
-        const opts = playQueueTitles[i] ? {title: playQueueTitles[i]} : undefined;
-        sendMpvCommand('loadfile', [url, i === 0 ? 'replace' : 'append', 0, opts]);
+        const args = [url, i === 0 ? 'replace' : 'append', 0];
+        if (playQueueTitles[i]) args.push({title: playQueueTitles[i]});
+        sendMpvCommand('loadfile', args);
     }
     queueLoadCounter = 1;
     log('info', 'queue', `📋 Loaded ${playQueue.length} items into MPV playlist.`);
@@ -1216,8 +1217,9 @@ function connectToMpvIpc(gen) {
                     log('info', 'ipc', '📡 Loading playlist into MPV...');
                     for (let i = 0; i < playQueue.length; i++) {
                         const url = `${CONFIG.serverUrl}/Videos/${playQueue[i]}/stream?static=true&api_key=${accessToken}`;
-                        const opts = playQueueTitles[i] ? {title: playQueueTitles[i]} : undefined;
-                        sendMpvCommand('loadfile', [url, i === 0 ? 'replace' : 'append', 0, opts]);
+                        const args = [url, i === 0 ? 'replace' : 'append', 0];
+                        if (playQueueTitles[i]) args.push({title: playQueueTitles[i]});
+                        sendMpvCommand('loadfile', args);
                     }
                     log('info', 'ipc', `    ✅ Loaded ${playQueue.length} items into playlist.`);
 
