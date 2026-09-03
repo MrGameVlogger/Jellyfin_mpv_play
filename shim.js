@@ -985,7 +985,7 @@ async function loadNewQueue(itemId, startTicks) {
     for (let i = 0; i < playQueue.length; i++) {
         const url = `${CONFIG.serverUrl}/Videos/${playQueue[i]}/stream?static=true&api_key=${accessToken}`;
         const args = [url, i === 0 ? 'replace' : 'append', 0];
-        if (playQueueTitles[i]) args.push({'force-media-title': playQueueTitles[i]});
+        if (playQueueTitles[i]) args.push(`force-media-title=${playQueueTitles[i]}`);
         sendMpvCommand('loadfile', args);
     }
     queueLoadCounter = 1;
@@ -1218,7 +1218,7 @@ function connectToMpvIpc(gen) {
                     for (let i = 0; i < playQueue.length; i++) {
                         const url = `${CONFIG.serverUrl}/Videos/${playQueue[i]}/stream?static=true&api_key=${accessToken}`;
                         const args = [url, i === 0 ? 'replace' : 'append', 0];
-                        if (playQueueTitles[i]) args.push({'force-media-title': playQueueTitles[i]});
+                        if (playQueueTitles[i]) args.push(`force-media-title=${playQueueTitles[i]}`);
                         sendMpvCommand('loadfile', args);
                     }
                     log('info', 'ipc', `    ✅ Loaded ${playQueue.length} items into playlist.`);
