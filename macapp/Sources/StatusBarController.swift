@@ -253,6 +253,9 @@ class StatusBarController: NSObject, NSMenuDelegate {
             menu.items.first { $0.title == "Open at Login" }?.state =
                 SMAppService.mainApp.status == .enabled ? .on : .off
         } catch {
+            // Revert the checkbox state on error
+            menu.items.first { $0.title == "Open at Login" }?.state =
+                SMAppService.mainApp.status == .enabled ? .on : .off
             let alert = NSAlert()
             alert.messageText = "Failed to update login item"
             alert.informativeText = error.localizedDescription

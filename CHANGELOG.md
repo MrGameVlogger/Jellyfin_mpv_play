@@ -18,6 +18,37 @@ All notable changes to Jellyfin MPV Play are documented here.
 
 -->
 
+## v1.10.0
+
+### New Features
+- **Full season queue** — Playing a single episode now loads all episodes from that season into the playlist, allowing back-and-forth navigation
+- **NextUp for specials** — When Jellyfin sends specials (season 0) from the show page, the shim uses the NextUp API to find the next unwatched episode from the regular season
+- **Playlist navigation observer** — Added `playlist-pos` property observer to detect all MPV navigation (auto-advance, native keys, keybinds) reliably
+
+### Bug Fixes
+- **Fixed episode name on queue skip** — Episode title now updates correctly when navigating via Jellyfin commands or keybinds
+- **Fixed log window scrolling** — Log window no longer flickers when logs are rapidly written (batched text storage edits)
+- **Fixed duplicate keyboard shortcut** — "Copy Log to Clipboard" now uses Shift+Cmd+C to avoid conflicting with "Copy Now Playing"
+- **Fixed config options dropped on save** — Preferences now preserves `ipcSocketPath` and `mpvFlags` when saving
+- **Fixed Linux service file path** — `--install-service` now checks both `linux/` subdir and bundle root for the service file
+- **Fixed reportPlaybackStart IsPaused** — Now reports actual pause state instead of hardcoded `false`
+- **Fixed isSeeking race condition** — Seek flag now uses timeout instead of synchronous clear
+- **Fixed getIntroSegments error handling** — Added missing `.catch()` in playlist-pos handler
+- **Fixed extractTitleFromEpisode empty string** — Now returns `nil` for empty titles instead of setting `nowPlaying` to empty string
+- **Fixed toggleOpenAtLogin state** — Menu item state now reverts on error
+- **Fixed socket path buffer overflow** — Truncates path to fit `sun_path` with null terminator
+- **Fixed setup wizard config overwrite** — Now preserves existing config options (ipcSocketPath, mpvFlags, fullscreen, etc.)
+
+### Internal
+- **Simplified file-loaded handler** — Removed redundant navigation detection logic (now handled by playlist-pos observer)
+- **Added syntax check test** — `node --check shim.js` catches syntax errors before they reach production
+- **Added quality tests** — 6 new tests for duplicate shortcuts, command coverage, hardcoded secrets, version consistency, and SupportedCommands enum names
+- **Removed dead code** — Cleaned up `isManualSkip` and `previousItemId` variables
+- **Updated documentation** — Fixed stale line counts, test suite claims, and Node.js version requirements
+- **Removed dead test files** — Deleted `.js` duplicates of `.mjs` test files
+
+---
+
 ## v1.9.2
 
 ### Bug Fixes

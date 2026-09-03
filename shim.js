@@ -1569,7 +1569,9 @@ function handleMpvEvent(event) {
                 playSessionId = crypto.randomUUID();
                 reportPlaybackStart(currentItemId, 0);
                 startProgressReporting(currentItemId);
-                getIntroSegments(currentItemId);
+                    getIntroSegments(currentItemId).catch(err => {
+                        log('error', 'segments', '⚠️ Error getting intro segments:', err.message);
+                    });
                 startProgressPoll();
             }).catch(err => {
                 log('error', 'episode', '⚠️ Error getting episode info:', err.message);
@@ -1757,7 +1759,7 @@ async function playPreviousEpisode() {
         currentPositionSeconds = 0;
         if (currentItemId) reportPlaybackProgress(currentItemId, 0);
         isPlayingNext = false;
-        isSeeking = false;
+        setTimeout(() => { isSeeking = false; }, 1000);
         return;
     }
 
@@ -1821,7 +1823,7 @@ function reportPlaybackStart(itemId, positionTicks) {
         ItemId: itemId,
         MediaSourceId: itemId,
         PositionTicks: positionTicks,
-        IsPaused: false,
+        IsPaused: isMpvPaused,
         IsMuted: isMuted,
         VolumeLevel: volumeLevel,
         PlayMethod: 'DirectPlay',

@@ -6,7 +6,7 @@ Thanks for your interest in contributing! This is a fork of [JohnGlaus/Jellyfin_
 
 ### Prerequisites
 
-- **Node.js** v18+ (for running the shim directly)
+- **Node.js** v22 LTS (recommended) or v18+ (minimum, for running the shim directly)
 - **MPV Player** — [mpv.io](https://mpv.io/installation/)
 - **Jellyfin Server** — for testing
 - **Xcode Command Line Tools** (macOS only, for building the native app)
@@ -35,7 +35,7 @@ This compiles the Swift sources, bundles Node.js 22 LTS, and deploys to `/Applic
 
 ```
 Jellyfin_mpv_play/
-├── shim.js                  # Main Node.js application (~1960 lines)
+├── shim.js                  # Main Node.js application (~2000 lines)
 ├── config.example.js        # Configuration template
 ├── package.json
 ├── macapp/
