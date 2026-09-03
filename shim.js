@@ -1579,6 +1579,17 @@ async function playNextEpisode() {
             isManualSkip = false;
             return;
         }
+        getEpisodeInfo(currentItemId).then(info => {
+            currentEpisodeInfo = info;
+            const titleText = info.isSeries
+                ? [info.seriesName, `${info.seasonNumber}x${info.episodeNumber}`, info.title].filter(Boolean).join(' - ')
+                : (info.title || String(currentItemId));
+            log('info', 'queue', `▶️ Starting next episode: ${titleText}`);
+            sendMpvCommand('set_property', ['force-media-title', `Jellyfin - ${titleText}`]);
+            sendMpvCommand('set_property', ['title', `Jellyfin - ${titleText}`]);
+        }).catch(err => {
+            log('error', 'episode', '⚠️ Error getting episode info:', err.message);
+        });
         sendMpvCommand('playlist-next');
         return;
     }
@@ -1711,6 +1722,17 @@ async function playPreviousEpisode() {
         currentItemId = playQueue[queuePosition];
         isManualSkip = true;
         log('info', 'queue', `⏮️ Previous in queue (${queuePosition + 1}/${playQueue.length})`);
+        getEpisodeInfo(currentItemId).then(info => {
+            currentEpisodeInfo = info;
+            const titleText = info.isSeries
+                ? [info.seriesName, `${info.seasonNumber}x${info.episodeNumber}`, info.title].filter(Boolean).join(' - ')
+                : (info.title || String(currentItemId));
+            log('info', 'queue', `▶️ Starting previous episode: ${titleText}`);
+            sendMpvCommand('set_property', ['force-media-title', `Jellyfin - ${titleText}`]);
+            sendMpvCommand('set_property', ['title', `Jellyfin - ${titleText}`]);
+        }).catch(err => {
+            log('error', 'episode', '⚠️ Error getting episode info:', err.message);
+        });
         sendMpvCommand('playlist-prev');
         return;
     }
