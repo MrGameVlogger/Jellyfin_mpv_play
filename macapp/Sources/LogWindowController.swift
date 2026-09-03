@@ -69,12 +69,10 @@ class LogWindowController: NSWindowController {
                 .foregroundColor: colorForLine(line)
             ]
         )
+
+        textView.textStorage?.beginEditing()
         textView.textStorage?.append(attributedString)
         lineCount += 1
-
-        if autoScroll {
-            textView.scrollRangeToVisible(NSRange(location: (textView.string as NSString).length, length: 0))
-        }
 
         if lineCount > 1000 {
             let nsString = textView.string as NSString
@@ -84,6 +82,11 @@ class LogWindowController: NSWindowController {
                 textView.textStorage?.deleteCharacters(in: NSRange(location: 0, length: range.location + 1))
                 lineCount = textView.string.components(separatedBy: .newlines).count
             }
+        }
+        textView.textStorage?.endEditing()
+
+        if autoScroll {
+            textView.scrollRangeToVisible(NSRange(location: (textView.string as NSString).length, length: 0))
         }
     }
 
