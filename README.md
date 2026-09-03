@@ -227,6 +227,14 @@ A drop-in replacement for [thumbfast](https://github.com/po5/thumbfast) that fet
 
 **Install:** Download `thumbfast-jellyfin.lua` and place it as `thumbfast.lua` in your MPV scripts directory (`~/.config/mpv/scripts/` on Linux/macOS, `%APPDATA%\mpv\scripts\` on Windows).
 
+### [jf-mpv-osc](https://github.com/iwalton3/jf-mpv-osc) — Jellyfin-Styled Player UI
+
+Replaces MPV's default on-screen controller with a Jellyfin-styled UI: Material icons, action sheets for subtitle/audio selection, floating Skip Intro/Skip Credits button, and thumbnail seek previews. The shim automatically detects and integrates with it when installed.
+
+**Requirements:** MPV v0.38+
+
+**Install:** Download `trickplay-jf-osc.lua` and place it in your MPV scripts directory. Add `--script=trickplay-jf-osc.lua --osc=no` to your `mpvFlags` in `config.js`.
+
 ---
 
 ## Auto-Start (Optional)
