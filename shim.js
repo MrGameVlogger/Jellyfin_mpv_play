@@ -517,11 +517,11 @@ async function handleMessage(msg) {
                 log('info', 'queue', `➕ Appended ${orderedItems.length} item(s) to queue (total: ${playQueue.length})`);
                 return;
             } else {
-                // For single episodes, expand to full season queue
-                if (orderedItems.length === 1) {
+                // Expand to full season queue if items are episodes from the same season
+                if (orderedItems.length >= 1) {
                     try {
                         const info = await getEpisodeInfo(orderedItems[0], true);
-                        if (info.isSeries && info.episodes && info.episodes.length > 1) {
+                        if (info.isSeries && info.episodes && info.episodes.length > orderedItems.length) {
                             playQueue = info.episodes.map(ep => ep.Id);
                             queuePosition = info.currentIndex >= 0 ? info.currentIndex : 0;
                             targetId = playQueue[queuePosition];
