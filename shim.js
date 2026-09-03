@@ -521,7 +521,7 @@ async function handleMessage(msg) {
                 if (orderedItems.length >= 1) {
                     try {
                         const info = await getEpisodeInfo(orderedItems[0], true);
-                        if (info.isSeries && info.episodes && info.episodes.length > orderedItems.length) {
+                        if (info.isSeries && info.seasonNumber > 0 && info.episodes && info.episodes.length > orderedItems.length) {
                             playQueue = info.episodes.map(ep => ep.Id);
                             queuePosition = info.currentIndex >= 0 ? info.currentIndex : 0;
                             targetId = playQueue[queuePosition];
