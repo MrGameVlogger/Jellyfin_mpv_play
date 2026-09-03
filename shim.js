@@ -527,35 +527,51 @@ async function handleMessage(msg) {
                             targetId = playQueue[queuePosition];
                             log('info', 'queue', `📋 Full season queue: ${playQueue.length} episodes, starting at ${queuePosition + 1} (${info.seriesName} S${info.seasonNumber})`);
                         } else if (info.isSeries && info.seasonNumber === 0) {
-                            // First episode is from Specials — fetch season 1 instead
-                            const headers = getAuthHeaders();
-                            const seasonsResponse = await axios.get(`${CONFIG.serverUrl}/Shows/${info.seriesId}/Seasons`, { headers });
-                            const seasons = (seasonsResponse.data.Items || []).filter(s => s.IndexNumber > 0).sort((a, b) => a.IndexNumber - b.IndexNumber);
-                            if (seasons.length > 0) {
-                                const season1 = seasons[0];
-                                const epsResponse = await axios.get(`${CONFIG.serverUrl}/Shows/${info.seriesId}/Episodes`, {
-                                    headers,
-                                    params: {
-                                        seasonId: season1.Id,
-                                        userId: userId,
-                                        fields: 'Path,IndexNumber,ParentIndexNumber,SeriesName,Name,UserData'
-                                    }
-                                });
-                                const eps = [...epsResponse.data.Items].sort((a, b) => a.IndexNumber - b.IndexNumber);
-                                if (eps.length > 0) {
-                                    playQueue = eps.map(ep => ep.Id);
-                                    queuePosition = 0;
-                                    targetId = playQueue[0];
-                                    log('info', 'queue', `📋 Full season queue: ${playQueue.length} episodes, starting at 1 (${info.seriesName} S${season1.IndexNumber})`);
+                            // First episode is from Specials — find next unwatched episode
+                            const nextUpId = await queryNextUp(info.seriesId);
+                            if (nextUpId) {
+                                const nextUpInfo = await getEpisodeInfo(nextUpId, true);
+                                if (nextUpInfo.isSeries && nextUpInfo.episodes && nextUpInfo.episodes.length > 0) {
+                                    playQueue = nextUpInfo.episodes.map(ep => ep.Id);
+                                    queuePosition = nextUpInfo.currentIndex >= 0 ? nextUpInfo.currentIndex : 0;
+                                    targetId = playQueue[queuePosition];
+                                    log('info', 'queue', `📋 Full season queue: ${playQueue.length} episodes, starting at ${queuePosition + 1} (${nextUpInfo.seriesName} S${nextUpInfo.seasonNumber})`);
                                 } else {
                                     playQueue = [...orderedItems];
                                     queuePosition = startIndex;
                                     log('info', 'queue', `📋 Queue set: ${playQueue.length} items, starting at index ${queuePosition}`);
                                 }
                             } else {
-                                playQueue = [...orderedItems];
-                                queuePosition = startIndex;
-                                log('info', 'queue', `📋 Queue set: ${playQueue.length} items, starting at index ${queuePosition}`);
+                                // No next up — fall back to season 1
+                                const headers = getAuthHeaders();
+                                const seasonsResponse = await axios.get(`${CONFIG.serverUrl}/Shows/${info.seriesId}/Seasons`, { headers });
+                                const seasons = (seasonsResponse.data.Items || []).filter(s => s.IndexNumber > 0).sort((a, b) => a.IndexNumber - b.IndexNumber);
+                                if (seasons.length > 0) {
+                                    const season1 = seasons[0];
+                                    const epsResponse = await axios.get(`${CONFIG.serverUrl}/Shows/${info.seriesId}/Episodes`, {
+                                        headers,
+                                        params: {
+                                            seasonId: season1.Id,
+                                            userId: userId,
+                                            fields: 'Path,IndexNumber,ParentIndexNumber,SeriesName,Name,UserData'
+                                        }
+                                    });
+                                    const eps = [...epsResponse.data.Items].sort((a, b) => a.IndexNumber - b.IndexNumber);
+                                    if (eps.length > 0) {
+                                        playQueue = eps.map(ep => ep.Id);
+                                        queuePosition = 0;
+                                        targetId = playQueue[0];
+                                        log('info', 'queue', `📋 Full season queue: ${playQueue.length} episodes, starting at 1 (${info.seriesName} S${season1.IndexNumber})`);
+                                    } else {
+                                        playQueue = [...orderedItems];
+                                        queuePosition = startIndex;
+                                        log('info', 'queue', `📋 Queue set: ${playQueue.length} items, starting at index ${queuePosition}`);
+                                    }
+                                } else {
+                                    playQueue = [...orderedItems];
+                                    queuePosition = startIndex;
+                                    log('info', 'queue', `📋 Queue set: ${playQueue.length} items, starting at index ${queuePosition}`);
+                                }
                             }
                         } else {
                             playQueue = [...orderedItems];
