@@ -319,6 +319,17 @@ class PreferencesWindowController: NSWindowController {
             "    deviceId: '\(ConfigParser.escapeConfigValue(deviceIdField.stringValue))',",
         ]
 
+        if let content = ConfigParser.loadConfigContent() {
+            let ipcPath = ConfigParser.extractValue(from: content, key: "ipcSocketPath")
+            if !ipcPath.isEmpty {
+                lines.append("    ipcSocketPath: '\(ConfigParser.escapeConfigValue(ipcPath))',")
+            }
+            let mpvFlags = ConfigParser.extractValue(from: content, key: "mpvFlags")
+            if !mpvFlags.isEmpty {
+                lines.append("    mpvFlags: \(mpvFlags),")
+            }
+        }
+
         lines.append("    fullscreen: \(fullscreenCheckbox.state == .on ? "true" : "false"),")
         lines.append("    autoClose: \(autoCloseCheckbox.state == .on ? "true" : "false"),")
         lines.append("    headless: \(headlessCheckbox.state == .on ? "true" : "false"),")

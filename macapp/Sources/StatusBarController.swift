@@ -64,7 +64,7 @@ class StatusBarController: NSObject, NSMenuDelegate {
         showLogsItem.target = self
         menu.addItem(showLogsItem)
 
-        let copyLogItem = NSMenuItem(title: "Copy Log to Clipboard", action: #selector(copyLog), keyEquivalent: "c")
+        let copyLogItem = NSMenuItem(title: "Copy Log to Clipboard", action: #selector(copyLog), keyEquivalent: "C")
         copyLogItem.target = self
         menu.addItem(copyLogItem)
 
