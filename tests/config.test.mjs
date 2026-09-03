@@ -1,9 +1,18 @@
 import { test } from 'node:test';
 import assert from 'node:assert';
 import fs from 'fs';
+import { execSync } from 'child_process';
 import { createRequire } from 'module';
 
 const require = createRequire(import.meta.url);
+
+test('shim.js has valid JavaScript syntax', () => {
+  try {
+    execSync('node --check shim.js', { encoding: 'utf8' });
+  } catch (e) {
+    assert.fail(`shim.js has syntax errors:\n${e.stderr}`);
+  }
+});
 
 test('config.example.js is valid JavaScript', () => {
   const config = require('../config.example.js');

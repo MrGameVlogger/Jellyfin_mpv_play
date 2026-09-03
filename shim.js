@@ -1685,7 +1685,6 @@ async function playNextEpisode() {
             return;
         }
         const url = `${CONFIG.serverUrl}/Videos/${nextEp.Id}/stream?static=true&api_key=${accessToken}`;
-        const nextTitle = `${currentEpisodeInfo.seriesName} - ${currentEpisodeInfo.seasonNumber}x${nextEp.IndexNumber} - ${nextEp.Name}`;
         playQueue.push(nextEp.Id);
         playQueueTitles.push(nextTitle);
         queuePosition = playQueue.length - 1;
