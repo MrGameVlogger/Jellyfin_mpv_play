@@ -354,6 +354,12 @@ See [CHANGELOG.md](CHANGELOG.md) for full release history.
 
 ### Recent Releases
 
+**v1.10.0** — Full season queue, navigation fixes, audit fixes ([details](CHANGELOG.md#v1100))
+- Full season queue: playing a single episode loads all season episodes
+- NextUp for specials: uses NextUp API when Jellyfin sends season 0
+- Playlist navigation observer for reliable MPV navigation detection
+- 12 bug fixes, 8 audit fixes, 7 new tests
+
 **v1.9.2** — ConfigParser fix, Preferences UI, bug fixes ([details](CHANGELOG.md#v192))
 
 **v1.9.1** — Audio loss fix, seek race condition, disableSkipIntro option ([details](CHANGELOG.md#v191))

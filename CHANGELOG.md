@@ -38,6 +38,8 @@ All notable changes to Jellyfin MPV Play are documented here.
 - **Fixed toggleOpenAtLogin state** — Menu item state now reverts on error
 - **Fixed socket path buffer overflow** — Truncates path to fit `sun_path` with null terminator
 - **Fixed setup wizard config overwrite** — Now preserves existing config options (ipcSocketPath, mpvFlags, fullscreen, etc.)
+- **Fixed ForceKeepAlive response** — Immediately responds to server's ForceKeepAlive message to prevent disconnection
+- **Fixed MPV exit behavior** — MPV now stays open at end of playlist when `autoClose` is false
 
 ### Internal
 - **Simplified file-loaded handler** — Removed redundant navigation detection logic (now handled by playlist-pos observer)
@@ -46,6 +48,8 @@ All notable changes to Jellyfin MPV Play are documented here.
 - **Removed dead code** — Cleaned up `isManualSkip` and `previousItemId` variables
 - **Updated documentation** — Fixed stale line counts, test suite claims, and Node.js version requirements
 - **Removed dead test files** — Deleted `.js` duplicates of `.mjs` test files
+- **Keep-alive logging** — Added debug logging for keep-alive messages to help diagnose disconnects
+- **Dependency update** — Bumped axios from 1.19.0 to 1.20.0
 
 ---
 
