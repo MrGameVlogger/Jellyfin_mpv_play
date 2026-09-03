@@ -1434,6 +1434,28 @@ function handleMpvEvent(event) {
             stopProgressPoll();
             currentPositionSeconds = 0;
             isPlayingNext = false;
+
+            if (currentItemId) {
+                getEpisodeInfo(currentItemId).then(info => {
+                    currentEpisodeInfo = info;
+                    const titleText = info.isSeries
+                        ? [info.seriesName, `${info.seasonNumber}x${info.episodeNumber}`, info.title].filter(Boolean).join(' - ')
+                        : (info.title || String(currentItemId));
+                    const prevIndex = playQueue.indexOf(previousItemId);
+                    const direction = (prevIndex >= 0 && prevIndex > queuePosition) ? 'previous' : 'next';
+                    log('info', 'queue', `▶️ Starting ${direction} episode: ${titleText}`);
+                    sendMpvCommand('set_property', ['force-media-title', `Jellyfin - ${titleText}`]);
+                    sendMpvCommand('set_property', ['title', `Jellyfin - ${titleText}`]);
+                    playSessionId = crypto.randomUUID();
+                    reportPlaybackStart(currentItemId, 0);
+                    startProgressReporting(currentItemId);
+                    getIntroSegments(currentItemId);
+                    startProgressPoll();
+                }).catch(err => {
+                    log('error', 'episode', '⚠️ Error getting episode info for manual skip:', err.message);
+                    startProgressPoll();
+                });
+            }
         }
 
         isReportingStop = false;

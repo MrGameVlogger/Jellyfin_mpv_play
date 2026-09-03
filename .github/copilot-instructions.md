@@ -8,7 +8,7 @@ This is a Jellyfin MPV Play project — a Node.js shim that connects to Jellyfin
 
 1. **Log messages are contracts** — stdout is parsed by the macOS app. Changing log message patterns will silently break the app. See AGENTS.md for the full list.
 
-2. **No test suite exists** — Changes need extra scrutiny since there are no automated tests to catch regressions.
+2. **Tests exist but are limited** — `npm test` runs log-contract and config tests. Changes still need extra scrutiny since coverage is minimal.
 
 3. **Thread safety matters** — The macOS app dispatches `processLogLine` to the main thread from a background thread. UI updates must happen on the main thread.
 

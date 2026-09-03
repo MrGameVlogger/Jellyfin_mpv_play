@@ -5,6 +5,7 @@ class LogWindowController: NSWindowController {
     private var scrollView: NSScrollView!
     private var autoScroll = true
     private var autoScrollButton: NSButton!
+    private var lineCount = 0
 
     convenience init() {
         let window = NSWindow(
@@ -60,32 +61,34 @@ class LogWindowController: NSWindowController {
 
     func appendLog(_ line: String) {
         let timestamp = DateFormatter.localizedString(from: Date(), dateStyle: .none, timeStyle: .medium)
+        let logLine = "[\(timestamp)] \(line)\n"
         let attributedString = NSAttributedString(
-            string: "[\(timestamp)] \(line)\n",
+            string: logLine,
             attributes: [
                 .font: NSFont.monospacedSystemFont(ofSize: 12, weight: .regular),
                 .foregroundColor: colorForLine(line)
             ]
         )
         textView.textStorage?.append(attributedString)
+        lineCount += 1
 
         if autoScroll {
             textView.scrollRangeToVisible(NSRange(location: (textView.string as NSString).length, length: 0))
         }
 
-        let currentLineCount = textView.string.components(separatedBy: .newlines).count
-        if currentLineCount > 1000 {
+        if lineCount > 1000 {
             let nsString = textView.string as NSString
             let halfLength = nsString.length / 2
             let range = nsString.range(of: "\n", options: [], range: NSRange(location: 0, length: halfLength))
             if range.location != NSNotFound {
                 textView.textStorage?.deleteCharacters(in: NSRange(location: 0, length: range.location + 1))
+                lineCount = textView.string.components(separatedBy: .newlines).count
             }
         }
     }
 
     private func colorForLine(_ line: String) -> NSColor {
-        if line.hasPrefix("ERROR") || line.contains("STDERR") || line.contains("FATAL") || line.contains("❌") || line.contains("⚠️") {
+        if line.contains("ERROR") || line.contains("STDERR") || line.contains("FATAL") || line.contains("❌") || line.contains("⚠️") {
             return .systemRed
         } else if line.contains("WARNING") || line.contains("WARN") || line.contains("warn") {
             return .systemYellow
@@ -99,6 +102,7 @@ class LogWindowController: NSWindowController {
 
     @objc private func clearLog() {
         textView.string = ""
+        lineCount = 0
     }
 
     @objc private func toggleAutoScroll() {

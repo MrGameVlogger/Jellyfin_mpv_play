@@ -26,7 +26,7 @@ This is a Node.js shim (`shim.js`) that connects to Jellyfin via WebSocket and c
 
 ### General
 
-- **No tests exist**: There's no test suite, so changes need extra scrutiny.
+- **Tests are limited**: `npm test` runs log-contract and config tests, but coverage is minimal. Changes need extra scrutiny.
 - **No lint/typecheck**: Code style is enforced by convention, not tooling.
 - **Log patterns are contracts**: See AGENTS.md "Log line contracts" section for the full list.
 
