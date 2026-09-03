@@ -519,9 +519,30 @@ async function handleMessage(msg) {
                 log('info', 'queue', `➕ Appended ${orderedItems.length} item(s) to queue (total: ${playQueue.length})`);
                 return;
             } else {
-                playQueue = [...orderedItems];
-                queuePosition = startIndex;
-                log('info', 'queue', `📋 Queue set: ${playQueue.length} items, starting at index ${queuePosition}`);
+                // For single episodes, expand to full season queue
+                if (orderedItems.length === 1) {
+                    try {
+                        const info = await getEpisodeInfo(orderedItems[0], true);
+                        if (info.isSeries && info.episodes && info.episodes.length > 1) {
+                            playQueue = info.episodes.map(ep => ep.Id);
+                            queuePosition = info.currentIndex >= 0 ? info.currentIndex : 0;
+                            targetId = playQueue[queuePosition];
+                            log('info', 'queue', `📋 Full season queue: ${playQueue.length} episodes, starting at ${queuePosition + 1} (${info.seriesName} S${info.seasonNumber})`);
+                        } else {
+                            playQueue = [...orderedItems];
+                            queuePosition = startIndex;
+                            log('info', 'queue', `📋 Queue set: ${playQueue.length} items, starting at index ${queuePosition}`);
+                        }
+                    } catch (e) {
+                        playQueue = [...orderedItems];
+                        queuePosition = startIndex;
+                        log('info', 'queue', `📋 Queue set: ${playQueue.length} items, starting at index ${queuePosition}`);
+                    }
+                } else {
+                    playQueue = [...orderedItems];
+                    queuePosition = startIndex;
+                    log('info', 'queue', `📋 Queue set: ${playQueue.length} items, starting at index ${queuePosition}`);
+                }
             }
             
             if (data.AudioStreamIndex !== undefined) {
@@ -1391,8 +1412,6 @@ function stopProgressPoll() {
 
 function handleMpvEvent(event) {
     if (event.event === 'file-loaded') {
-        const isSeekingEvent = isSeeking;
-        const isNewQueueEvent = isNewQueueLoad;
         isSeeking = false;
         if (queueLoadCounter > 0) {
             queueLoadCounter--;
@@ -1402,62 +1421,6 @@ function handleMpvEvent(event) {
         } else {
             isNewQueueLoad = false;
         }
-        const isAutoAdvance = currentItemId && !pendingStreamUrl && !isManualSkip && !isSeekingEvent && !isNewQueueEvent && !isPlayingNext && mpvProcess;
-        const isManualSkipEvent = isManualSkip && !isSeekingEvent && !isNewQueueEvent;
-        isManualSkip = false;
-        
-        if (isAutoAdvance) {
-            const prevItemId = currentItemId;
-            const prevPos = currentPositionSeconds;
-            const prevRuntime = currentEpisodeInfo?.itemRuntime || 0;
-            const completionThreshold = 0.9;
-            
-            if (prevRuntime > 0 && prevPos >= prevRuntime * completionThreshold) {
-                markItemAsWatched(prevItemId);
-            }
-            reportPlaybackStop(prevItemId, Math.round(prevPos * 10000000));
-            stopProgressPoll();
-            
-            queuePosition++;
-            if (queuePosition >= 0 && queuePosition < playQueue.length) {
-                currentItemId = playQueue[queuePosition];
-                log('info', 'queue', `📋 Auto-advance: queuePosition=${queuePosition}, itemId=${currentItemId}`);
-            } else {
-                log('info', 'queue', `📋 Auto-advance: queue exhausted (position=${queuePosition}, length=${playQueue.length})`);
-                currentItemId = null;
-            }
-            currentPositionSeconds = 0;
-            isPlayingNext = false;
-        } else if (isManualSkipEvent && previousItemId) {
-            log('info', 'queue', `📋 Manual skip: prevItemId=${previousItemId}, newPos=${queuePosition}, newItemId=${currentItemId}`);
-            reportPlaybackStop(previousItemId, Math.round(currentPositionSeconds * 10000000));
-            previousItemId = null;
-            stopProgressPoll();
-            currentPositionSeconds = 0;
-            isPlayingNext = false;
-
-            if (currentItemId) {
-                getEpisodeInfo(currentItemId).then(info => {
-                    currentEpisodeInfo = info;
-                    const titleText = info.isSeries
-                        ? [info.seriesName, `${info.seasonNumber}x${info.episodeNumber}`, info.title].filter(Boolean).join(' - ')
-                        : (info.title || String(currentItemId));
-                    const prevIndex = playQueue.indexOf(previousItemId);
-                    const direction = (prevIndex >= 0 && prevIndex > queuePosition) ? 'previous' : 'next';
-                    log('info', 'queue', `▶️ Starting ${direction} episode: ${titleText}`);
-                    sendMpvCommand('set_property', ['force-media-title', `Jellyfin - ${titleText}`]);
-                    sendMpvCommand('set_property', ['title', `Jellyfin - ${titleText}`]);
-                    playSessionId = crypto.randomUUID();
-                    reportPlaybackStart(currentItemId, 0);
-                    startProgressReporting(currentItemId);
-                    getIntroSegments(currentItemId);
-                    startProgressPoll();
-                }).catch(err => {
-                    log('error', 'episode', '⚠️ Error getting episode info for manual skip:', err.message);
-                    startProgressPoll();
-                });
-            }
-        }
 
         isReportingStop = false;
         log('info', 'mpv', '✅ File loaded by MPV. Preparing Seek if necessary...');
@@ -1465,60 +1428,14 @@ function handleMpvEvent(event) {
         currentDuration = 0;
         nextUpShown = false;
         markedWatched.clear();
-        
+
         if (pendingTitle) {
             sendMpvCommand('set_property', ['force-media-title', pendingTitle]);
             sendMpvCommand('set_property', ['title', pendingTitle]);
             pendingTitle = null;
         }
 
-        if (isAutoAdvance && currentItemId) {
-            getEpisodeInfo(currentItemId).then(info => {
-                currentEpisodeInfo = info;
-                const titleText = info.isSeries
-                    ? [info.seriesName, `${info.seasonNumber}x${info.episodeNumber}`, info.title].filter(Boolean).join(' - ')
-                    : (info.title || String(currentItemId));
-                log('info', 'queue', `▶️ Starting next episode: ${titleText}`);
-                sendMpvCommand('set_property', ['force-media-title', `Jellyfin - ${titleText}`]);
-                sendMpvCommand('set_property', ['title', `Jellyfin - ${titleText}`]);
-                playSessionId = crypto.randomUUID();
-                reportPlaybackStart(currentItemId, 0);
-                startProgressReporting(currentItemId);
-                getIntroSegments(currentItemId);
-                startProgressPoll();
-            }).catch(err => {
-                log('error', 'episode', '⚠️ Error getting episode info for auto-advance:', err.message);
-                startProgressPoll();
-            });
-        } else if (!isAutoAdvance && !isManualSkipEvent && !isNewQueueEvent && playQueue.length > 1) {
-            // MPV native playlist navigation - sync queue position
-            queryProperty('playlist-pos').then(pos => {
-                if (typeof pos === 'number' && pos >= 0 && pos < playQueue.length && pos !== queuePosition) {
-                    const prevItemId = currentItemId;
-                    if (prevItemId && prevItemId !== playQueue[pos]) {
-                        reportPlaybackStop(prevItemId, Math.round(currentPositionSeconds * 10000000));
-                    }
-                    queuePosition = pos;
-                    currentItemId = playQueue[pos];
-                    log('info', 'queue', `📋 MPV playlist sync: queuePosition=${queuePosition}, itemId=${currentItemId}`);
-                    getEpisodeInfo(currentItemId).then(info => {
-                        currentEpisodeInfo = info;
-                        playSessionId = crypto.randomUUID();
-                        reportPlaybackStart(currentItemId, 0);
-                        startProgressReporting(currentItemId);
-                        getIntroSegments(currentItemId);
-                        startProgressPoll();
-                    }).catch(() => startProgressPoll());
-                } else {
-                    startProgressPoll();
-                }
-            });
-        } else {
-            startProgressPoll();
-        }
-
         if (pendingStartSeconds > 0) {
-            // Delay seek to allow MPV to initialize audio decoder
             const seekTo = pendingStartSeconds;
             pendingStartSeconds = 0;
             setTimeout(() => {
@@ -1530,7 +1447,8 @@ function handleMpvEvent(event) {
             currentPositionSeconds = 0;
             pendingStartSeconds = 0;
         }
-        if (currentItemId && !isAutoAdvance) reportPlaybackProgress(currentItemId, Math.round(currentPositionSeconds * 10000000));
+
+        startProgressPoll();
         pendingStreamUrl = null;
         return;
     }
