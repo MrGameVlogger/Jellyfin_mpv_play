@@ -1154,15 +1154,14 @@ function connectToMpvIpc(gen) {
             setTimeout(() => {
                 if (pendingStreamUrl && gen === playbackGeneration) {
                     log('info', 'ipc', '📡 Loading playlist into MPV...');
-                    sendMpvCommand('loadfile', [pendingStreamUrl, 'replace']);
-                    log('info', 'ipc', `    ✅ Item 1/${playQueue.length} loaded.`);
-
-                    for (let i = 1; i < playQueue.length; i++) {
+                    for (let i = 0; i < playQueue.length; i++) {
                         const url = `${CONFIG.serverUrl}/Videos/${playQueue[i]}/stream?static=true&api_key=${accessToken}`;
-                        sendMpvCommand('loadfile', [url, 'append']);
+                        sendMpvCommand('loadfile', [url, i === 0 ? 'replace' : 'append']);
                     }
-                    if (playQueue.length > 1) {
-                        log('info', 'ipc', `    ✅ Appended ${playQueue.length - 1} more items to playlist.`);
+                    log('info', 'ipc', `    ✅ Loaded ${playQueue.length} items into playlist.`);
+
+                    if (queuePosition > 0) {
+                        sendMpvCommand('set_property', ['playlist-pos', queuePosition]);
                     }
 
                     if (pendingAudioStreamIndex !== undefined) {
