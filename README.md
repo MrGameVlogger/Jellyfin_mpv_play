@@ -223,7 +223,7 @@ MPV's native `Media Next` / `Media Previous` keys also work for playlist navigat
 
 A drop-in replacement for [thumbfast](https://github.com/po5/thumbfast) that fetches pre-generated thumbnails from Jellyfin's Trickplay API. Hover over the seekbar to see instant thumbnail previews without local video decoding.
 
-**Requirements:** MPV v0.38+, curl, ffmpeg, Jellyfin server with Trickplay enabled.
+**Requirements:** MPV v0.38+, curl, ffmpeg, Jellyfin server with Trickplay enabled, and a thumbfast-compatible OSC such as [uosc](https://github.com/tomasklaen/uosc), [ModernX](https://github.com/cyl0/ModernX), or the [osc.lua fork](https://github.com/po5/thumbfast/blob/vanilla-osc/player/lua/osc.lua) for the vanilla UI.
 
 **Install:** Download `thumbfast-jellyfin.lua` and place it as `thumbfast.lua` in your MPV scripts directory (`~/.config/mpv/scripts/` on Linux/macOS, `%APPDATA%\mpv\scripts\` on Windows).
 
