@@ -1573,6 +1573,7 @@ function handleMpvEvent(event) {
                         log('error', 'segments', '⚠️ Error getting intro segments:', err.message);
                     });
                 startProgressPoll();
+                pushOscState();
             }).catch(err => {
                 log('error', 'episode', '⚠️ Error getting episode info:', err.message);
                 startProgressPoll();
@@ -1591,6 +1592,8 @@ function handleMpvEvent(event) {
         } else if (event.args[0] === 'jellyfin-skip-intro') {
             log('info', 'segments', '⏩ Skip intro requested (Keypress)');
             skipIntro();
+        } else if (event.args[0] === 'shim-jf-osc-action') {
+            handleOscAction(event.args[1], event.args[2]);
         }
     }
 }
@@ -1638,6 +1641,7 @@ async function playNextEpisode() {
             log('info', 'queue', `▶️ Starting next episode: ${titleText}`);
             sendMpvCommand('set_property', ['force-media-title', `Jellyfin - ${titleText}`]);
             sendMpvCommand('set_property', ['title', `Jellyfin - ${titleText}`]);
+            pushOscState();
         }).catch(err => {
             log('error', 'episode', '⚠️ Error getting episode info:', err.message);
         });
@@ -1786,6 +1790,7 @@ async function playPreviousEpisode() {
             log('info', 'queue', `▶️ Starting previous episode: ${titleText}`);
             sendMpvCommand('set_property', ['force-media-title', `Jellyfin - ${titleText}`]);
             sendMpvCommand('set_property', ['title', `Jellyfin - ${titleText}`]);
+            pushOscState();
         }).catch(err => {
             log('error', 'episode', '⚠️ Error getting episode info:', err.message);
         });
@@ -1919,6 +1924,56 @@ function reportPlaybackStop(itemId, positionTicks) {
             log('error', 'report', '⚠️ Error reporting stop:', e.message);
             isReportingStop = false;
         });
+}
+
+// jf-mpv-osc integration
+function handleOscAction(verb, arg) {
+    if (!verb) return;
+    switch (verb) {
+        case 'skip-segment':
+            skipIntro();
+            break;
+        case 'next-item':
+            playNextEpisode();
+            break;
+        case 'prev-item':
+            playPreviousEpisode();
+            break;
+        case 'set-sub':
+            if (arg !== undefined) {
+                const sid = arg === '-1' || arg === -1 ? 'no' : Number(arg);
+                sendMpvCommand('set_property', ['sid', sid]);
+            }
+            break;
+        case 'set-audio':
+            if (arg !== undefined) {
+                sendMpvCommand('set_property', ['aid', Number(arg)]);
+            }
+            break;
+        case 'toggle-favorite':
+            // Not implemented — could toggle via Jellyfin API
+            break;
+        case 'shim-close':
+            shutdown('osc-close');
+            break;
+        default:
+            log('debug', 'osc', `Unknown OSC action: ${verb} ${arg || ''}`);
+    }
+}
+
+function pushOscState() {
+    if (!currentItemId || !mpvProcess) return;
+
+    const hasPrev = playQueue.length > 0 && queuePosition > 0;
+    const hasNext = playQueue.length > 0 && queuePosition < playQueue.length - 1;
+
+    const state = {
+        has_media: true,
+        queue: { has_prev: hasPrev, has_next: hasNext },
+        favorite: false
+    };
+
+    sendMpvCommand('script-message', ['shim-jf-osc-state', JSON.stringify(state)]);
 }
 
 function shutdown(signal) {
