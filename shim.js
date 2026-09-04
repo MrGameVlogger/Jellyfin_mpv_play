@@ -1480,6 +1480,8 @@ function handleMpvEvent(event) {
         currentDuration = 0;
         nextUpShown = false;
         markedWatched.clear();
+        skippedSegmentIds.clear();
+        isInIntroSegment = false;
 
         if (pendingTitle) {
             sendMpvCommand('set_property', ['force-media-title', pendingTitle]);
