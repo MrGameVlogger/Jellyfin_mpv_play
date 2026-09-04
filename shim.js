@@ -118,6 +118,7 @@ let isInIntroSegment = false;
 let lastErrorOsdTime = 0;
 let nextUpShown = false;
 let skippedSegmentIds = new Set();
+let oscSeekTimeout = null;
 
 function generateOrLoadDeviceId() {
     const idFile = path.join(__dirname, 'data', '.device-id');
@@ -863,7 +864,8 @@ function checkIntroSegment(positionTicks) {
             isInIntroSegment = true;
             const skipLabel = `Skip ${segment.type}`;
             pushOscSkipButton(skipLabel);
-            if (CONFIG.autoSkipIntros) {
+            // Don't auto-skip if the user is dragging the OSC seekbar
+            if (CONFIG.autoSkipIntros && !oscSeekTimeout) {
                 log('info', 'segments', `🎬 Auto-skip: ${segment.type} detected, skipping in 3s...`);
                 showSkipOsd(`Skipping ${segment.type.toLowerCase()} in 3s...`);
                 skipIntroTimeout = setTimeout(skipIntro, 3000);
@@ -1602,6 +1604,10 @@ function handleMpvEvent(event) {
             skipIntro();
         } else if (event.args[0] === 'shim-jf-osc-action') {
             handleOscAction(event.args[1], event.args[2]);
+        } else if (event.args[0] === 'shim-jf-osc-ui-seek') {
+            // OSC seekbar was dragged — exempt from skip-intro detection
+            if (oscSeekTimeout) clearTimeout(oscSeekTimeout);
+            oscSeekTimeout = setTimeout(() => { oscSeekTimeout = null; }, 2000);
         }
     }
 }
@@ -1956,6 +1962,24 @@ function handleOscAction(verb, arg) {
         case 'set-audio':
             if (arg !== undefined) {
                 sendMpvCommand('set_property', ['aid', Number(arg)]);
+            }
+            break;
+        case 'set-sub-size':
+            if (arg !== undefined) {
+                const sizes = { 'small': 0.75, 'normal': 1.0, 'large': 1.25, 'x-large': 1.5 };
+                sendMpvCommand('set_property', ['sub-scale', sizes[arg] || 1.0]);
+            }
+            break;
+        case 'set-sub-position':
+            if (arg !== undefined) {
+                const positions = { 'top': 0, 'bottom': 100, 'middle': 50 };
+                sendMpvCommand('set_property', ['sub-pos', positions[arg] || 100]);
+            }
+            break;
+        case 'set-sub-color':
+            if (arg !== undefined) {
+                const colors = { 'white': '#FFFFFF', 'yellow': '#FFFF00', 'green': '#00FF00', 'cyan': '#00FFFF', 'red': '#FF0000' };
+                sendMpvCommand('set_property', ['sub-color', colors[arg] || '#FFFFFF']);
             }
             break;
         case 'toggle-favorite':
