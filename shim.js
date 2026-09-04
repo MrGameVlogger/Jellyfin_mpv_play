@@ -1606,6 +1606,9 @@ function handleMpvEvent(event) {
             skipIntro();
         } else if (event.args[0] === 'shim-jf-osc-action') {
             handleOscAction(event.args[1], event.args[2]);
+        } else if (event.args[0] === 'shim-close') {
+            log('info', 'osc', '🎮 OSC close requested');
+            shutdown('osc-close');
         } else if (event.args[0] === 'shim-jf-osc-ui-seek') {
             // OSC seekbar was dragged — exempt from skip-intro detection
             if (oscSeekTimeout) clearTimeout(oscSeekTimeout);
@@ -1949,6 +1952,7 @@ function reportPlaybackStop(itemId, positionTicks) {
 // jf-mpv-osc integration
 function handleOscAction(verb, arg) {
     if (!verb) return;
+    log('info', 'osc', `🎮 OSC action: ${verb}${arg !== undefined ? ' ' + arg : ''}`);
     switch (verb) {
         case 'skip-segment':
             skipIntro();
@@ -2006,9 +2010,6 @@ function handleOscAction(verb, arg) {
             break;
         case 'unwatched-quit':
             shutdown('unwatched-quit');
-            break;
-        case 'shim-close':
-            shutdown('osc-close');
             break;
         default:
             log('debug', 'osc', `Unknown OSC action: ${verb} ${arg || ''}`);
