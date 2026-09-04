@@ -354,9 +354,8 @@ function scheduleReconnect() {
     log('info', 'ws', `🔄 Scheduling automatic reconnection in ${delaySeconds} seconds (Attempt ${reconnectAttempts})...`);
     
     reconnectInterval = setTimeout(async () => {
+        reconnectInterval = null;
         if (ws && ws.readyState === WebSocket.OPEN) {
-            clearTimeout(reconnectInterval);
-            reconnectInterval = null;
             return;
         }
 
@@ -890,7 +889,15 @@ let osdRestoreTimeout = null;
 
 function showSkipOsd(text) {
     if (osdRestoreTimeout) { clearTimeout(osdRestoreTimeout); osdRestoreTimeout = null; }
-    if (displayMessageTimeout) { clearTimeout(displayMessageTimeout); displayMessageTimeout = null; }
+    if (displayMessageTimeout) {
+        clearTimeout(displayMessageTimeout);
+        displayMessageTimeout = null;
+        if (!displayMessageOriginalPause) sendMpvCommand('set_property', ['pause', false]);
+        displayMessageOriginalPause = null;
+        displayMessageOriginalFontSize = null;
+        displayMessageOriginalAlignX = null;
+        displayMessageOriginalAlignY = null;
+    }
     const savedSize = displayMessageOriginalFontSize || 55;
     const savedAlignX = displayMessageOriginalAlignX || 'center';
     const savedAlignY = displayMessageOriginalAlignY || 'bottom';
@@ -911,7 +918,15 @@ function showErrorOsd(text) {
     if (now - lastErrorOsdTime < 30000) return;
     lastErrorOsdTime = now;
     if (osdRestoreTimeout) { clearTimeout(osdRestoreTimeout); osdRestoreTimeout = null; }
-    if (displayMessageTimeout) { clearTimeout(displayMessageTimeout); displayMessageTimeout = null; }
+    if (displayMessageTimeout) {
+        clearTimeout(displayMessageTimeout);
+        displayMessageTimeout = null;
+        if (!displayMessageOriginalPause) sendMpvCommand('set_property', ['pause', false]);
+        displayMessageOriginalPause = null;
+        displayMessageOriginalFontSize = null;
+        displayMessageOriginalAlignX = null;
+        displayMessageOriginalAlignY = null;
+    }
     const savedSize = displayMessageOriginalFontSize || 55;
     const savedAlignX = displayMessageOriginalAlignX || 'center';
     const savedAlignY = displayMessageOriginalAlignY || 'bottom';
@@ -1697,7 +1712,17 @@ async function playNextEpisode() {
     if (currentEpisodeInfo.nextEpisode) {
         const nextEp = currentEpisodeInfo.nextEpisode;
         const nextTitle = [currentEpisodeInfo.seriesName, `${currentEpisodeInfo.seasonNumber}x${nextEp.IndexNumber}`, nextEp.Name].filter(Boolean).join(' - ');
-                log('info', 'queue', `▶️ Starting next episode: ${nextTitle}`);
+        log('info', 'queue', `▶️ Starting next episode: ${nextTitle}`);
+        // Mark current episode as watched before advancing
+        const prevItemId = currentItemId;
+        const prevPos = currentPositionSeconds;
+        const prevRuntime = currentEpisodeInfo?.itemRuntime || 0;
+        if (prevItemId) {
+            if (prevRuntime > 0 && prevPos >= prevRuntime * 0.9) {
+                markItemAsWatched(prevItemId);
+            }
+            reportPlaybackStop(prevItemId, Math.round(prevPos * 10000000));
+        }
         if (!ipcClient || ipcClient.destroyed || !mpvProcess) {
             playMedia(nextEp.Id, 0).catch(err => {
                     log('error', 'episode', '⚠️ Error playing next episode:', err.message);
@@ -1723,6 +1748,16 @@ async function playNextEpisode() {
                 ? [nextUpInfo.seriesName, `${nextUpInfo.seasonNumber}x${nextUpInfo.episodeNumber}`, nextUpInfo.title].filter(Boolean).join(' - ')
                 : (nextUpInfo.title || String(nextUpId));
             log('info', 'queue', `▶️ Starting next episode: ${nextUpTitle}`);
+            // Mark current episode as watched before advancing
+            const prevItemId2 = currentItemId;
+            const prevPos2 = currentPositionSeconds;
+            const prevRuntime2 = currentEpisodeInfo?.itemRuntime || 0;
+            if (prevItemId2) {
+                if (prevRuntime2 > 0 && prevPos2 >= prevRuntime2 * 0.9) {
+                    markItemAsWatched(prevItemId2);
+                }
+                reportPlaybackStop(prevItemId2, Math.round(prevPos2 * 10000000));
+            }
             if (!ipcClient || ipcClient.destroyed || !mpvProcess) {
                 playMedia(nextUpId, 0).catch(err => {
                 log('error', 'episode', '⚠️ Error playing next episode:', err.message);
