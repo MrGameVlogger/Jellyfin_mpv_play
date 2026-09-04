@@ -1976,20 +1976,22 @@ function handleOscAction(verb, arg) {
             break;
         case 'set-sub-size':
             if (arg !== undefined) {
-                const sizes = { 'small': 0.75, 'normal': 1.0, 'large': 1.25, 'x-large': 1.5 };
-                sendMpvCommand('set_property', ['sub-scale', sizes[arg] || 1.0]);
+                // arg is percentage string from sub_style options (e.g., "100" = normal)
+                const scale = Number(arg) / 100;
+                sendMpvCommand('set_property', ['sub-scale', scale || 1.0]);
             }
             break;
         case 'set-sub-position':
             if (arg !== undefined) {
-                const positions = { 'top': 0, 'bottom': 100, 'middle': 50 };
-                sendMpvCommand('set_property', ['sub-pos', positions[arg] || 100]);
+                // arg is position string from sub_style options ("top", "50", "100")
+                const pos = arg === 'top' ? 0 : Number(arg) || 100;
+                sendMpvCommand('set_property', ['sub-pos', pos]);
             }
             break;
         case 'set-sub-color':
             if (arg !== undefined) {
-                const colors = { 'white': '#FFFFFF', 'yellow': '#FFFF00', 'green': '#00FF00', 'cyan': '#00FFFF', 'red': '#FF0000' };
-                sendMpvCommand('set_property', ['sub-color', colors[arg] || '#FFFFFF']);
+                // arg is hex color string from sub_style options (e.g., "#FFFFFF")
+                sendMpvCommand('set_property', ['sub-color', arg]);
             }
             break;
         case 'toggle-favorite':
@@ -2059,6 +2061,29 @@ function pushOscState(hasMedia = true) {
             state.audio = audio;
         }
     }
+
+    // Tier 4: Subtitle styling options
+    state.sub_style = {
+        size: { current: 'Normal', options: [
+            { id: '50', label: 'Tiny', selected: false },
+            { id: '75', label: 'Small', selected: false },
+            { id: '100', label: 'Normal', selected: true },
+            { id: '125', label: 'Large', selected: false },
+            { id: '150', label: 'Huge', selected: false }
+        ]},
+        position: { current: 'Bottom', options: [
+            { id: 'top', label: 'Top', selected: false },
+            { id: '50', label: 'Middle', selected: false },
+            { id: '100', label: 'Bottom', selected: true }
+        ]},
+        color: { current: 'White', options: [
+            { id: '#FFFFFF', label: 'White', selected: true },
+            { id: '#FFFF00', label: 'Yellow', selected: false },
+            { id: '#00FF00', label: 'Green', selected: false },
+            { id: '#00FFFF', label: 'Cyan', selected: false },
+            { id: '#FF0000', label: 'Red', selected: false }
+        ]}
+    };
 
     sendMpvCommand('script-message', ['shim-jf-osc-state', JSON.stringify(state)]);
 }
