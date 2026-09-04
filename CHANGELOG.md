@@ -18,6 +18,18 @@ All notable changes to Jellyfin MPV Play are documented here.
 
 -->
 
+## v1.10.2
+
+### Bug Fixes
+- **Fixed reconnection loop** — WebSocket reconnection now survives failed connection attempts (was permanently dead after one failure)
+- **Fixed OSD pause leak** — `showSkipOsd`/`showErrorOsd` now restore pause state when clearing a DisplayMessage timeout (video stayed paused forever)
+- **Fixed watched marking on manual advance** — Episodes are now marked as watched when manually advancing past queue end into next season/NextUp (only if >=90% watched)
+- **Fixed stderr noise** — Removed `STDERR:` prefix from error notification condition (stderr lines are already logged, no need to notify)
+- **Fixed skip intro options validation** — `autoSkipIntros` and `disableSkipIntro` are now mutually exclusive at both UI and config layers
+- **Fixed Preferences UI** — Added IPC Socket Path and MPV Flags fields; shows default values when not set
+
+---
+
 ## v1.10.1
 
 ### Bug Fixes
