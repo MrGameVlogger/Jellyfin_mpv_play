@@ -235,6 +235,25 @@ Replaces MPV's default on-screen controller with a Jellyfin-styled UI: Material 
 
 **Install:** Download `trickplay-jf-osc.lua` and place it in your MPV scripts directory. Add `--script=trickplay-jf-osc.lua --osc=no` to your `mpvFlags` in `config.js`.
 
+**Integration level:** The shim supports Tier 0-3 and partial Tier 4 of the [jf-mpv-osc contract](https://github.com/iwalton3/jf-mpv-osc#adoption-tiers):
+
+| Tier | Feature | Status | Notes |
+|------|---------|--------|-------|
+| 0 | Jellyfin-styled UI | ✅ | Works automatically when loaded |
+| 1 | Track naming | ✅ | Subtitle/audio labels from Jellyfin MediaStreams |
+| 2 | Skip button | ✅ | Intro/outro skip button appears when segments detected |
+| 3 | Queue navigation | ✅ | Next/previous item buttons work |
+| 3 | Favorites | ✅ | Heart button toggles favorite via Jellyfin API |
+| 3 | Screenshot | ✅ | Takes MPV screenshot |
+| 3 | Fullscreen | ✅ | Toggles MPV fullscreen |
+| 3 | Unwatched quit | ✅ | Quits without marking as watched |
+| 4 | Subtitle styling | ✅ | Size, position, color options in settings |
+| 4 | Quality selection | ❌ | Requires transcode API integration |
+| 4 | Shader profiles | ❌ | Requires shader management |
+| 4 | SyncPlay | ❌ | Requires group management |
+
+All integration is optional — if jf-mpv-osc isn't loaded, the `script-message` calls are silently ignored by MPV.
+
 ---
 
 ## Auto-Start (Optional)

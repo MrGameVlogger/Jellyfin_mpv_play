@@ -71,6 +71,7 @@ No lint or typecheck steps exist. Tests run via `npm test`.
 - **Playable types**: `Episode`, `Movie`, `Video`, `MusicVideo`, `Audio` — anything else is skipped.
 - **Watched threshold**: Item marked watched at 90% of runtime.
 - **Reconnection**: Exponential backoff (5s → 10s → 20s → 30s cap) on WebSocket disconnect.
+- **jf-mpv-osc integration**: Optional integration with [jf-mpv-osc](https://github.com/iwalton3/jf-mpv-osc) for Jellyfin-styled MPV UI. Pushes state via `shim-jf-osc-state` (track lists, queue, favorites, subtitle styling). Handles actions via `shim-jf-osc-action` (skip, next/prev, set-sub, set-audio, screenshot, fullscreen, etc.). Also handles direct `shim-close` and `shim-jf-osc-ui-seek` messages. All integration is optional — messages are silently ignored if OSC isn't loaded. See README.md for full tier support table.
 
 ## Config options
 
@@ -169,6 +170,15 @@ All functions live in `shim.js`. There are no classes — the entire app is proc
 | Function | Line | Description |
 |----------|------|-------------|
 | `shutdown(signal)` | 1813 | Graceful exit: saves positions, kills MPV, sends SessionsStop, closes WS |
+
+### jf-mpv-osc integration
+
+| Function | Line | Description |
+|----------|------|-------------|
+| `handleOscAction(verb, arg)` | 1953 | Handles actions from OSC (skip, next/prev, set-sub, set-audio, screenshot, fullscreen, etc.) |
+| `pushOscState(hasMedia)` | 2020 | Pushes state blob to OSC (queue, favorites, tracks, subtitle styling) |
+| `pushOscSkipButton(label)` | 2066 | Pushes skip button label to OSC (or empty to hide) |
+| `toggleFavorite()` | 2070 | Toggles favorite via Jellyfin API and pushes updated state |
 
 ## State management
 
