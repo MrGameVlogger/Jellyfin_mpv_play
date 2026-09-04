@@ -1961,6 +1961,15 @@ function handleOscAction(verb, arg) {
         case 'toggle-favorite':
             toggleFavorite();
             break;
+        case 'screenshot':
+            sendMpvCommand('screenshot');
+            break;
+        case 'set-fullscreen':
+            sendMpvCommand('cycle', ['fullscreen']);
+            break;
+        case 'unwatched-quit':
+            shutdown('unwatched-quit');
+            break;
         case 'shim-close':
             shutdown('osc-close');
             break;
@@ -1977,6 +1986,7 @@ function pushOscState() {
 
     const state = {
         has_media: true,
+        allow_screenshot: true,
         queue: { has_prev: hasPrev, has_next: hasNext },
         favorite: currentEpisodeInfo?.userData?.IsFavorite || false
     };
