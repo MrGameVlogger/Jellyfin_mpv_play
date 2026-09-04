@@ -393,6 +393,8 @@ See [CHANGELOG.md](CHANGELOG.md) for full release history.
 
 ### Recent Releases
 
+**v1.10.2** — Bug audit fixes: reconnection, OSD pause, watched marking, Preferences UI ([details](CHANGELOG.md#v1102))
+
 **v1.10.1** — OSC integration fixes, subtitle styling, graceful close ([details](CHANGELOG.md#v1101))
 - Fixed OSC close button, playlist title flash, subtitle/audio track selection
 - Added jf-mpv-osc Tier 1-3 integration, subtitle styling controls
