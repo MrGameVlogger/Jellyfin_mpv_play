@@ -8,6 +8,8 @@ class PreferencesWindowController: NSWindowController {
     private var mpvPathField: NSTextField!
     private var deviceNameField: NSTextField!
     private var deviceIdField: NSTextField!
+    private var ipcSocketPathField: NSTextField!
+    private var mpvFlagsField: NSTextField!
     private var fullscreenCheckbox: NSButton!
     private var autoCloseCheckbox: NSButton!
     private var headlessCheckbox: NSButton!
@@ -21,7 +23,7 @@ class PreferencesWindowController: NSWindowController {
 
     convenience init() {
         let window = NSWindow(
-            contentRect: NSRect(x: 0, y: 0, width: 560, height: 600),
+            contentRect: NSRect(x: 0, y: 0, width: 560, height: 670),
             styleMask: [.titled, .closable],
             backing: .buffered,
             defer: false
@@ -42,7 +44,7 @@ class PreferencesWindowController: NSWindowController {
     private func setupUI() {
         guard let contentView = window?.contentView else { return }
 
-        var yOffset: CGFloat = 560
+        var yOffset: CGFloat = 630
 
         // MARK: - Connection Section
         let connectionLabel = sectionLabel("Connection")
@@ -146,6 +148,30 @@ class PreferencesWindowController: NSWindowController {
         deviceIdField = NSTextField()
         deviceIdField.frame = NSRect(x: 130, y: yOffset, width: 410, height: 24)
         contentView.addSubview(deviceIdField)
+        yOffset -= 36
+
+        // IPC Socket Path
+        let ipcLabel = NSTextField(labelWithString: "IPC Socket:")
+        ipcLabel.frame = NSRect(x: 20, y: yOffset, width: 100, height: 24)
+        ipcLabel.alignment = .right
+        contentView.addSubview(ipcLabel)
+
+        ipcSocketPathField = NSTextField()
+        ipcSocketPathField.frame = NSRect(x: 130, y: yOffset, width: 410, height: 24)
+        ipcSocketPathField.placeholderString = "/tmp/mpv-ipc.sock"
+        contentView.addSubview(ipcSocketPathField)
+        yOffset -= 36
+
+        // MPV Flags
+        let flagsLabel = NSTextField(labelWithString: "MPV Flags:")
+        flagsLabel.frame = NSRect(x: 20, y: yOffset, width: 100, height: 24)
+        flagsLabel.alignment = .right
+        contentView.addSubview(flagsLabel)
+
+        mpvFlagsField = NSTextField()
+        mpvFlagsField.frame = NSRect(x: 130, y: yOffset, width: 410, height: 24)
+        mpvFlagsField.placeholderString = "--hwdec=auto, --vo=gpu-next"
+        contentView.addSubview(mpvFlagsField)
         yOffset -= 30
 
         // Separator
@@ -248,6 +274,9 @@ class PreferencesWindowController: NSWindowController {
         if deviceId.isEmpty { deviceId = "mac-mpv" }
         deviceIdField.stringValue = deviceId
 
+        ipcSocketPathField.stringValue = ConfigParser.extractValue(from: content, key: "ipcSocketPath")
+        mpvFlagsField.stringValue = ConfigParser.extractValue(from: content, key: "mpvFlags")
+
         fullscreenCheckbox.state = ConfigParser.extractValue(from: content, key: "fullscreen") == "true" ? .on : .off
         autoCloseCheckbox.state = ConfigParser.extractValue(from: content, key: "autoClose") == "true" ? .on : .off
         headlessCheckbox.state = ConfigParser.extractValue(from: content, key: "headless") == "true" ? .on : .off
@@ -319,15 +348,15 @@ class PreferencesWindowController: NSWindowController {
             "    deviceId: '\(ConfigParser.escapeConfigValue(deviceIdField.stringValue))',",
         ]
 
-        if let content = ConfigParser.loadConfigContent() {
-            let ipcPath = ConfigParser.extractValue(from: content, key: "ipcSocketPath")
-            if !ipcPath.isEmpty {
-                lines.append("    ipcSocketPath: '\(ConfigParser.escapeConfigValue(ipcPath))',")
-            }
-            let mpvFlags = ConfigParser.extractValue(from: content, key: "mpvFlags")
-            if !mpvFlags.isEmpty {
-                lines.append("    mpvFlags: \(mpvFlags),")
-            }
+        let ipcPath = ipcSocketPathField.stringValue.trimmingCharacters(in: .whitespaces)
+        if !ipcPath.isEmpty {
+            lines.append("    ipcSocketPath: '\(ConfigParser.escapeConfigValue(ipcPath))',")
+        }
+        let mpvFlags = mpvFlagsField.stringValue.trimmingCharacters(in: .whitespaces)
+        if !mpvFlags.isEmpty {
+            // Parse comma-separated flags into a JS array
+            let flags = mpvFlags.components(separatedBy: ",").map { "'\($0.trimmingCharacters(in: .whitespaces))'" }.joined(separator: ", ")
+            lines.append("    mpvFlags: [\(flags)],")
         }
 
         lines.append("    fullscreen: \(fullscreenCheckbox.state == .on ? "true" : "false"),")
