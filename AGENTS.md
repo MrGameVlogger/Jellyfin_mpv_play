@@ -23,7 +23,7 @@ git checkout main && git pull origin main && git branch -D fix/my-fix
 
 ## What this is
 
-Node.js shim (`shim.js`, ~1895 lines) that connects to Jellyfin via WebSocket, receives play commands, and controls MPV via Unix socket IPC. Optional macOS menubar app (`macapp/`) spawns the shim and parses its stdout for UI state. Linux and Windows users run `shim.js` directly via platform-specific launcher scripts.
+Node.js shim (`shim.js`, ~2000 lines) that connects to Jellyfin via WebSocket, receives play commands, and controls MPV via Unix socket IPC. Optional macOS menubar app (`macapp/`) spawns the shim and parses its stdout for UI state. Linux and Windows users run `shim.js` directly via platform-specific launcher scripts.
 
 ## Commands
 
@@ -60,8 +60,9 @@ No lint or typecheck steps exist. Tests run via `npm test`.
 - **IPC**: Unix socket at `/tmp/mpv-ipc.sock` (configurable via `ipcSocketPath` in config.js). Windows uses named pipe `\\.\pipe\mpv-ipc`.
 - **MPV flags**: `--idle=yes --keep-open=yes --save-position-on-quit=no` (plus optional `--fullscreen` and user `mpvFlags`)
 - **Queue system**: `playQueue` array tracks all item IDs; `queuePosition` tracks current index. Items loaded into MPV's native playlist via `loadfile append`. MPV auto-advances through the playlist.
-- **Episode transitions**: MPV's native playlist handles auto-advance. The `file-loaded` event detects auto-advance and updates state. `loadNewQueue()` reuses the existing MPV for PlayNow commands. `playMedia()` spawns a fresh MPV (used for initial play and when IPC is down).
+- **Episode transitions**: MPV's native playlist handles auto-advance. The `playlist-pos` property observer detects all playlist navigation (auto-advance, native keys, keybinds) and updates state. `loadNewQueue()` reuses the existing MPV for PlayNow commands. `playMedia()` spawns a fresh MPV (used for initial play and when IPC is down).
 - **Cross-season**: When queue is exhausted, queries `GET /Shows/NextUp` for next season's episodes.
+- **Full season queue**: Playing a single episode loads all episodes from that season into the playlist. When Jellyfin sends specials (season 0), uses NextUp API to find the next unwatched episode from the regular season.
 - **PlayNext/PlayLast**: Inserts items into both the queue and MPV's playlist at the correct position using `insert-at-index`.
 - **Auto-play**: Poll timer queries `time-pos` and `duration` via IPC every 1s. For the last item in the playlist, triggers `playNextEpisode()` when `pos >= dur - 1`. MPV handles all other transitions natively.
 - **DisplayMessage**: Shows OSD overlay in MPV, pauses playback for 10s, then resumes. Original pause state tracked globally (`displayMessageOriginalPause`) to handle concurrent messages.
@@ -189,7 +190,6 @@ All state is module-level variables. No state machine or stores — just mutable
 |----------|------|---------|
 | `playQueue` | array | Ordered list of item IDs |
 | `queuePosition` | number | Index into `playQueue` (-1 when not playing) |
-| `previousItemId` | string | ID of item before current (for back-navigation) |
 
 ### MPV / IPC state
 
@@ -208,13 +208,13 @@ All state is module-level variables. No state machine or stores — just mutable
 |----------|------|---------|
 | `isPlayingNext` | boolean | Prevents double-triggering episode transitions (30s timeout fallback) |
 | `isPlayingNextTimestamp` | number | Timestamp when `isPlayingNext` was set (for timeout) |
-| `isManualSkip` | boolean | True when user/NextTrack triggered skip (vs auto-advance) |
 | `isSeeking` | boolean | True during seek operations (prevents progress reports) |
 | `isNewQueueLoad` | boolean | True during `loadNewQueue()` to suppress file-loaded handlers |
 | `isReportingStop` | boolean | Prevents duplicate stop reports |
 | `isSettingSubtitleFromJellyfin` | boolean | Echo prevention: true when subtitle change came from Jellyfin (5s timeout) |
 | `pendingQueries` | Map | Tracks outstanding IPC queries (must resolve all before cleanup) |
 | `markedWatched` | Set | Prevents duplicate "mark as watched" API calls (cleared on new file) |
+| `skippedSegmentIds` | Set | Tracks skipped intro/outro segments (cleared on new file) |
 
 ### DisplayMessage state
 
@@ -309,7 +309,7 @@ Use patterns like:
 - MPV's native playlist must stay in sync with `playQueue`
 - `loadNewQueue()` clears and rebuilds both
 - `playNextEpisode()` / `playPreviousEpisode()` modify both
-- `file-loaded` event updates `queuePosition` on auto-advance
+- `playlist-pos` property observer detects all playlist navigation and updates state
 
 ## Platform-specific behavior
 
@@ -374,8 +374,9 @@ Both `uncaughtException` and `unhandledRejection` handlers call `shutdown()` to 
 
 **Automated tests** (`npm test`):
 
-- `tests/log-contracts.test.js` — verifies macOS app contract patterns exist in shim.js, error patterns present, log function signature, no conflicts between new and existing log lines
-- `tests/config.test.js` — verifies config.example.js is valid JavaScript, all required options present, CONFIG object has all expected properties, all options documented
+- `tests/log-contracts.test.mjs` — verifies macOS app contract patterns exist in shim.js, error patterns present, log function signature, no conflicts between new and existing log lines
+- `tests/config.test.mjs` — verifies config.example.js is valid JavaScript, all required options present, CONFIG object has all expected properties, all options documented
+- `tests/quality.test.mjs` — verifies no duplicate keyboard shortcuts, all PlaystateCommand/GeneralCommand types handled, no hardcoded secrets, version consistency, SupportedCommands enum names
 
 **Manual testing** with a real Jellyfin server:
 
@@ -411,6 +412,7 @@ Both `uncaughtException` and `unhandledRejection` handlers call `shutdown()` to 
 | `Episode detected: <title>` | Sets now-playing title, status → playing |
 | `Starting next episode: <title>` | Updates now-playing title |
 | `Starting previous episode: <title>` | Updates now-playing title |
+| `Starting episode: <title>` | Updates now-playing title |
 | `File loaded by MPV` | Status → playing (fallback) |
 | `Playback paused` | Pause state on |
 | `Playback resumed` | Pause state off |
@@ -466,6 +468,7 @@ This project started as a simple MPV shim for Jellyfin and grew significantly:
 - **v1.9.0**: Feature release — auto-skip intros/outros, error OSD messages, next-up notification, better logging with structured format, automated tests, comprehensive bug audit (24+ fixes)
 - **v1.9.1**: Bug fixes — audio loss on resume, seek race condition, error propagation, disableSkipIntro config option
 - **v1.9.2**: Bug fixes — ConfigParser URL parsing, Preferences UI, queue load counter, headless detection, MPV stderr
+- **v1.10.0**: Feature release — full season queue, NextUp for specials, playlist-pos observer, jf-mpv-osc integration (Tier 0-3), audit fixes (12 bug fixes, 8 audit fixes, 7 new tests)
 
 Key architectural decisions:
 - **No classes, no modules** — entire app is one procedural file with module-level state. This was intentional for simplicity and easy deployment (single file).
