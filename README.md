@@ -393,6 +393,10 @@ See [CHANGELOG.md](CHANGELOG.md) for full release history.
 
 ### Recent Releases
 
+**v1.10.1** — OSC integration fixes, subtitle styling, graceful close ([details](CHANGELOG.md#v1101))
+- Fixed OSC close button, playlist title flash, subtitle/audio track selection
+- Added jf-mpv-osc Tier 1-3 integration, subtitle styling controls
+
 **v1.10.0** — Full season queue, navigation fixes, audit fixes ([details](CHANGELOG.md#v1100))
 - Full season queue: playing a single episode loads all season episodes
 - NextUp for specials: uses NextUp API when Jellyfin sends season 0
