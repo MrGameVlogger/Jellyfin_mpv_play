@@ -1504,6 +1504,7 @@ function handleMpvEvent(event) {
 
         startProgressPoll();
         pendingStreamUrl = null;
+        pushOscState();
         return;
     }
 
@@ -2127,12 +2128,25 @@ function shutdown(signal) {
     }
 
     const doExit = () => {
-        killMpv();
-        if (ws && ws.readyState === WebSocket.OPEN) {
-            try { ws.send(JSON.stringify({ MessageType: 'SessionsStop' })); } catch (e) {}
+        // Try graceful quit first, then force kill after timeout
+        if (mpvProcess && ipcClient && !ipcClient.destroyed) {
+            sendMpvCommand('quit');
+            setTimeout(() => {
+                killMpv();
+                if (ws && ws.readyState === WebSocket.OPEN) {
+                    try { ws.send(JSON.stringify({ MessageType: 'SessionsStop' })); } catch (e) {}
+                }
+                if (ws) ws.close();
+                setTimeout(() => process.exit(0), 500);
+            }, 1000);
+        } else {
+            killMpv();
+            if (ws && ws.readyState === WebSocket.OPEN) {
+                try { ws.send(JSON.stringify({ MessageType: 'SessionsStop' })); } catch (e) {}
+            }
+            if (ws) ws.close();
+            setTimeout(() => process.exit(0), 500);
         }
-        if (ws) ws.close();
-        setTimeout(() => process.exit(0), 500);
     };
 
     if (currentItemId && !isReportingStop) {
