@@ -2019,7 +2019,7 @@ function handleOscAction(verb, arg) {
     }
 }
 
-function pushOscState(hasMedia = true) {
+async function pushOscState(hasMedia = true) {
     if (!hasMedia) {
         sendMpvCommand('script-message', ['shim-jf-osc-state', JSON.stringify({ strings: {}, has_media: false })]);
         return;
@@ -2056,33 +2056,43 @@ function pushOscState(hasMedia = true) {
             .map(s => ({
                 id: s.Index,
                 label: s.DisplayTitle || s.Title || s.Language || `Track ${s.Index}`,
-                selected: false // We'd need to query MPV's aid to know the current selection
+                selected: false
             }));
         if (audio.length > 0) {
             state.audio = audio;
         }
     }
 
-    // Tier 4: Subtitle styling options
+    // Tier 4: Subtitle styling options — query current values from MPV
+    const [subScale, subPos, subColor] = await Promise.all([
+        queryProperty('sub-scale').catch(() => null),
+        queryProperty('sub-pos').catch(() => null),
+        queryProperty('sub-color').catch(() => null)
+    ]);
+
+    const currentScale = typeof subScale === 'number' ? Math.round(subScale * 100) : 100;
+    const currentPos = typeof subPos === 'number' ? subPos : 100;
+    const currentColor = typeof subColor === 'string' ? subColor.toUpperCase() : '#FFFFFF';
+
     state.sub_style = {
-        size: { current: 'Normal', options: [
-            { id: '50', label: 'Tiny', selected: false },
-            { id: '75', label: 'Small', selected: false },
-            { id: '100', label: 'Normal', selected: true },
-            { id: '125', label: 'Large', selected: false },
-            { id: '150', label: 'Huge', selected: false }
+        size: { current: `${currentScale}%`, options: [
+            { id: '50', label: 'Tiny', selected: currentScale === 50 },
+            { id: '75', label: 'Small', selected: currentScale === 75 },
+            { id: '100', label: 'Normal', selected: currentScale === 100 },
+            { id: '125', label: 'Large', selected: currentScale === 125 },
+            { id: '150', label: 'Huge', selected: currentScale === 150 }
         ]},
-        position: { current: 'Bottom', options: [
-            { id: 'top', label: 'Top', selected: false },
-            { id: '50', label: 'Middle', selected: false },
-            { id: '100', label: 'Bottom', selected: true }
+        position: { current: currentPos === 0 ? 'Top' : currentPos === 100 ? 'Bottom' : 'Middle', options: [
+            { id: 'top', label: 'Top', selected: currentPos === 0 },
+            { id: '50', label: 'Middle', selected: currentPos === 50 },
+            { id: '100', label: 'Bottom', selected: currentPos === 100 }
         ]},
-        color: { current: 'White', options: [
-            { id: '#FFFFFF', label: 'White', selected: true },
-            { id: '#FFFF00', label: 'Yellow', selected: false },
-            { id: '#00FF00', label: 'Green', selected: false },
-            { id: '#00FFFF', label: 'Cyan', selected: false },
-            { id: '#FF0000', label: 'Red', selected: false }
+        color: { current: currentColor === '#FFFFFF' ? 'White' : currentColor === '#FFFF00' ? 'Yellow' : currentColor === '#00FF00' ? 'Green' : currentColor === '#00FFFF' ? 'Cyan' : currentColor === '#FF0000' ? 'Red' : currentColor, options: [
+            { id: '#FFFFFF', label: 'White', selected: currentColor === '#FFFFFF' },
+            { id: '#FFFF00', label: 'Yellow', selected: currentColor === '#FFFF00' },
+            { id: '#00FF00', label: 'Green', selected: currentColor === '#00FF00' },
+            { id: '#00FFFF', label: 'Cyan', selected: currentColor === '#00FFFF' },
+            { id: '#FF0000', label: 'Red', selected: currentColor === '#FF0000' }
         ]}
     };
 
