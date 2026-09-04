@@ -29,6 +29,11 @@ const CONFIG = {
     verbose: userConfig.verbose || false
 };
 
+if (CONFIG.autoSkipIntros && CONFIG.disableSkipIntro) {
+    console.error('⚠️ autoSkipIntros and disableSkipIntro are mutually exclusive — disabling autoSkipIntros');
+    CONFIG.autoSkipIntros = false;
+}
+
 if (CONFIG.headless) {
     const logDir = path.join(__dirname, 'data');
     if (!fs.existsSync(logDir)) fs.mkdirSync(logDir, { recursive: true });
