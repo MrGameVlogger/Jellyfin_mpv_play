@@ -209,13 +209,13 @@ class PreferencesWindowController: NSWindowController {
         headlessCheckbox.frame = NSRect(x: leftX, y: yOffset, width: checkboxWidth, height: checkboxHeight)
         contentView.addSubview(headlessCheckbox)
 
-        autoSkipIntrosCheckbox = NSButton(checkboxWithTitle: "Auto-skip intros/outros", target: nil, action: nil)
+        autoSkipIntrosCheckbox = NSButton(checkboxWithTitle: "Auto-skip intros/outros", target: self, action: #selector(autoSkipIntrosChanged))
         autoSkipIntrosCheckbox.frame = NSRect(x: rightX, y: yOffset, width: checkboxWidth, height: checkboxHeight)
         contentView.addSubview(autoSkipIntrosCheckbox)
         yOffset -= rowSpacing
 
         // Row 3
-        disableSkipIntroCheckbox = NSButton(checkboxWithTitle: "Disable skip intro feature", target: nil, action: nil)
+        disableSkipIntroCheckbox = NSButton(checkboxWithTitle: "Disable skip intro feature", target: self, action: #selector(disableSkipIntroChanged))
         disableSkipIntroCheckbox.frame = NSRect(x: leftX, y: yOffset, width: checkboxWidth, height: checkboxHeight)
         contentView.addSubview(disableSkipIntroCheckbox)
 
@@ -383,6 +383,18 @@ class PreferencesWindowController: NSWindowController {
             alert.alertStyle = .warning
             alert.addButton(withTitle: "OK")
             alert.runModal()
+        }
+    }
+
+    @objc private func autoSkipIntrosChanged() {
+        if autoSkipIntrosCheckbox.state == .on {
+            disableSkipIntroCheckbox.state = .off
+        }
+    }
+
+    @objc private func disableSkipIntroChanged() {
+        if disableSkipIntroCheckbox.state == .on {
+            autoSkipIntrosCheckbox.state = .off
         }
     }
 
