@@ -274,7 +274,10 @@ class PreferencesWindowController: NSWindowController {
         if deviceId.isEmpty { deviceId = "mac-mpv" }
         deviceIdField.stringValue = deviceId
 
-        ipcSocketPathField.stringValue = ConfigParser.extractValue(from: content, key: "ipcSocketPath")
+        var ipcPath = ConfigParser.extractValue(from: content, key: "ipcSocketPath")
+        if ipcPath.isEmpty { ipcPath = "/tmp/mpv-ipc.sock" }
+        ipcSocketPathField.stringValue = ipcPath
+
         mpvFlagsField.stringValue = ConfigParser.extractValue(from: content, key: "mpvFlags")
 
         fullscreenCheckbox.state = ConfigParser.extractValue(from: content, key: "fullscreen") == "true" ? .on : .off
