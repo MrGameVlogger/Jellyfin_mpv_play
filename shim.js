@@ -2040,16 +2040,24 @@ async function pushOscState(hasMedia = true) {
     };
 
     // Tier 1: Push subtitle and audio track lists from Jellyfin MediaStreams
+    // Query current track selections from MPV
+    const [currentSid, currentAid] = await Promise.all([
+        queryProperty('sid').catch(() => null),
+        queryProperty('aid').catch(() => null)
+    ]);
+    const activeSub = currentSid !== null ? currentSid : currentSubtitleTrack;
+    const activeAudio = currentAid !== null ? currentAid : null;
+
     if (currentEpisodeInfo?.mediaStreams) {
         const subtitles = currentEpisodeInfo.mediaStreams
             .filter(s => s.Type === 'Subtitle')
             .map(s => ({
                 id: s.Index,
                 label: s.DisplayTitle || s.Title || s.Language || `Track ${s.Index}`,
-                selected: s.Index === currentSubtitleTrack
+                selected: s.Index === activeSub
             }));
         if (subtitles.length > 0) {
-            subtitles.unshift({ id: -1, label: 'Off', selected: currentSubtitleTrack === 'no' || currentSubtitleTrack === -1 });
+            subtitles.unshift({ id: -1, label: 'Off', selected: activeSub === 'no' || activeSub === -1 || activeSub === 0 });
             state.subtitles = subtitles;
         }
 
@@ -2058,7 +2066,7 @@ async function pushOscState(hasMedia = true) {
             .map(s => ({
                 id: s.Index,
                 label: s.DisplayTitle || s.Title || s.Language || `Track ${s.Index}`,
-                selected: false
+                selected: s.Index === activeAudio
             }));
         if (audio.length > 0) {
             state.audio = audio;
