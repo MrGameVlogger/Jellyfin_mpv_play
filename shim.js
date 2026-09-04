@@ -1669,11 +1669,13 @@ async function playNextEpisode() {
             playQueue = [];
             queuePosition = -1;
             isPlayingNext = false;
+            pushOscState(false);
             shutdown('auto-close');
         } else {
             playQueue = [];
             queuePosition = -1;
             isPlayingNext = false;
+            pushOscState(false);
             log('info', 'queue', 'ℹ️ Playlist ended, MPV staying open (--keep-open=yes)');
         }
         return;
@@ -1727,11 +1729,13 @@ async function playNextEpisode() {
                 playQueue = [];
                 queuePosition = -1;
                 isPlayingNext = false;
+                pushOscState(false);
                 shutdown('auto-close');
             } else {
                 playQueue = [];
                 queuePosition = -1;
                 isPlayingNext = false;
+                pushOscState(false);
                 log('info', 'queue', 'ℹ️ Playlist ended, MPV staying open (--keep-open=yes)');
             }
         }
@@ -1989,7 +1993,14 @@ function handleOscAction(verb, arg) {
             sendMpvCommand('screenshot');
             break;
         case 'set-fullscreen':
-            sendMpvCommand('cycle', ['fullscreen']);
+            // Notification from OSC — set to the requested state
+            if (arg === 'yes') {
+                sendMpvCommand('set_property', ['fullscreen', true]);
+            } else if (arg === 'no') {
+                sendMpvCommand('set_property', ['fullscreen', false]);
+            } else {
+                sendMpvCommand('cycle', ['fullscreen']);
+            }
             break;
         case 'unwatched-quit':
             shutdown('unwatched-quit');
@@ -2002,13 +2013,18 @@ function handleOscAction(verb, arg) {
     }
 }
 
-function pushOscState() {
+function pushOscState(hasMedia = true) {
+    if (!hasMedia) {
+        sendMpvCommand('script-message', ['shim-jf-osc-state', JSON.stringify({ strings: {}, has_media: false })]);
+        return;
+    }
     if (!currentItemId || !mpvProcess) return;
 
     const hasPrev = playQueue.length > 0 && queuePosition > 0;
     const hasNext = playQueue.length > 0 && queuePosition < playQueue.length - 1;
 
     const state = {
+        strings: {},
         has_media: true,
         allow_screenshot: true,
         queue: { has_prev: hasPrev, has_next: hasNext },
