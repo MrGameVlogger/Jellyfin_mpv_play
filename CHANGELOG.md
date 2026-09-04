@@ -18,6 +18,28 @@ All notable changes to Jellyfin MPV Play are documented here.
 
 -->
 
+## v1.10.1
+
+### Bug Fixes
+- **Fixed OSC close button** — `shim-close` is now handled as a direct script-message (was only handled as an action)
+- **Fixed OSC close behavior** — Now sends `quit` to MPV instead of killing the entire process (shim stays running)
+- **Fixed playlist title flash** — Skip `playlist-pos` handler during new queue loads to prevent wrong title flash
+- **Fixed OSC state not pushed on load** — `pushOscState()` now called in `file-loaded` handler so subtitle styling options appear immediately
+- **Fixed subtitle styling state** — Queries MPV's actual `sub-scale`/`sub-pos`/`sub-color` instead of hardcoding defaults
+- **Fixed subtitle/audio track selection** — Queries MPV's `sid`/`aid` to show correct selected tracks in OSC
+- **Fixed segment state leak** — `skippedSegmentIds` and `isInIntroSegment` now reset on new file load
+
+### New Features
+- **jf-mpv-osc Tier 1-3 integration** — Track naming, skip button, favorites, screenshot, fullscreen, unwatched quit
+- **Subtitle styling controls** — `sub_style` state pushed to OSC with size/position/color options
+- **OSC action logging** — All OSC actions now logged for debugging
+
+### Internal
+- **Updated AGENTS.md** — Added OSC integration details, removed dead variables
+- **Updated README.md** — Added jf-mpv-osc tier support table, thumbfast-jellyfin reference
+
+---
+
 ## v1.10.0
 
 ### New Features
