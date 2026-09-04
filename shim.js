@@ -1552,6 +1552,8 @@ function handleMpvEvent(event) {
 
     if (event.event === 'property-change' && event.name === 'playlist-pos' && typeof event.data === 'number') {
         const newPos = event.data;
+        // Skip during new queue loads — file-loaded handler takes care of it
+        if (isNewQueueLoad) return;
         if (playQueue.length > 0 && newPos >= 0 && newPos < playQueue.length && newPos !== queuePosition) {
             const prevItemId = currentItemId;
             const prevPos = currentPositionSeconds;
@@ -1608,8 +1610,8 @@ function handleMpvEvent(event) {
         } else if (event.args[0] === 'shim-jf-osc-action') {
             handleOscAction(event.args[1], event.args[2]);
         } else if (event.args[0] === 'shim-close') {
-            log('info', 'osc', '🎮 OSC close requested');
-            shutdown('osc-close');
+            log('info', 'osc', '🎮 OSC close requested — closing MPV');
+            sendMpvCommand('quit');
         } else if (event.args[0] === 'shim-jf-osc-ui-seek') {
             // OSC seekbar was dragged — exempt from skip-intro detection
             if (oscSeekTimeout) clearTimeout(oscSeekTimeout);
