@@ -743,7 +743,10 @@ async function getEpisodeInfo(itemId, silent = false) {
     try {
         const headers = getAuthHeaders();
         
-        const response = await axios.get(`${CONFIG.serverUrl}/Users/${userId}/Items/${itemId}`, { headers });
+        const response = await axios.get(`${CONFIG.serverUrl}/Users/${userId}/Items/${itemId}`, {
+            headers,
+            params: { fields: 'MediaStreams' }
+        });
         const item = response.data;
 
         if (item.Type === 'Episode') {
@@ -775,7 +778,8 @@ async function getEpisodeInfo(itemId, silent = false) {
                 episodeNumber: item.IndexNumber,
                 title: epName,
                 itemRuntime: item.RunTimeTicks ? item.RunTimeTicks / 10000000 : 0,
-                userData: item.UserData || {}
+                userData: item.UserData || {},
+                mediaStreams: item.MediaStreams || []
             };
         }
 
@@ -840,6 +844,7 @@ function skipIntro() {
         currentPositionSeconds = seekTo;
         if (currentItemId) reportPlaybackProgress(currentItemId, segment.endTicks);
         showSkipOsd(`Skipped ${segment.type.toLowerCase()}`);
+        pushOscSkipButton('');
         // Mark this segment as skipped so we don't skip again
         skippedSegmentIds.add(segment.startTicks);
     }
@@ -856,6 +861,8 @@ function checkIntroSegment(positionTicks) {
     if (segment) {
         if (!isInIntroSegment) {
             isInIntroSegment = true;
+            const skipLabel = `Skip ${segment.type}`;
+            pushOscSkipButton(skipLabel);
             if (CONFIG.autoSkipIntros) {
                 log('info', 'segments', `🎬 Auto-skip: ${segment.type} detected, skipping in 3s...`);
                 showSkipOsd(`Skipping ${segment.type.toLowerCase()} in 3s...`);
@@ -867,6 +874,7 @@ function checkIntroSegment(positionTicks) {
         }
     } else if (isInIntroSegment) {
         isInIntroSegment = false;
+        pushOscSkipButton('');
         if (skipIntroTimeout) { clearTimeout(skipIntroTimeout); skipIntroTimeout = null; }
     }
 }
@@ -1951,7 +1959,7 @@ function handleOscAction(verb, arg) {
             }
             break;
         case 'toggle-favorite':
-            // Not implemented — could toggle via Jellyfin API
+            toggleFavorite();
             break;
         case 'shim-close':
             shutdown('osc-close');
@@ -1970,10 +1978,60 @@ function pushOscState() {
     const state = {
         has_media: true,
         queue: { has_prev: hasPrev, has_next: hasNext },
-        favorite: false
+        favorite: currentEpisodeInfo?.userData?.IsFavorite || false
     };
 
+    // Tier 1: Push subtitle and audio track lists from Jellyfin MediaStreams
+    if (currentEpisodeInfo?.mediaStreams) {
+        const subtitles = currentEpisodeInfo.mediaStreams
+            .filter(s => s.Type === 'Subtitle')
+            .map(s => ({
+                id: s.Index,
+                label: s.DisplayTitle || s.Title || s.Language || `Track ${s.Index}`,
+                selected: s.Index === currentSubtitleTrack
+            }));
+        if (subtitles.length > 0) {
+            subtitles.unshift({ id: -1, label: 'Off', selected: currentSubtitleTrack === 'no' || currentSubtitleTrack === -1 });
+            state.subtitles = subtitles;
+        }
+
+        const audio = currentEpisodeInfo.mediaStreams
+            .filter(s => s.Type === 'Audio')
+            .map(s => ({
+                id: s.Index,
+                label: s.DisplayTitle || s.Title || s.Language || `Track ${s.Index}`,
+                selected: false // We'd need to query MPV's aid to know the current selection
+            }));
+        if (audio.length > 0) {
+            state.audio = audio;
+        }
+    }
+
     sendMpvCommand('script-message', ['shim-jf-osc-state', JSON.stringify(state)]);
+}
+
+function pushOscSkipButton(label) {
+    sendMpvCommand('script-message', ['shim-jf-osc-skip', label || '']);
+}
+
+async function toggleFavorite() {
+    if (!currentItemId) return;
+    try {
+        const headers = getAuthHeaders();
+        const isFavorite = currentEpisodeInfo?.userData?.IsFavorite;
+        if (isFavorite) {
+            await axios.delete(`${CONFIG.serverUrl}/Users/${userId}/FavoriteItems/${currentItemId}`, { headers });
+        } else {
+            await axios.post(`${CONFIG.serverUrl}/Users/${userId}/FavoriteItems/${currentItemId}`, {}, { headers });
+        }
+        if (currentEpisodeInfo?.userData) {
+            currentEpisodeInfo.userData.IsFavorite = !isFavorite;
+        }
+        pushOscState();
+        log('info', 'osc', `${isFavorite ? '💔 Removed from' : '❤️ Added to'} favorites`);
+    } catch (err) {
+        log('error', 'osc', '⚠️ Error toggling favorite:', err.message);
+    }
 }
 
 function shutdown(signal) {
