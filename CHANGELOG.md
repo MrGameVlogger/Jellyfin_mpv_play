@@ -18,6 +18,20 @@ All notable changes to Jellyfin MPV Play are documented here.
 
 -->
 
+## v1.10.3
+
+### Bug Fixes
+- **Fixed shutdown double-call** — Added re-entrancy guard and `doExit` guard to prevent shutdown sequence from running twice
+- **Fixed unwatched-quit marking as watched** — OSC unwatched-quit now correctly skips the watched threshold check
+- **Fixed shell injection on Linux** — Crash dialog now uses `execFile` instead of `exec` to prevent shell injection via error messages
+
+### New Features
+- **Crash dialog on Windows/Linux** — Shows a dialog with error details on crash (PowerShell MessageBox on Windows, zenity on Linux), falls back to opening crash log in text editor
+- **Crash log file** — Writes error details to `data/crash.log` on uncaught errors for all platforms
+- **Crash alert on macOS** — Shows NSAlert with exit code and log file path when shim crashes
+
+---
+
 ## v1.10.2
 
 ### Bug Fixes

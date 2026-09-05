@@ -116,6 +116,8 @@ let isSeeking = false;
 let isNewQueueLoad = false;
 let queueLoadCounter = 0;
 let isPlayingNextTimestamp = 0;
+let isShuttingDown = false;
+let isUnwatchedQuit = false;
 
 let introSegments = [];
 let skipIntroTimeout = null;
@@ -1157,11 +1159,12 @@ async function playMedia(itemId, startTicks) {
             if (currentItemId && !isReportingStop) {
                 const runtime = currentEpisodeInfo?.itemRuntime || 0;
                 const completionThreshold = 0.9;
-                if (runtime > 0 && currentPositionSeconds >= runtime * completionThreshold) {
+                if (!isUnwatchedQuit && runtime > 0 && currentPositionSeconds >= runtime * completionThreshold) {
                     markItemAsWatched(currentItemId);
                 }
                 reportPlaybackStop(currentItemId, Math.round(currentPositionSeconds * 10000000));
             }
+            isUnwatchedQuit = false;
             mpvProcess = null;
             stopProgressPoll();
             for (const [, q] of pendingQueries) { if (q.timer) clearTimeout(q.timer); q.resolve(null); }
@@ -2049,6 +2052,7 @@ function handleOscAction(verb, arg) {
             break;
         case 'unwatched-quit':
             log('info', 'osc', '🎮 OSC unwatched quit — closing MPV');
+            isUnwatchedQuit = true;
             sendMpvCommand('quit');
             break;
         default:
@@ -2169,6 +2173,8 @@ async function toggleFavorite() {
 }
 
 function shutdown(signal) {
+    if (isShuttingDown) return;
+    isShuttingDown = true;
     log('info', 'main', `\n👋 Closing application (${signal})...`);
     
     stopProgressPoll();
@@ -2182,7 +2188,10 @@ function shutdown(signal) {
         savePlaybackPosition(currentItemId, Math.round(currentPositionSeconds * 10000000));
     }
 
+    let doExitCalled = false;
     const doExit = () => {
+        if (doExitCalled) return;
+        doExitCalled = true;
         // Try graceful quit first, then force kill after timeout
         if (mpvProcess && ipcClient && !ipcClient.destroyed) {
             sendMpvCommand('quit');
@@ -2249,17 +2258,18 @@ function writeCrashLog(type, error) {
 
         // Show a dialog or open the crash log
         const dialogMessage = `Jellyfin MPV Play crashed: ${type}\n\n${message.substring(0, 500)}`;
-        const { exec } = require('child_process');
+        const { execFile } = require('child_process');
 
         if (process.platform === 'win32') {
             // Try PowerShell message box, fall back to notepad
-            exec(`powershell -Command "Add-Type -AssemblyName System.Windows.Forms; [System.Windows.Forms.MessageBox]::Show('${dialogMessage.replace(/'/g, "''")}', 'Jellyfin MPV Play - Crash', 'OK', 'Error')"`, (err) => {
-                if (err) exec(`start notepad.exe "${crashFile}"`);
+            const psScript = `Add-Type -AssemblyName System.Windows.Forms; [System.Windows.Forms.MessageBox]::Show('${dialogMessage.replace(/'/g, "''")}', 'Jellyfin MPV Play - Crash', 'OK', 'Error')`;
+            execFile('powershell', ['-Command', psScript], (err) => {
+                if (err) execFile('notepad', [crashFile]);
             });
         } else if (process.platform === 'linux') {
             // Try zenity, fall back to xdg-open
-            exec(`zenity --error --title="Jellyfin MPV Play - Crash" --text="${dialogMessage.replace(/"/g, '\\"')}" --width=400 2>/dev/null`, (err) => {
-                if (err) exec(`xdg-open "${crashFile}" 2>/dev/null`);
+            execFile('zenity', ['--error', '--title=Jellyfin MPV Play - Crash', `--text=${dialogMessage}`, '--width=400'], (err) => {
+                if (err) execFile('xdg-open', [crashFile]);
             });
         }
         // macOS uses NSAlert (handled by Swift)
