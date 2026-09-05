@@ -21,11 +21,15 @@ All notable changes to Jellyfin MPV Play are documented here.
 ## v1.10.3
 
 ### Bug Fixes
+- **Fixed auto-close killing process** — Auto-close now sends `quit` to MPV instead of calling `shutdown()`, so the shim stays running
 - **Fixed shutdown double-call** — Added re-entrancy guard and `doExit` guard to prevent shutdown sequence from running twice
+- **Fixed shutdown timeout** — Stop report now has a 3-second timeout so shutdown doesn't hang when Jellyfin is unreachable
 - **Fixed unwatched-quit marking as watched** — OSC unwatched-quit now correctly skips the watched threshold check
 - **Fixed shell injection on Linux** — Crash dialog now uses `execFile` instead of `exec` to prevent shell injection via error messages
+- **Fixed test connection timeout** — Preferences test connection now times out in 10 seconds instead of 60
 
 ### New Features
+- **Shim stays running after MPV closes** — Shim only exits on SIGINT/SIGTERM or crashes; all other scenarios (OSC close, auto-close, unwatched-quit) just close MPV
 - **Crash dialog on Windows/Linux** — Shows a dialog with error details on crash (PowerShell MessageBox on Windows, zenity on Linux), falls back to opening crash log in text editor
 - **Crash log file** — Writes error details to `data/crash.log` on uncaught errors for all platforms
 - **Crash alert on macOS** — Shows NSAlert with exit code and log file path when shim crashes
