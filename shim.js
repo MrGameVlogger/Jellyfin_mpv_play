@@ -2246,6 +2246,23 @@ function writeCrashLog(type, error) {
         const logEntry = `[${timestamp}] ${type}\n${message}\n\n`;
         fs.appendFileSync(crashFile, logEntry);
         console.error(`Crash log written to: ${crashFile}`);
+
+        // Show a dialog or open the crash log
+        const dialogMessage = `Jellyfin MPV Play crashed: ${type}\n\n${message.substring(0, 500)}`;
+        const { exec } = require('child_process');
+
+        if (process.platform === 'win32') {
+            // Try PowerShell message box, fall back to notepad
+            exec(`powershell -Command "Add-Type -AssemblyName System.Windows.Forms; [System.Windows.Forms.MessageBox]::Show('${dialogMessage.replace(/'/g, "''")}', 'Jellyfin MPV Play - Crash', 'OK', 'Error')"`, (err) => {
+                if (err) exec(`start notepad.exe "${crashFile}"`);
+            });
+        } else if (process.platform === 'linux') {
+            // Try zenity, fall back to xdg-open
+            exec(`zenity --error --title="Jellyfin MPV Play - Crash" --text="${dialogMessage.replace(/"/g, '\\"')}" --width=400 2>/dev/null`, (err) => {
+                if (err) exec(`xdg-open "${crashFile}" 2>/dev/null`);
+            });
+        }
+        // macOS uses NSAlert (handled by Swift)
     } catch (e) {
         // If we can't write the crash log, just continue with shutdown
     }
