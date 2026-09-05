@@ -2214,9 +2214,10 @@ function shutdown(signal) {
             PlayMethod: 'DirectPlay',
             PlaySessionId: playSessionId
         };
+        const stopTimeout = setTimeout(doExit, 3000);
         axios.post(`${CONFIG.serverUrl}/Sessions/Playing/Stopped`, data, { headers })
             .catch(() => {})
-            .finally(doExit);
+            .finally(() => { clearTimeout(stopTimeout); doExit(); });
     } else {
         doExit();
     }
