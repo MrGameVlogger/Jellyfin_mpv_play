@@ -2048,7 +2048,8 @@ function handleOscAction(verb, arg) {
             }
             break;
         case 'unwatched-quit':
-            shutdown('unwatched-quit');
+            log('info', 'osc', '🎮 OSC unwatched quit — closing MPV');
+            sendMpvCommand('quit');
             break;
         default:
             log('debug', 'osc', `Unknown OSC action: ${verb} ${arg || ''}`);
