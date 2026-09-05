@@ -139,6 +139,7 @@ class NodeProcessManager {
                     self.logHandler("Process terminated (exit code: \(exitCode))")
                     self.restartCount = 0
                     self.logHandler("Max restart attempts reached. Click Restart to try again.")
+                    self.showCrashAlert(exitCode: exitCode)
                 }
             }
         }
@@ -434,6 +435,27 @@ class NodeProcessManager {
         if !FileManager.default.fileExists(atPath: configFile) {
             let exampleConfig = bundleResources + "/config.example.js"
             try? FileManager.default.copyItem(atPath: exampleConfig, toPath: configFile)
+        }
+    }
+
+    private func showCrashAlert(exitCode: Int32) {
+        let dataDir = ConfigParser.applicationSupportDir() + "/data"
+        let logFiles = (try? FileManager.default.contentsOfDirectory(atPath: dataDir))?
+            .filter { $0.hasSuffix(".log") }
+            .sorted()
+            .reversed() ?? []
+        let latestLog = logFiles.first.map { "\(dataDir)/\($0)" } ?? "No log files found"
+
+        let alert = NSAlert()
+        alert.messageText = "Jellyfin MPV Play crashed"
+        alert.informativeText = "The shim process exited unexpectedly (code: \(exitCode)).\n\nThis is a bug. Please report it with the log file:\n\(latestLog)"
+        alert.alertStyle = .critical
+        alert.addButton(withTitle: "Open Log File")
+        alert.addButton(withTitle: "Dismiss")
+
+        let response = alert.runModal()
+        if response == .alertFirstButtonReturn {
+            NSWorkspace.shared.open(URL(fileURLWithPath: latestLog))
         }
     }
 
