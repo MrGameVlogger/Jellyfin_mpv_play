@@ -2227,12 +2227,29 @@ process.on('SIGINT', () => shutdown('SIGINT'));
 process.on('SIGTERM', () => shutdown('SIGTERM'));
 process.on('uncaughtException', (err) => {
     log('error', 'main', '❌ Uncaught exception:', err);
+    writeCrashLog('uncaughtException', err);
     shutdown('uncaughtException');
 });
 process.on('unhandledRejection', (reason) => {
     log('error', 'main', '❌ Unhandled rejection:', reason);
+    writeCrashLog('unhandledRejection', reason);
     shutdown('unhandledRejection');
 });
+
+function writeCrashLog(type, error) {
+    try {
+        const dataDir = path.join(__dirname, 'data');
+        if (!fs.existsSync(dataDir)) fs.mkdirSync(dataDir, { recursive: true });
+        const crashFile = path.join(dataDir, 'crash.log');
+        const timestamp = new Date().toISOString();
+        const message = error instanceof Error ? error.stack || error.message : String(error);
+        const logEntry = `[${timestamp}] ${type}\n${message}\n\n`;
+        fs.appendFileSync(crashFile, logEntry);
+        console.error(`Crash log written to: ${crashFile}`);
+    } catch (e) {
+        // If we can't write the crash log, just continue with shutdown
+    }
+}
 
 async function main() {
     log('info', 'main', '\n🚀 Starting Jellyfin MPV Shim...\n');
