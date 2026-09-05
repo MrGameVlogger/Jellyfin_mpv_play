@@ -393,7 +393,7 @@ See [CHANGELOG.md](CHANGELOG.md) for full release history.
 
 ### Recent Releases
 
-**v1.10.3** — Crash reporting, shutdown fixes, unwatched-quit fix ([details](CHANGELOG.md#v1103))
+**v1.10.3** — Crash reporting, graceful shutdown, shim stays running after MPV closes ([details](CHANGELOG.md#v1103))
 
 **v1.10.2** — Bug audit fixes: reconnection, OSD pause, watched marking, Preferences UI ([details](CHANGELOG.md#v1102))
 
