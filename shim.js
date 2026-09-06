@@ -280,12 +280,18 @@ async function connectWebSocket() {
         
         ws.on('open', () => {
             log('info', 'ws', '✅ WebSocket connection established.');
+            const wasReconnecting = reconnectAttempts > 0;
             isReconnecting = false;
             reconnectAttempts = 0;
             lastErrorOsdTime = 0;
             lastMessageReceivedAt = Date.now();
             lastKeepAliveSentAt = 0;
             log('info', 'ws', 'Connected to Jellyfin');
+            
+            // Show "connected" OSD if we were reconnecting
+            if (wasReconnecting) {
+                showErrorOsd('Reconnected');
+            }
             
             const msg = {
                 MessageType: "SessionsStart",
@@ -341,7 +347,6 @@ async function connectWebSocket() {
             const sinceLastKeepAlive = lastKeepAliveSentAt ? Math.round((now - lastKeepAliveSentAt) / 1000) : 'unknown';
             log('info', 'ws', `Disconnected from server — code: ${code}, reason: "${reason || 'none'}", since last message: ${sinceLastMessage}s, since last keepalive: ${sinceLastKeepAlive}s`);
             isReconnecting = false;
-            showErrorOsd('Connection lost — reconnecting...');
             
             if (keepAliveInterval) {
                 clearInterval(keepAliveInterval);
@@ -366,6 +371,11 @@ function scheduleReconnect() {
     reconnectAttempts++;
     let delaySeconds = Math.min(30, 5 * Math.pow(2, reconnectAttempts - 1));
     if (reconnectAttempts === 1) delaySeconds = 5;
+    
+    // Only show OSD after first retry fails (avoids flashing on brief network blips)
+    if (reconnectAttempts > 1) {
+        showErrorOsd('Connection lost — reconnecting...');
+    }
     
     log('info', 'ws', `🔄 Scheduling automatic reconnection in ${delaySeconds} seconds (Attempt ${reconnectAttempts})...`);
     
