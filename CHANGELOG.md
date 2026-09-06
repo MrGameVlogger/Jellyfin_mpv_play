@@ -18,6 +18,14 @@ All notable changes to Jellyfin MPV Play are documented here.
 
 -->
 
+## v1.10.8
+
+### Bug Fixes
+- **Fixed ForceKeepAlive data parsing** — `msg.Data` can be a number, string, or object (`{Timeout: N}`). NaN from bad parsing would cause a 0ms tight loop flooding the socket. Now parses all formats safely with fallback to 30.
+- **Restored KeepAlive in noisyTypes** — Removing it caused info-level "Message received: KeepAlive" log spam every 30s in headless mode. Echo is still logged at debug level in handleMessage.
+
+---
+
 ## v1.10.7
 
 ### Bug Fixes
