@@ -298,7 +298,7 @@ async function connectWebSocket() {
                         log('error', 'ws', 'Error sending keep-alive:', e.message);
                     }
                 }
-            }, 60000);
+            }, 30000);
             
             if (reconnectInterval) {
                 clearTimeout(reconnectInterval);
@@ -309,7 +309,7 @@ async function connectWebSocket() {
         ws.on('message', (data) => {
             try {
                 const msg = JSON.parse(data);
-                const noisyTypes = ['KeepAlive', 'ForceKeepAlive', 'RefreshProgress', 'Sessions'];
+                const noisyTypes = ['RefreshProgress', 'Sessions'];
                 if (!noisyTypes.includes(msg.MessageType)) {
                     log('info', 'ws', 'Message received:', msg.MessageType);
                 }
@@ -320,10 +320,7 @@ async function connectWebSocket() {
         });
 
         ws.on('ping', (data) => {
-            if (ws && ws.readyState === WebSocket.OPEN) {
-                ws.pong(data);
-                log('debug', 'ws', '🏓 Pong sent in response to server ping');
-            }
+            log('debug', 'ws', '🏓 Server ping received (ws auto-responds with pong)');
         });
 
         ws.on('error', (error) => {
@@ -442,6 +439,10 @@ function reportCapabilities() {
 }
 
 async function handleMessage(msg) {
+    if (msg.MessageType === "KeepAlive") {
+        log('debug', 'ws', '💓 Server echoed our KeepAlive back');
+        return;
+    }
     if (msg.MessageType === "ForceKeepAlive") {
         const interval = msg.Data || 30;
         log('info', 'ws', `Server requested keep-alive every ${interval}s`);
@@ -459,7 +460,7 @@ async function handleMessage(msg) {
         // Set up periodic keep-alive at half the server's requested interval
         // to avoid race conditions with server timeout checks
         if (keepAliveInterval) clearInterval(keepAliveInterval);
-        const keepAliveMs = Math.min(interval * 1000, 60000); // Respect server's timeout (default 60s)
+        const keepAliveMs = Math.min(interval * 500, 30000); // Half the server's interval, cap at 30s
         keepAliveInterval = setInterval(() => {
             if (ws && ws.readyState === WebSocket.OPEN) {
                 try {
@@ -752,7 +753,10 @@ async function handleMessage(msg) {
         log('info', 'ws', '🔄 Server is restarting, will reconnect...');
     }
     else {
-        log('debug', 'ws', `Unhandled message type: ${msg.MessageType}`);
+        const noisyTypes = ['RefreshProgress', 'Sessions'];
+        if (!noisyTypes.includes(msg.MessageType)) {
+            log('debug', 'ws', `Unhandled message type: ${msg.MessageType}`);
+        }
     }
 }
 

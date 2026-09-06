@@ -18,6 +18,15 @@ All notable changes to Jellyfin MPV Play are documented here.
 
 -->
 
+## v1.10.7
+
+### Bug Fixes
+- **Restored 30-second KeepAlive interval** — Changed back from 60s to 30s. The server's `ForceKeepAlive` handler resets our interval, so the 60s default was too slow — the server's 48s ForceKeepAlive cadence meant our own timer never fired.
+- **Restored ForceKeepAlive interval reset** — The handler now resets `keepAliveInterval` to half the server's requested value (capped at 30s) to avoid race conditions with server timeout checks.
+- **Filter noisy types in debug log** — `RefreshProgress`, `Sessions`, `KeepAlive`, `ForceKeepAlive` are no longer logged as "Unhandled" at debug level.
+
+---
+
 ## v1.10.6
 
 ### Bug Fixes
