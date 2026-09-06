@@ -508,6 +508,8 @@ The macOS `.app` can also be built locally: `cd macapp && ./build.sh` (deploys t
 
 **⚠️ Never delete releases to reorder them** — GitHub release assets (zip files, etc.) are permanently deleted when a release is deleted. If you need to reorder releases, use the GitHub API to update `published_at` dates instead. Always download assets before deleting a release.
 
+**⚠️ Don't be release-happy** — Batch related fixes into a single release. Do NOT release each individual fix as its own version. Investigate, test, and iterate BEFORE tagging. A release should be a coherent set of changes, not a trail of trial-and-error. If you make a fix that turns out to be wrong and needs reverting, that should happen in development — not as separate releases.
+
 ## GitHub workflow
 
 - **Branch protection**: `main` requires PRs (force pushes and deletions blocked)
