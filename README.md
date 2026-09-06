@@ -393,6 +393,8 @@ See [CHANGELOG.md](CHANGELOG.md) for full release history.
 
 ### Recent Releases
 
+**v1.10.4** — Fixed auto-advance at end of playlist, NextUp episode insertion ([details](CHANGELOG.md#v1104))
+
 **v1.10.3** — Crash reporting, graceful shutdown, shim stays running after MPV closes ([details](CHANGELOG.md#v1103))
 
 **v1.10.2** — Bug audit fixes: reconnection, OSD pause, watched marking, Preferences UI ([details](CHANGELOG.md#v1102))

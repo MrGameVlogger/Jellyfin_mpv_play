@@ -18,7 +18,7 @@ All notable changes to Jellyfin MPV Play are documented here.
 
 -->
 
-## Unreleased
+## v1.10.4
 
 ### Bug Fixes
 - **Fixed auto-advance at end of playlist** — Removed `!isMpvPaused` check from progress poll so the next episode triggers even when MPV is paused at end of file (with `--keep-open=yes`)
