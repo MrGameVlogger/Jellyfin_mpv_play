@@ -73,6 +73,31 @@ No lint or typecheck steps exist. Tests run via `npm test`.
 - **Reconnection**: Exponential backoff (5s → 10s → 20s → 30s cap) on WebSocket disconnect.
 - **jf-mpv-osc integration**: Optional integration with [jf-mpv-osc](https://github.com/iwalton3/jf-mpv-osc) for Jellyfin-styled MPV UI. Pushes state via `shim-jf-osc-state` (track lists, queue, favorites, subtitle styling). Handles actions via `shim-jf-osc-action` (skip, next/prev, set-sub, set-audio, screenshot, fullscreen, etc.). Also handles direct `shim-close` and `shim-jf-osc-ui-seek` messages. All integration is optional — messages are silently ignored if OSC isn't loaded. See README.md for full tier support table.
 
+## WebSocket behavior (learned the hard way)
+
+- **`ws` library v8.x auto-responds to protocol-level `ping`/`pong` frames.** No manual handler needed. Adding a `ws.on('ping')` handler that calls `ws.pong()` causes double-pong responses.
+- **Jellyfin sends `ForceKeepAlive` every ~48 seconds.** The server's `SessionWebSocketListener` checks every 12 seconds (60 × 0.2). If elapsed > 45s, sends `ForceKeepAlive`. If elapsed > 60s, marks connection lost.
+- **`ForceKeepAlive` resets our interval timer.** If we reset `keepAliveInterval` on every `ForceKeepAlive`, our own timer never fires independently. Use half the server's requested interval (capped at 30s).
+- **`msg.Data` in `ForceKeepAlive` can be a number, string, or object (`{Timeout: N}`).** NaN from bad parsing causes a 0ms tight loop flooding the socket. Always parse safely with fallback to 30.
+- **KeepAlive messages are echoed back.** When we send `{ MessageType: 'KeepAlive' }`, the server broadcasts it to all clients including us. Use this to verify the server received our message.
+- **Close code 1006 = abnormal closure.** No close frame received — TCP connection was reset by something in the network path (NAT, router, ISP, WiFi), not by the server.
+- **Disconnects while actively communicating are network-level issues.** If the last message was received <20 seconds before disconnect, it's not a keep-alive timeout — something is killing the TCP connection.
+- **`NOISY_WS_TYPES` constant** — `['KeepAlive', 'RefreshProgress', 'Sessions']` — used to filter frequent messages from info-level logs. Keep this consistent across all handlers.
+
+## Disconnect diagnosis
+
+When WebSocket disconnects occur, check:
+1. **Close code** — 1006 = network-level drop, 1000 = normal close, 1001 = going away
+2. **Time since last message** — <20s = network issue, >60s = keep-alive issue
+3. **Server logs** — `127.0.0.1` disconnects are the web UI, NOT our client. Our client's IP would be different.
+4. **Reconnection pattern** — "Server unavailable" during retry = network was briefly down. Immediate success = server closed the connection.
+
+## OSD behavior
+
+- **Don't show "Connection lost" immediately on disconnect.** Only show after the first reconnection attempt fails (~5 seconds). Brief network blips (<5 seconds) should show no message.
+- **Show "Reconnected" when successfully reconnecting** after a disconnect. Use `showErrorOsd` (top-right), not `showSkipOsd` (bottom-right).
+- **OSD auto-clears after 3 seconds.** No need to explicitly clear on reconnection.
+
 ## Config options
 
 All options go in `config.js` (copy from `config.example.js`):
