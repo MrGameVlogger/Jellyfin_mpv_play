@@ -21,6 +21,21 @@ git checkout main && git pull origin main && git branch -D fix/my-fix
 
 **Common mistake:** Committing to main first, then trying to push to a branch. The branch doesn't exist on the remote yet, so the push fails. Always `git checkout -b <branch>` BEFORE `git add` and `git commit`.
 
+## Proactiveness
+
+You are allowed to be proactive, but only when the user asks you to do something. You should strive to strike a balance between:
+
+1. Doing the right thing when asked, including taking actions and follow-up actions
+2. Not surprising the user with actions you take without asking
+3. Giving the user time to review and interject before you commit/push
+
+For example, if the user asks you to fix a bug:
+1. Make the changes
+2. Show what you've done and wait for approval
+3. Only commit and push after the user confirms
+
+**Do NOT** immediately commit, push, create PR, and merge in one shot. The user needs time to review your analysis and catch mistakes before they become permanent commits.
+
 ## What this is
 
 Node.js shim (`shim.js`, ~2300 lines) that connects to Jellyfin via WebSocket, receives play commands, and controls MPV via Unix socket IPC. Optional macOS menubar app (`macapp/`) spawns the shim and parses its stdout for UI state. Linux and Windows users run `shim.js` directly via platform-specific launcher scripts.
