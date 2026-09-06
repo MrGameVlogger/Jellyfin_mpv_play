@@ -86,6 +86,8 @@ let reconnectInterval = null;
 let isReconnecting = false;
 let reconnectAttempts = 0;
 let keepAliveInterval = null;
+let lastMessageReceivedAt = 0;
+let lastKeepAliveSentAt = 0;
 
 let pendingStreamUrl = null;
 let pendingStartSeconds = 0;
@@ -279,6 +281,8 @@ async function connectWebSocket() {
             isReconnecting = false;
             reconnectAttempts = 0;
             lastErrorOsdTime = 0;
+            lastMessageReceivedAt = Date.now();
+            lastKeepAliveSentAt = 0;
             log('info', 'ws', 'Connected to Jellyfin');
             
             const msg = {
@@ -293,6 +297,7 @@ async function connectWebSocket() {
                 if (ws && ws.readyState === WebSocket.OPEN) {
                     try {
                         ws.send(JSON.stringify({ MessageType: 'KeepAlive' }));
+                        lastKeepAliveSentAt = Date.now();
                         log('debug', 'ws', '💓 Keep-alive sent');
                     } catch (e) {
                         log('error', 'ws', 'Error sending keep-alive:', e.message);
@@ -307,6 +312,7 @@ async function connectWebSocket() {
         });
 
         ws.on('message', (data) => {
+            lastMessageReceivedAt = Date.now();
             try {
                 const msg = JSON.parse(data);
                 const noisyTypes = ['KeepAlive', 'RefreshProgress', 'Sessions'];
@@ -324,12 +330,15 @@ async function connectWebSocket() {
         });
 
         ws.on('error', (error) => {
-            log('error', 'ws', 'WebSocket error:', error.message);
+            log('error', 'ws', `WebSocket error: ${error.message} (code: ${error.code || 'none'})`);
             isReconnecting = false;
         });
 
-        ws.on('close', () => {
-            log('info', 'ws', 'Disconnected from server.');
+        ws.on('close', (code, reason) => {
+            const now = Date.now();
+            const sinceLastMessage = lastMessageReceivedAt ? Math.round((now - lastMessageReceivedAt) / 1000) : 'unknown';
+            const sinceLastKeepAlive = lastKeepAliveSentAt ? Math.round((now - lastKeepAliveSentAt) / 1000) : 'unknown';
+            log('info', 'ws', `Disconnected from server — code: ${code}, reason: "${reason || 'none'}", since last message: ${sinceLastMessage}s, since last keepalive: ${sinceLastKeepAlive}s`);
             isReconnecting = false;
             showErrorOsd('Connection lost — reconnecting...');
             
@@ -456,6 +465,7 @@ async function handleMessage(msg) {
         if (ws && ws.readyState === WebSocket.OPEN) {
             try {
                 ws.send(JSON.stringify({ MessageType: 'KeepAlive' }));
+                lastKeepAliveSentAt = Date.now();
                 log('debug', 'ws', '💓 Keep-alive sent (immediate response)');
             } catch (e) {
                 log('error', 'ws', 'Error sending keep-alive:', e.message);
@@ -470,6 +480,7 @@ async function handleMessage(msg) {
             if (ws && ws.readyState === WebSocket.OPEN) {
                 try {
                     ws.send(JSON.stringify({ MessageType: 'KeepAlive' }));
+                    lastKeepAliveSentAt = Date.now();
                     log('debug', 'ws', '💓 Keep-alive sent');
                 } catch (e) {
                     log('error', 'ws', 'Error sending keep-alive:', e.message);
