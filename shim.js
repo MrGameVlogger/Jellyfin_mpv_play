@@ -1466,7 +1466,7 @@ function startProgressPoll() {
             log('info', 'queue', `Next up: ${title}`);
             showSkipOsd(`Next up: ${title}`);
         }
-        if (!isMpvPaused && currentDuration > 0 && currentPositionSeconds >= currentDuration - 1 && !isPlayingNext && currentItemId) {
+        if (currentDuration > 0 && currentPositionSeconds >= currentDuration - 1 && !isPlayingNext && currentItemId) {
             const isLastInPlaylist = queuePosition >= playQueue.length - 1;
             if (isLastInPlaylist) {
                 log('info', 'queue', `🎬 Near end of last item (${currentPositionSeconds.toFixed(1)}s / ${currentDuration.toFixed(1)}s), querying NextUp`);
@@ -1735,7 +1735,7 @@ async function playNextEpisode() {
         queuePosition = playQueue.length - 1;
         currentItemId = nextEp.Id;
         sendMpvCommand('loadfile', [url, 'append']);
-        sendMpvCommand('playlist-next');
+        sendMpvCommand('set_property', ['playlist-pos', queuePosition]);
         return;
     }
 
@@ -1770,7 +1770,7 @@ async function playNextEpisode() {
             queuePosition = playQueue.length - 1;
             currentItemId = nextUpId;
             sendMpvCommand('loadfile', [url, 'append']);
-            sendMpvCommand('playlist-next');
+            sendMpvCommand('set_property', ['playlist-pos', queuePosition]);
         } else {
             log('info', 'queue', 'ℹ️ No more episodes, ending playback.');
             playQueue = [];
