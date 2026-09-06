@@ -18,6 +18,15 @@ All notable changes to Jellyfin MPV Play are documented here.
 
 -->
 
+## v1.10.6
+
+### Bug Fixes
+- **Fixed default KeepAlive interval** — Changed from 120s to 60s to match Jellyfin's `WebSocketLostTimeout` (60s). The server sends `ForceKeepAlive` at 45s and marks the connection lost at 60s; our default of 120s was too slow.
+- **Respect server's keep-alive timeout** — The `ForceKeepAlive` handler now caps the interval at the server's requested value (60s) instead of 120s.
+- **Log unknown WebSocket message types** — Unhandled message types are now logged at debug level instead of being silently ignored.
+
+---
+
 ## v1.10.5
 
 ### Bug Fixes
