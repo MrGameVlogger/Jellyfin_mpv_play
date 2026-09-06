@@ -298,7 +298,7 @@ async function connectWebSocket() {
                         log('error', 'ws', 'Error sending keep-alive:', e.message);
                     }
                 }
-            }, 30000);
+            }, 120000);
             
             if (reconnectInterval) {
                 clearTimeout(reconnectInterval);
@@ -316,6 +316,13 @@ async function connectWebSocket() {
                 handleMessage(msg).catch(e => log('error', 'ws', 'Error handling message:', e.message));
             } catch (e) {
                 log('error', 'ws', 'Error parsing message:', e.message);
+            }
+        });
+
+        ws.on('ping', (data) => {
+            if (ws && ws.readyState === WebSocket.OPEN) {
+                ws.pong(data);
+                log('debug', 'ws', '🏓 Pong sent in response to server ping');
             }
         });
 
@@ -452,7 +459,7 @@ async function handleMessage(msg) {
         // Set up periodic keep-alive at half the server's requested interval
         // to avoid race conditions with server timeout checks
         if (keepAliveInterval) clearInterval(keepAliveInterval);
-        const keepAliveMs = Math.min(interval * 1000, 30000); // Cap at 30s for safety
+        const keepAliveMs = Math.min(interval * 1000, 120000); // Cap at 120s for safety
         keepAliveInterval = setInterval(() => {
             if (ws && ws.readyState === WebSocket.OPEN) {
                 try {
