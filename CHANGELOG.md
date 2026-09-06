@@ -18,6 +18,15 @@ All notable changes to Jellyfin MPV Play are documented here.
 
 -->
 
+## Unreleased
+
+### Bug Fixes
+- **Fixed auto-advance at end of playlist** — Removed `!isMpvPaused` check from progress poll so the next episode triggers even when MPV is paused at end of file (with `--keep-open=yes`)
+- **Fixed NextUp episode insertion** — Cross-season and NextUp episode additions now use `set_property playlist-pos` instead of `playlist-next` to reliably jump to the appended item
+- **Fixed stale documentation** — Removed dead `isManualSkip` references from CONTRIBUTING.md
+
+---
+
 ## v1.10.3
 
 ### Bug Fixes
