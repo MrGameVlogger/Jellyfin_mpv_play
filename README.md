@@ -393,6 +393,8 @@ See [CHANGELOG.md](CHANGELOG.md) for full release history.
 
 ### Recent Releases
 
+**v1.10.6** — Fixed KeepAlive interval to match server timeout ([details](CHANGELOG.md#v1106))
+
 **v1.10.5** — Fixed WebSocket disconnecting every ~30 minutes ([details](CHANGELOG.md#v1105))
 
 **v1.10.4** — Fixed auto-advance at end of playlist, NextUp episode insertion ([details](CHANGELOG.md#v1104))
