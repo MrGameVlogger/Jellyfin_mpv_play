@@ -37,26 +37,35 @@ These should have been a single release. Future investigations should complete b
 
 ## v1.10.7
 
-### Bug Fixes
-- **Restored 30-second KeepAlive interval** — Changed back from 60s to 30s. The server's `ForceKeepAlive` handler resets our interval, so the 60s default was too slow — the server's 48s ForceKeepAlive cadence meant our own timer never fired.
-- **Restored ForceKeepAlive interval reset** — The handler now resets `keepAliveInterval` to half the server's requested value (capped at 30s) to avoid race conditions with server timeout checks.
-- **Filter noisy types in debug log** — `RefreshProgress`, `Sessions`, `KeepAlive`, `ForceKeepAlive` are no longer logged as "Unhandled" at debug level.
+### Changes (superseded by v1.10.8)
+- **Restored 30-second KeepAlive interval** — Correct. The 60s default from v1.10.6 was too slow.
+- **Restored ForceKeepAlive interval reset** — Correct. Resets to half the server's requested value (capped at 30s).
+- **Added debug logging for server echo** — Logs when server echoes our KeepAlive back.
+- **Filtered noisy types in debug log** — `RefreshProgress`, `Sessions` no longer logged as "Unhandled".
+
+### Superseded by v1.10.8
+This version was functionally correct but lacked safe parsing of ForceKeepAlive data (`msg.Data` could be an object, causing a 0ms tight loop).
 
 ---
 
 ## v1.10.6
 
-### Bug Fixes
-- **Fixed default KeepAlive interval** — Changed from 120s to 60s to match Jellyfin's `WebSocketLostTimeout` (60s). The server sends `ForceKeepAlive` at 45s and marks the connection lost at 60s; our default of 120s was too slow.
-- **Respect server's keep-alive timeout** — The `ForceKeepAlive` handler now caps the interval at the server's requested value (60s) instead of 120s.
-- **Log unknown WebSocket message types** — Unhandled message types are now logged at debug level instead of being silently ignored.
+### Changes (superseded by v1.10.8)
+- **Changed default KeepAlive from 120s to 60s** — Still wrong. The server sends ForceKeepAlive every ~48s which resets our timer, so the 60s default never fired independently.
+- **Capped ForceKeepAlive handler at server's requested value** — Correct approach, but the default interval was still too slow.
+- **Added debug logging for unknown message types** — Good addition, carried forward.
 
 ---
 
 ## v1.10.5
 
-### Bug Fixes
-- **Fixed WebSocket disconnecting every ~30 minutes** — Added WebSocket protocol-level `ping`/`pong` handler so the shim responds to server pings. Previously only application-level `KeepAlive` JSON messages were sent, which don't satisfy ASP.NET Core's protocol-level ping timeout. Reduced application-level KeepAlive from 30s to 120s since protocol-level ping/pong now handles connection keep-alive.
+### Changes (superseded by v1.10.8)
+- **Added manual WebSocket `ping`/`pong` handler** — Redundant. The `ws` library v8.x already auto-responds to protocol-level pings. The handler was later changed to debug-only logging.
+- **Changed KeepAlive from 30s to 120s** — Wrong. Too slow, reverted in v1.10.7.
+
+### What we learned
+- The `ws` library v8.x automatically responds to WebSocket protocol-level `ping` frames — no manual handler needed.
+- The 30-minute disconnects are network-level drops between the client and server, not server-side timeouts.
 
 ---
 
