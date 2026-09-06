@@ -24,6 +24,15 @@ All notable changes to Jellyfin MPV Play are documented here.
 - **Fixed ForceKeepAlive data parsing** — `msg.Data` can be a number, string, or object (`{Timeout: N}`). NaN from bad parsing would cause a 0ms tight loop flooding the socket. Now parses all formats safely with fallback to 30.
 - **Restored KeepAlive in noisyTypes** — Removing it caused info-level "Message received: KeepAlive" log spam every 30s in headless mode. Echo is still logged at debug level in handleMessage.
 
+### Notes on v1.10.5–v1.10.8
+These four releases were the result of a single investigation into WebSocket disconnects. The investigation revealed:
+- The `ws` library v8.x already auto-responds to protocol-level `ping`/`pong` frames (v1.10.5's manual handler was redundant)
+- The `127.0.0.1` disconnects in server logs were the Jellyfin web UI, not our client
+- The client's actual disconnects are network-level drops between the Mac and server
+- The `ForceKeepAlive` handler was resetting our own interval timer, preventing independent KeepAlive sends
+
+These should have been a single release. Future investigations should complete before tagging.
+
 ---
 
 ## v1.10.7
