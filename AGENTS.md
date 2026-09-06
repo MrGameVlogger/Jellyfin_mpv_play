@@ -221,10 +221,16 @@ All functions live in `shim.js`. There are no classes — the entire app is proc
 
 | Function | Line | Description |
 |----------|------|-------------|
-| `handleOscAction(verb, arg)` | 1953 | Handles actions from OSC (skip, next/prev, set-sub, set-audio, screenshot, fullscreen, etc.) |
+| `handleOscAction(verb, arg)` | 1953 | Handles actions from OSC. Verbs: `skip`, `skip-back`, `skip-forward`, `next`, `prev`, `set-sub`, `set-audio`, `set-sub-by-id`, `set-audio-by-id`, `screenshot`, `fullscreen`, `play-pause`, `stop`, `set-volume`, `mute`, `set-speed`, `set-sub-delay`, `set-audio-delay` |
 | `pushOscState(hasMedia)` | 2020 | Pushes state blob to OSC (queue, favorites, tracks, subtitle styling) |
 | `pushOscSkipButton(label)` | 2066 | Pushes skip button label to OSC (or empty to hide) |
 | `toggleFavorite()` | 2070 | Toggles favorite via Jellyfin API and pushes updated state |
+
+### Utility functions
+
+| Function | Line | Description |
+|----------|------|-------------|
+| `extractTitleFromEpisode(title)` | — | Parses episode title into `SeriesName - SxEp - EpisodeName` format for log line contracts. Returns empty string if format doesn't match. |
 
 ## State management
 
@@ -303,6 +309,14 @@ All state is module-level variables. No state machine or stores — just mutable
 | `isReconnecting` | boolean | True during reconnection attempt |
 | `reconnectInterval` | Timer | Active reconnect timer |
 | `keepAliveInterval` | Timer | WebSocket keep-alive interval |
+| `lastMessageReceivedAt` | number | Timestamp of last message from server (for disconnect diagnosis) |
+| `lastKeepAliveSentAt` | number | Timestamp of last KeepAlive sent (for disconnect diagnosis) |
+
+### Constants
+
+| Constant | Value | Purpose |
+|----------|-------|---------|
+| `NOISY_WS_TYPES` | `['KeepAlive', 'RefreshProgress', 'Sessions']` | Filtered from info-level logs to reduce noise. Used in both message handler and debug handler for unhandled messages. |
 
 ### Pending playback state (between command and MPV ready)
 
@@ -376,6 +390,13 @@ Use patterns like:
 - `NodeProcessManager.swift` spawns the shim, parses stdout via `processLogLine` on main thread
 - `StatusBarController.swift` manages the menu bar icon (template images for light/dark mode)
 - All windows use standard layering (no `.floating`)
+- `ConfigParser.swift` is the shared utility for config file parsing and Application Support paths
+- `Info.plist` version is auto-synced by CI — never edit manually
+- `Info.plist` has TWO version keys: `CFBundleVersion` (build number) and `CFBundleShortVersionString` (display version). Both must be updated when testing locally.
+- Config file location: `~/Library/Application Support/JellyfinMpvPlay/config.js`
+- Log file location: `~/Library/Application Support/JellyfinMpvPlay/data/jellyfin-mpv-play-*.log` (timestamped)
+- `ConfigParser.swift` is the shared utility for config file parsing and Application Support paths
+- `Info.plist` version is auto-synced by CI — never edit manually
 - `ConfigParser.swift` is the shared utility for config file parsing and Application Support paths
 - `Info.plist` version is auto-synced by CI — never edit manually
 
@@ -495,6 +516,10 @@ Title format for `Episode detected`: `SeriesName - SxEp - EpisodeName` (parsed b
 - `gh` CLI defaults to upstream repo (JohnGlaus), not the fork. Run `gh repo set-default MrGameVlogger/Jellyfin_mpv_play` or use `-R MrGameVlogger/Jellyfin_mpv_play` with release commands.
 - All windows use standard layering (no `.floating`). Status bar icons are template images — they adapt to light/dark mode automatically.
 - `ConfigParser.swift` is the shared utility for config file parsing and Application Support paths. Used by AppDelegate, NodeProcessManager, and PreferencesWindowController.
+- `Info.plist` has TWO version keys: `CFBundleVersion` (build number) and `CFBundleShortVersionString` (display version). Both must be updated when testing locally.
+- `Info.plist` version is auto-synced by CI — don't edit manually.
+- Config file location: `~/Library/Application Support/JellyfinMpvPlay/config.js`
+- Log file location: `~/Library/Application Support/JellyfinMpvPlay/data/jellyfin-mpv-play-*.log` (timestamped)
 
 ## Jellyfin API compliance
 
