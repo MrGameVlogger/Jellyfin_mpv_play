@@ -261,7 +261,7 @@ async function connectWebSocket() {
     if (ws) {
         try {
             ws.removeAllListeners();
-            ws.terminate();
+            ws.close();
         } catch (e) {
         }
         ws = null;
