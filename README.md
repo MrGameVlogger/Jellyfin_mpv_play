@@ -395,6 +395,8 @@ See [CHANGELOG.md](CHANGELOG.md) for full release history.
 
 **v1.10.8** — Fixed ForceKeepAlive data parsing, restored KeepAlive in noisyTypes ([details](CHANGELOG.md#v1108))
 
+**v1.10.7** — Restored30s KeepAlive, half-interval on ForceKeepAlive, log echo ([details](CHANGELOG.md#v1107))
+
 **v1.10.6** — Fixed KeepAlive interval to match server timeout ([details](CHANGELOG.md#v1106))
 
 **v1.10.5** — Fixed WebSocket disconnecting every ~30 minutes ([details](CHANGELOG.md#v1105))
