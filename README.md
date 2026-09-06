@@ -393,6 +393,8 @@ See [CHANGELOG.md](CHANGELOG.md) for full release history.
 
 ### Recent Releases
 
+**v1.10.9** — Disconnect OSD only on persistent disconnects, detailed disconnect logging ([details](CHANGELOG.md#v1109))
+
 **v1.10.8** — Fixed ForceKeepAlive data parsing, restored KeepAlive in noisyTypes ([details](CHANGELOG.md#v1108))
 
 ~~**v1.10.7**~~ — ~~Restored 30s KeepAlive, half-interval on ForceKeepAlive~~ (superseded by v1.10.8)

@@ -18,6 +18,20 @@ All notable changes to Jellyfin MPV Play are documented here.
 
 -->
 
+## v1.10.9
+
+### Bug Fixes
+- **Only show disconnect OSD after first retry fails** — Don't flash "Connection lost" on brief network blips. Only show the OSD after the first reconnection attempt fails (~5 seconds). Also show "Reconnected" OSD when successfully reconnecting.
+- **Consolidated noisyTypes into single constant** — Two separate `noisyTypes` arrays were inconsistent. Now uses a single `NOISY_WS_TYPES` constant shared by both the message handler and the debug handler for unhandled messages.
+
+### New Features
+- **Detailed WebSocket disconnect logging** — Log close code, reason, time since last message, and time since last KeepAlive when the connection closes. Also log error codes on WebSocket errors.
+
+### Internal
+- **AGENTS.md improvements** — Added WebSocket behavior rules, disconnect diagnosis checklist, OSD behavior rules, known issues, investigation history, proactiveness guidelines, and filled knowledge gaps.
+
+---
+
 ## v1.10.8
 
 ### Bug Fixes

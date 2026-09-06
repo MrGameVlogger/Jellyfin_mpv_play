@@ -390,15 +390,8 @@ Use patterns like:
 - `NodeProcessManager.swift` spawns the shim, parses stdout via `processLogLine` on main thread
 - `StatusBarController.swift` manages the menu bar icon (template images for light/dark mode)
 - All windows use standard layering (no `.floating`)
-- `ConfigParser.swift` is the shared utility for config file parsing and Application Support paths
-- `Info.plist` version is auto-synced by CI — never edit manually
-- `Info.plist` has TWO version keys: `CFBundleVersion` (build number) and `CFBundleShortVersionString` (display version). Both must be updated when testing locally.
 - Config file location: `~/Library/Application Support/JellyfinMpvPlay/config.js`
 - Log file location: `~/Library/Application Support/JellyfinMpvPlay/data/jellyfin-mpv-play-*.log` (timestamped)
-- `ConfigParser.swift` is the shared utility for config file parsing and Application Support paths
-- `Info.plist` version is auto-synced by CI — never edit manually
-- `ConfigParser.swift` is the shared utility for config file parsing and Application Support paths
-- `Info.plist` version is auto-synced by CI — never edit manually
 
 ### Linux (`linux/`)
 
