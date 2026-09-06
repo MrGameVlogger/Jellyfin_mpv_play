@@ -89,6 +89,8 @@ let keepAliveInterval = null;
 let lastMessageReceivedAt = 0;
 let lastKeepAliveSentAt = 0;
 
+const NOISY_WS_TYPES = ['KeepAlive', 'RefreshProgress', 'Sessions'];
+
 let pendingStreamUrl = null;
 let pendingStartSeconds = 0;
 let pendingTitle = null;
@@ -315,8 +317,7 @@ async function connectWebSocket() {
             lastMessageReceivedAt = Date.now();
             try {
                 const msg = JSON.parse(data);
-                const noisyTypes = ['KeepAlive', 'RefreshProgress', 'Sessions'];
-                if (!noisyTypes.includes(msg.MessageType)) {
+                if (!NOISY_WS_TYPES.includes(msg.MessageType)) {
                     log('info', 'ws', 'Message received:', msg.MessageType);
                 }
                 handleMessage(msg).catch(e => log('error', 'ws', 'Error handling message:', e.message));
@@ -769,8 +770,7 @@ async function handleMessage(msg) {
         log('info', 'ws', '🔄 Server is restarting, will reconnect...');
     }
     else {
-        const noisyTypes = ['RefreshProgress', 'Sessions'];
-        if (!noisyTypes.includes(msg.MessageType)) {
+        if (!NOISY_WS_TYPES.includes(msg.MessageType)) {
             log('debug', 'ws', `Unhandled message type: ${msg.MessageType}`);
         }
     }
