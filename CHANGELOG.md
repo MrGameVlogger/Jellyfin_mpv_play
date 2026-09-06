@@ -18,6 +18,13 @@ All notable changes to Jellyfin MPV Play are documented here.
 
 -->
 
+## v1.10.5
+
+### Bug Fixes
+- **Fixed WebSocket disconnecting every ~30 minutes** — Added WebSocket protocol-level `ping`/`pong` handler so the shim responds to server pings. Previously only application-level `KeepAlive` JSON messages were sent, which don't satisfy ASP.NET Core's protocol-level ping timeout. Reduced application-level KeepAlive from 30s to 120s since protocol-level ping/pong now handles connection keep-alive.
+
+---
+
 ## v1.10.4
 
 ### Bug Fixes
