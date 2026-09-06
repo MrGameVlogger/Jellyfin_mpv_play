@@ -298,7 +298,7 @@ async function connectWebSocket() {
                         log('error', 'ws', 'Error sending keep-alive:', e.message);
                     }
                 }
-            }, 120000);
+            }, 60000);
             
             if (reconnectInterval) {
                 clearTimeout(reconnectInterval);
@@ -459,7 +459,7 @@ async function handleMessage(msg) {
         // Set up periodic keep-alive at half the server's requested interval
         // to avoid race conditions with server timeout checks
         if (keepAliveInterval) clearInterval(keepAliveInterval);
-        const keepAliveMs = Math.min(interval * 1000, 120000); // Cap at 120s for safety
+        const keepAliveMs = Math.min(interval * 1000, 60000); // Respect server's timeout (default 60s)
         keepAliveInterval = setInterval(() => {
             if (ws && ws.readyState === WebSocket.OPEN) {
                 try {
@@ -750,6 +750,9 @@ async function handleMessage(msg) {
     }
     else if (msg.MessageType === "ServerRestarting") {
         log('info', 'ws', '🔄 Server is restarting, will reconnect...');
+    }
+    else {
+        log('debug', 'ws', `Unhandled message type: ${msg.MessageType}`);
     }
 }
 
