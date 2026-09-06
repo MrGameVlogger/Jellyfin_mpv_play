@@ -18,13 +18,6 @@ All notable changes to Jellyfin MPV Play are documented here.
 
 -->
 
-## v1.10.9
-
-### Bug Fixes
-- **Fixed zombie WebSocket connections** — Use `ws.terminate()` instead of `ws.close()` when cleaning up old connections. `ws.close()` sends a close frame but the TCP connection might not actually close, leaving zombie connections that accumulate until a network event kills them all.
-
----
-
 ## v1.10.8
 
 ### Bug Fixes
