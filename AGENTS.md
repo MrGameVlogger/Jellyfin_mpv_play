@@ -98,6 +98,12 @@ When WebSocket disconnects occur, check:
 - **Show "Reconnected" when successfully reconnecting** after a disconnect. Use `showErrorOsd` (top-right), not `showSkipOsd` (bottom-right).
 - **OSD auto-clears after 3 seconds.** No need to explicitly clear on reconnection.
 
+## Known issues and investigation history
+
+- **WebSocket disconnects every ~30 minutes** — Investigated in v1.10.5–v1.10.8. Conclusion: network-level drops between client and server (close code 1006), NOT server-side timeouts. The `127.0.0.1` disconnects in server logs are the Jellyfin web UI, NOT our client. Our client connects from the Mac's IP. To diagnose further, run `sudo tcpdump -i any -w ~/ws-capture.pcap host <server-ip> and port 8096` during playback.
+- **`ws.close()` vs `ws.terminate()`** — `ws.close()` is correct. `ws.terminate()` was briefly tried based on wrong analysis of `127.0.0.1` logs (thought they were zombie connections, but they were the web UI). Reverted.
+- **Copilot review is useful** — GitHub Copilot found real issues: ForceKeepAlive data parsing (NaN from object format), noisyTypes inconsistency. Run `gh pr comment` or check PR reviews for Copilot feedback.
+
 ## Config options
 
 All options go in `config.js` (copy from `config.example.js`):
