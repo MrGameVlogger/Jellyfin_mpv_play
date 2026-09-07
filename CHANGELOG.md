@@ -45,7 +45,7 @@ All notable changes to Jellyfin MPV Play are documented here.
 - **Fixed `isNewQueueLoad` stuck true on error** — If `getEpisodeInfo` or `getIntroSegments` threw during `loadNewQueue()`, the `isNewQueueLoad` flag stayed true forever, breaking all subsequent playlist navigation.
 - **Fixed stale `playQueue` after cross-season transitions** — When `playNextEpisode()` or `playPreviousEpisode()` called `playMedia()` for cross-season episodes, the old queue was loaded into the new MPV. Now clears queue before calling `playMedia()`.
 - **Fixed OSD state corruption** — `showSkipOsd()` and `showErrorOsd()` destroyed saved OSD settings (font size, alignment) before reading them, causing OSD to always revert to hardcoded defaults after DisplayMessage overlaps.
-- **Fixed PlayShuffle for series episodes** — PlayShuffle now skips full season expansion entirely, using the user's selected (shuffled) order directly. Previously, the shuffled order was discarded and replaced with sequential season order.
+- **Fixed PlayShuffle for series episodes** — PlayShuffle now preserves shuffled order when expanding to full season queue. Previously, the shuffled order was discarded and replaced with sequential season order.
 - **Fixed Windows headless detection** — `launch.bat` `findstr` matched commented-out `// headless: true,` lines, causing false headless mode activation.
 - **Added HTTP timeouts to playback reporting** — `reportPlaybackStart`, `reportPlaybackProgress`, and `reportPlaybackStop` now have 10-second timeouts to prevent zombie sessions if the server hangs.
 - **Fixed indentation** — Corrected indentation in shutdown stop report code.

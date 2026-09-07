@@ -86,7 +86,7 @@ No lint or typecheck steps exist. Tests run via `npm test`.
 - **Playable types**: `Episode`, `Movie`, `Video`, `MusicVideo`, `Audio` — anything else is skipped.
 - **Watched threshold**: Item marked watched at 90% of runtime.
 - **Reconnection**: Exponential backoff (5s → 10s → 20s → 30s cap) on WebSocket disconnect.
-- **jf-mpv-osc integration**: Optional integration with [jf-mpv-osc](https://github.com/iwalton3/jf-mpv-osc) for Jellyfin-styled MPV UI. Pushes state via `shim-jf-osc-state` (track lists, queue, favorites, subtitle styling). Handles actions via `shim-jf-osc-action` (skip, next/prev, set-sub, set-audio, screenshot, fullscreen, etc.). Also handles direct `shim-close` and `shim-jf-osc-ui-seek` messages. All integration is optional — messages are silently ignored if OSC isn't loaded. See README.md for full tier support table.
+- **jf-mpv-osc integration**: Optional integration with [jf-mpv-osc](https://github.com/iwalton3/jf-mpv-osc) for Jellyfin-styled MPV UI. Pushes state via `shim-jf-osc-state` (track lists, queue, favorites, subtitle styling, SyncPlay groups). Handles actions via `shim-jf-osc-action` (skip, next/prev, set-sub, set-audio, screenshot, fullscreen, syncplay-join, syncplay-new, syncplay-disable, syncplay-refresh, etc.). Also handles direct `shim-close` and `shim-jf-osc-ui-seek` messages. All integration is optional — messages are silently ignored if OSC isn't loaded. See README.md for full tier support table.
 
 ## WebSocket behavior (learned the hard way)
 
@@ -118,6 +118,7 @@ When WebSocket disconnects occur, check:
 - **WebSocket disconnects every ~30 minutes** — Investigated in v1.10.5–v1.10.8. Conclusion: network-level drops between client and server (close code 1006), NOT server-side timeouts. The `127.0.0.1` disconnects in server logs are the Jellyfin web UI, NOT our client. Our client connects from the Mac's IP. To diagnose further, run `sudo tcpdump -i any -w ~/ws-capture.pcap host <server-ip> and port 8096` during playback.
 - **`ws.close()` vs `ws.terminate()`** — `ws.close()` is correct. `ws.terminate()` was briefly tried based on wrong analysis of `127.0.0.1` logs (thought they were zombie connections, but they were the web UI). Reverted.
 - **Copilot review is useful** — GitHub Copilot found real issues: ForceKeepAlive data parsing (NaN from object format), noisyTypes inconsistency. Run `gh pr comment` or check PR reviews for Copilot feedback.
+- **Duplicate v1.10.10 tag** — PR #254 (bug audit) and PR #255 (SyncPlay) were both tagged v1.10.10. The tag ended up pointing to PR #255. Lesson: don't tag multiple PRs with the same version. v1.11.0 was released to properly version the SyncPlay feature.
 
 ## Config options
 
@@ -520,7 +521,13 @@ The shim handles three WebSocket message types: `Play`, `Playstate`, `GeneralCom
 
 **PlaystateCommand** — all 9 handled: Stop, Pause, Unpause, PlayPause, NextTrack, PreviousTrack, Seek, Rewind, FastForward.
 
-**GeneralCommand** — SetAudioStreamIndex, SetSubtitleStreamIndex, SetVolume, VolumeUp/Down, Mute/Unmute/ToggleMute, SetRepeatMode, SetPlaybackOrder, DisplayMessage, PlayNext, ToggleFullscreen.
+**GeneralCommand** — SetAudioStreamIndex, SetSubtitleStreamIndex, SetVolume, VolumeUp/Down, Mute/Unmute/ToggleMute, SetRepeatMode, SetPlaybackOrder, DisplayMessage, PlayNext, ToggleFullscreen, SetShuffleQueue, SetSubtitleDelay, SetAudioDelay.
+
+**SyncPlay** — Full support:
+- SyncPlayCommand: Unpause, Pause, Stop, Seek, SetPlaylistOrder, SetRepeatMode, SetShuffleMode
+- SyncPlayGroupUpdate: GroupJoined, GroupLeft, GroupDoesNotExist, NotInGroup, LibraryAccessDenied, PlayQueue, StateUpdate (waiting/ready states)
+- GetUTCTime: responds with UTC time for clock synchronization
+- Group tracking: currentSyncPlayGroupId, currentSyncPlayGroupName
 
 **PlayRequest fields used**: ItemIds, StartPositionTicks, PlayCommand (PlayNow/PlayShuffle), StartIndex, AudioStreamIndex, SubtitleStreamIndex.
 
@@ -543,6 +550,7 @@ This project started as a simple MPV shim for Jellyfin and grew significantly:
 - **v1.9.1**: Bug fixes — audio loss on resume, seek race condition, error propagation, disableSkipIntro config option
 - **v1.9.2**: Bug fixes — ConfigParser URL parsing, Preferences UI, queue load counter, headless detection, MPV stderr
 - **v1.10.0**: Feature release — full season queue, NextUp for specials, playlist-pos observer, jf-mpv-osc integration (Tier 0-3), audit fixes (12 bug fixes, 8 audit fixes, 7 new tests)
+- **v1.11.0**: Feature release — full SyncPlay support (commands, group updates, waiting/ready states, UTC time sync, OSC integration), SetShuffleQueue, SetSubtitleDelay, SetAudioDelay, ActivityLogEntry
 
 Key architectural decisions:
 - **No classes, no modules** — entire app is one procedural file with module-level state. This was intentional for simplicity and easy deployment (single file).
