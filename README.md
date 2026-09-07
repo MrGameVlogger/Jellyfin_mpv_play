@@ -406,18 +406,18 @@ See [CHANGELOG.md](CHANGELOG.md) for full release history.
 <details>
 <summary><b>Older releases</b></summary>
 
-**v1.10.7** — Restored 30s KeepAlive, half-interval on ForceKeepAlive ([details](CHANGELOG.md#v1107))
+~~**v1.10.7**~~ — ~~Restored 30s KeepAlive, half-interval on ForceKeepAlive~~ (superseded by v1.10.8)
 - Restored default KeepAlive to 30s (was incorrectly changed to 60s)
 - ForceKeepAlive handler resets interval to half server's requested value (capped at 30s)
 - Added debug logging for server echo of our KeepAlive messages
 - Filtered noisy types (RefreshProgress, Sessions) from debug log
 
-**v1.10.6** — Fixed KeepAlive interval to match server timeout ([details](CHANGELOG.md#v1106))
+~~**v1.10.6**~~ — ~~Fixed KeepAlive interval to match server timeout~~ (wrong — still too slow, superseded by v1.10.8)
 - Changed default KeepAlive from 120s to 60s (still wrong — server's ForceKeepAlive resets timer)
 - Capped ForceKeepAlive handler at server's requested value
 - Added debug logging for unknown WebSocket message types
 
-**v1.10.5** — Fixed WebSocket disconnecting every ~30 minutes ([details](CHANGELOG.md#v1105))
+~~**v1.10.5**~~ — ~~Fixed WebSocket disconnecting every ~30 minutes~~ (redundant — ws already auto-responds, superseded by v1.10.8)
 - Added manual WebSocket ping/pong handler (redundant — ws library already auto-responds)
 - Changed KeepAlive from 30s to 120s (wrong — too slow, reverted in v1.10.7)
 
