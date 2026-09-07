@@ -403,19 +403,35 @@ See [CHANGELOG.md](CHANGELOG.md) for full release history.
 
 See [CHANGELOG.md](CHANGELOG.md) for full release history.
 
-### Older Releases
+<details>
+<summary><b>Older releases</b></summary>
 
 **v1.10.7** — Restored 30s KeepAlive, half-interval on ForceKeepAlive ([details](CHANGELOG.md#v1107))
+- Restored default KeepAlive to 30s (was incorrectly changed to 60s)
+- ForceKeepAlive handler resets interval to half server's requested value (capped at 30s)
+- Added debug logging for server echo of our KeepAlive messages
+- Filtered noisy types (RefreshProgress, Sessions) from debug log
 
 **v1.10.6** — Fixed KeepAlive interval to match server timeout ([details](CHANGELOG.md#v1106))
+- Changed default KeepAlive from 120s to 60s (still wrong — server's ForceKeepAlive resets timer)
+- Capped ForceKeepAlive handler at server's requested value
+- Added debug logging for unknown WebSocket message types
 
 **v1.10.5** — Fixed WebSocket disconnecting every ~30 minutes ([details](CHANGELOG.md#v1105))
+- Added manual WebSocket ping/pong handler (redundant — ws library already auto-responds)
+- Changed KeepAlive from 30s to 120s (wrong — too slow, reverted in v1.10.7)
 
 **v1.10.4** — Fixed auto-advance at end of playlist, NextUp episode insertion ([details](CHANGELOG.md#v1104))
+- Removed !isMpvPaused check from progress poll
+- Fixed NextUp episode insertion to use set_property playlist-pos
 
 **v1.10.3** — Crash reporting, graceful shutdown, shim stays running after MPV closes ([details](CHANGELOG.md#v1103))
+- Crash dialog on macOS (NSAlert), Windows (PowerShell), Linux (zenity)
+- Crash log file (data/crash.log)
+- Shim only exits on SIGINT/SIGTERM or crashes
 
 **v1.10.2** — Bug audit fixes: reconnection, OSD pause, watched marking, Preferences UI ([details](CHANGELOG.md#v1102))
+- Fixed reconnection loop, OSD pause state, watched threshold, Preferences UI
 
 **v1.10.1** — OSC integration fixes, subtitle styling, graceful close ([details](CHANGELOG.md#v1101))
 - Fixed OSC close button, playlist title flash, subtitle/audio track selection
@@ -426,9 +442,6 @@ See [CHANGELOG.md](CHANGELOG.md) for full release history.
 - NextUp for specials: uses NextUp API when Jellyfin sends season 0
 - Playlist navigation observer for reliable MPV navigation detection
 - 12 bug fixes, 8 audit fixes, 7 new tests
-
-<details>
-<summary><b>Older releases</b></summary>
 
 **v1.9.2** — ConfigParser fix, Preferences UI, bug fixes ([details](CHANGELOG.md#v192))
 
