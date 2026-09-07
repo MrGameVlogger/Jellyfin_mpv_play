@@ -72,8 +72,9 @@ No lint or typecheck steps exist. Tests run via `npm test`.
 
 ## Architecture
 
-- **IPC**: Unix socket at `/tmp/mpv-ipc.sock` (configurable via `ipcSocketPath` in config.js). Windows uses named pipe `\\.\pipe\mpv-ipc`.
-- **MPV flags**: `--idle=yes --keep-open=yes --save-position-on-quit=no` (plus optional `--fullscreen` and user `mpvFlags`)
+- **IPC**: Unix socket at `$XDG_RUNTIME_DIR/mpv-ipc.sock` on Linux (user-private directory), `/tmp/mpv-ipc.sock` on macOS (configurable via `ipcSocketPath` in config.js). Windows uses named pipe `\\.\pipe\mpv-ipc`.
+- **MPV flags**: `--idle=yes --keep-open=yes --save-position-on-quit=no --cache=yes` (plus optional `--fullscreen` and user `mpvFlags`)
+- **Multi-config support**: Run multiple instances with different configs: `node shim.js config.work.js`, `./launch.sh config.work.js`, `launch.bat config.work.js`. Each config gets its own deviceId, token, positions, and IPC socket. On macOS, config file selector in Preferences UI.
 - **Queue system**: `playQueue` array tracks all item IDs; `queuePosition` tracks current index. Items loaded into MPV's native playlist via `loadfile append`. MPV auto-advances through the playlist.
 - **Episode transitions**: MPV's native playlist handles auto-advance. The `playlist-pos` property observer detects all playlist navigation (auto-advance, native keys, keybinds) and updates state. `loadNewQueue()` reuses the existing MPV for PlayNow commands. `playMedia()` spawns a fresh MPV (used for initial play and when IPC is down).
 - **Cross-season**: When queue is exhausted, queries `GET /Shows/NextUp` for next season's episodes.
@@ -85,6 +86,7 @@ No lint or typecheck steps exist. Tests run via `npm test`.
 - **Headless mode**: `headless: true` in config.js redirects console output to `data/shim.log` and suppresses stdout/stderr. On Linux, `launch.sh` auto-detects headless config and re-opens a terminal if needed.
 - **Playable types**: `Episode`, `Movie`, `Video`, `MusicVideo`, `Audio` — anything else is skipped.
 - **Watched threshold**: Item marked watched at 90% of runtime.
+- **EOF detection**: Observes `eof-reached` property (ID 8). Logs item ID, position, duration, queue index, and whether it's the last item. This is more reliable than the progress poll's position-based check for triggering auto-close.
 - **Reconnection**: Exponential backoff (5s → 10s → 20s → 30s cap) on WebSocket disconnect.
 - **jf-mpv-osc integration**: Optional integration with [jf-mpv-osc](https://github.com/iwalton3/jf-mpv-osc) for Jellyfin-styled MPV UI. Pushes state via `shim-jf-osc-state` (track lists, queue, favorites, subtitle styling, SyncPlay groups). Handles actions via `shim-jf-osc-action` (skip, next/prev, set-sub, set-audio, screenshot, fullscreen, syncplay-join, syncplay-new, syncplay-disable, syncplay-refresh, etc.). Also handles direct `shim-close` and `shim-jf-osc-ui-seek` messages. All integration is optional — messages are silently ignored if OSC isn't loaded. See README.md for full tier support table.
 
@@ -132,7 +134,7 @@ All options go in `config.js` (copy from `config.example.js`):
 | `mpvPath` | string | `"mpv"` | Path to MPV binary |
 | `deviceName` | string | `"Jellyfin MPV Play"` | Display name in Jellyfin session |
 | `deviceId` | string | auto-generated | Unique device ID (must differ from `deviceName` per Jellyfin) |
-| `ipcSocketPath` | string | `/tmp/mpv-ipc.sock` | Unix socket path (Windows: `\\.\pipe\mpv-ipc`) |
+| `ipcSocketPath` | string | `$XDG_RUNTIME_DIR/mpv-ipc.sock` (Linux), `/tmp/mpv-ipc.sock` (macOS), `\\.\pipe\mpv-ipc` (Windows) | Unix socket path |
 | `fullscreen` | boolean | `false` | Start MPV in fullscreen mode |
 | `autoClose` | boolean | `false` | Close shim when playback ends |
 | `mpvFlags` | array | `[]` | Additional MPV arguments (e.g. `["--hwdec=auto"]`) |
@@ -142,6 +144,8 @@ All options go in `config.js` (copy from `config.example.js`):
 | `verbose` | boolean | `false` | Show debug-level logs with timestamps and component names |
 
 `config.js` is gitignored. Missing file → `MODULE_NOT_FOUND` on start.
+
+**Multi-config support**: Create multiple config files (e.g., `config.work.js`, `config.personal.js`) and run with `node shim.js config.work.js`. Each config gets its own deviceId, token, positions, and IPC socket. On macOS, use the config file selector in Preferences.
 
 ## Key functions map
 
@@ -232,6 +236,7 @@ All functions live in `shim.js`. There are no classes — the entire app is proc
 | Function | Line | Description |
 |----------|------|-------------|
 | `extractTitleFromEpisode(title)` | — | Parses episode title into `SeriesName - SxEp - EpisodeName` format for log line contracts. Returns empty string if format doesn't match. |
+| `redact(value)` | — | Masks `api_key` and `X-Emby-Token` in log output for security. |
 
 ## State management
 
@@ -472,6 +477,9 @@ Both `uncaughtException` and `unhandledRejection` handlers call `shutdown()` to 
 - `shim.js` reads `package.json` at runtime for version — never hardcode version strings
 - The shim connects to Jellyfin over HTTP by default — HTTPS requires correct `serverUrl`
 - `mpvFlags` user config is passed directly to MPV as command-line arguments — no sanitization (intentional, user controls their own machine)
+- **Secrets redaction**: `redact()` function masks `api_key` and `X-Emby-Token` in log output
+- **Token file permissions**: Data directory created with `chmod 0o700`, token files with `chmod 0o600`
+- **Stale IPC socket cleanup**: `fs.unlinkSync()` called before spawning mpv to clean up stale sockets from previous crashes
 
 ## Log line contracts
 
