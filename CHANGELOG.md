@@ -18,6 +18,27 @@ All notable changes to Jellyfin MPV Play are documented here.
 
 -->
 
+## v1.11.0
+
+### New Features
+- **Full SyncPlay support** — Complete SyncPlay implementation allowing the MPV client to participate in synchronized playback sessions:
+  - **SyncPlayCommand handling** — Unpause, Pause, Stop, Seek, SetPlaylistOrder, SetRepeatMode, SetShuffleMode
+  - **SyncPlayGroupUpdate handling** — GroupJoined, GroupLeft, GroupDoesNotExist, NotInGroup, LibraryAccessDenied, PlayQueue, StateUpdate
+  - **Waiting states** — Pauses and shows "Syncing..." OSD when another client pauses/seeks
+  - **Ready states** — Seeks to specified position and resumes when sync is ready
+  - **GetUTCTime** — Responds with UTC time for clock synchronization
+  - **Group tracking** — Tracks current SyncPlay group membership
+  - **OSC integration** — syncplay-refresh, syncplay-join, syncplay-new, syncplay-disable actions
+- **SetShuffleQueue** — Server can now shuffle the current queue
+- **SetSubtitleDelay** — Server can adjust subtitle timing
+- **SetAudioDelay** — Server can adjust audio timing
+- **ActivityLogEntry** — Server activity logged at debug level
+
+### Bug Fixes
+- **Fixed PlayShuffle for series** — PlayShuffle now skips full season expansion entirely, using the user's selected (shuffled) order directly.
+
+---
+
 ## v1.10.10
 
 ### Bug Fixes

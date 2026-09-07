@@ -393,7 +393,9 @@ See [CHANGELOG.md](CHANGELOG.md) for full release history.
 
 ### Recent Releases
 
-**v1.10.10** — Bug audit: EOF detection, SyncPlay support, queue state fixes, OSD corruption fix ([details](CHANGELOG.md#v11010))
+**v1.11.0** — Full SyncPlay support, SetShuffleQueue, SetSubtitleDelay, SetAudioDelay ([details](CHANGELOG.md#v1110))
+
+**v1.10.10** — Bug audit: EOF detection, queue state fixes, OSD corruption fix ([details](CHANGELOG.md#v11010))
 
 **v1.10.9** — Disconnect OSD only on persistent disconnects, detailed disconnect logging ([details](CHANGELOG.md#v1109))
 

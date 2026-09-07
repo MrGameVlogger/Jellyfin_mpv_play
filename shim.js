@@ -91,6 +91,10 @@ let lastKeepAliveSentAt = 0;
 
 const NOISY_WS_TYPES = ['KeepAlive', 'RefreshProgress', 'Sessions'];
 
+// SyncPlay state
+let currentSyncPlayGroupId = null;
+let currentSyncPlayGroupName = null;
+
 let pendingStreamUrl = null;
 let pendingStartSeconds = 0;
 let pendingTitle = null;
@@ -769,6 +773,35 @@ async function handleMessage(msg) {
             sendMpvCommand('cycle', ['fullscreen']);
         } else if (command === 'SkipIntro') {
             skipIntro();
+        } else if (command === 'SetShuffleQueue') {
+            // Shuffle the current queue and rebuild MPV playlist
+            if (playQueue.length > 1) {
+                for (let i = playQueue.length - 1; i > 0; i--) {
+                    const j = Math.floor(Math.random() * (i + 1));
+                    [playQueue[i], playQueue[j]] = [playQueue[j], playQueue[i]];
+                }
+                queuePosition = playQueue.indexOf(currentItemId);
+                
+                // Rebuild MPV playlist to match new order
+                sendMpvCommand('playlist-clear');
+                for (const id of playQueue) {
+                    const url = `${CONFIG.serverUrl}/Videos/${id}/stream?static=true&api_key=${accessToken}`;
+                    sendMpvCommand('loadfile', [url, 'append']);
+                }
+                if (queuePosition > 0) {
+                    sendMpvCommand('set_property', ['playlist-pos', queuePosition]);
+                }
+                
+                log('info', 'queue', `🔀 Queue shuffled by server (${playQueue.length} items)`);
+            }
+        } else if (command === 'SetSubtitleDelay') {
+            const delay = args.Delay || 0;
+            sendMpvCommand('set_property', ['sub-delay', delay]);
+            log('info', 'mpv', `🔤 Subtitle delay set to ${delay}s`);
+        } else if (command === 'SetAudioDelay') {
+            const delay = args.Delay || 0;
+            sendMpvCommand('set_property', ['audio-delay', delay]);
+            log('info', 'mpv', `🔊 Audio delay set to ${delay}s`);
         }
     }
     else if (msg.MessageType === "SyncPlayCommand") {
@@ -811,6 +844,57 @@ async function handleMessage(msg) {
         const data = msg.Data || {};
         const updateType = data.Type || 'unknown';
         log('info', 'syncplay', `SyncPlay group update: ${updateType}`);
+        switch (updateType) {
+            case 'GroupJoined':
+                currentSyncPlayGroupId = data.GroupId || null;
+                currentSyncPlayGroupName = data.GroupName || 'Unknown Group';
+                log('info', 'syncplay', `Joined SyncPlay group: ${currentSyncPlayGroupName}`);
+                pushOscState();
+                break;
+            case 'GroupLeft':
+            case 'NotInGroup':
+                currentSyncPlayGroupId = null;
+                currentSyncPlayGroupName = null;
+                log('info', 'syncplay', 'Left SyncPlay group');
+                pushOscState();
+                break;
+            case 'GroupDoesNotExist':
+                currentSyncPlayGroupId = null;
+                currentSyncPlayGroupName = null;
+                log('info', 'syncplay', 'SyncPlay group no longer exists');
+                pushOscState();
+                break;
+            case 'LibraryAccessDenied':
+                log('warn', 'syncplay', 'SyncPlay: library access denied for this group');
+                break;
+            case 'PlayQueue':
+                log('debug', 'syncplay', 'SyncPlay playlist update');
+                break;
+            case 'StateUpdate':
+                const stateData = data.State || {};
+                const stateType = stateData.Type || 'unknown';
+                if (stateType === 'WaitForPlay') {
+                    // Another client paused/seeked — we should wait
+                    const waitReason = stateData.Reason || 'unknown';
+                    log('info', 'syncplay', `SyncPlay waiting: ${waitReason}`);
+                    sendMpvCommand('set_property', ['pause', true]);
+                    showSkipOsd('Syncing...');
+                } else if (stateType === 'ReadyToPlay') {
+                    // Ready to resume — seek to the specified position
+                    const positionTicks = stateData.PositionTicks || 0;
+                    const positionSeconds = positionTicks / 10000000;
+                    log('info', 'syncplay', `SyncPlay ready, seeking to ${positionSeconds.toFixed(1)}s`);
+                    sendMpvCommand('seek', [positionSeconds, 'absolute']);
+                    sendMpvCommand('set_property', ['pause', false]);
+                } else if (stateType === 'Playing') {
+                    log('debug', 'syncplay', 'SyncPlay playing');
+                } else if (stateType === 'Paused') {
+                    log('debug', 'syncplay', 'SyncPlay paused');
+                } else {
+                    log('debug', 'syncplay', `SyncPlay state: ${stateType}`);
+                }
+                break;
+        }
     }
     else if (msg.MessageType === "RestartRequired") {
         log('info', 'ws', '🔄 Server requires restart');
@@ -820,6 +904,18 @@ async function handleMessage(msg) {
     }
     else if (msg.MessageType === "ServerRestarting") {
         log('info', 'ws', '🔄 Server is restarting, will reconnect...');
+    }
+    else if (msg.MessageType === "GetUTCTime") {
+        // Respond with current UTC time for SyncPlay clock synchronization
+        const utcTime = new Date().toISOString();
+        log('debug', 'syncplay', `GetUTCTime request, responding: ${utcTime}`);
+        if (ws && ws.readyState === WebSocket.OPEN) {
+            ws.send(JSON.stringify({ MessageType: 'GetUTCTimeResponse', Data: utcTime }));
+        }
+    }
+    else if (msg.MessageType === "ActivityLogEntry") {
+        const entry = msg.Data || {};
+        log('debug', 'ws', `Activity: ${entry.Name || 'unknown'} — ${entry.Overview || ''}`);
     }
     else {
         if (!NOISY_WS_TYPES.includes(msg.MessageType)) {
@@ -2157,6 +2253,28 @@ function handleOscAction(verb, arg) {
             isUnwatchedQuit = true;
             sendMpvCommand('quit');
             break;
+        case 'syncplay-refresh':
+            log('info', 'syncplay', 'SyncPlay refresh requested');
+            pushOscState();
+            break;
+        case 'syncplay-join':
+            if (arg) {
+                log('info', 'syncplay', `SyncPlay join group: ${arg}`);
+                joinSyncPlayGroup(arg);
+            }
+            break;
+        case 'syncplay-new':
+            log('info', 'syncplay', 'SyncPlay create group');
+            createSyncPlayGroup();
+            break;
+        case 'syncplay-disable':
+            log('info', 'syncplay', 'SyncPlay leave group');
+            leaveSyncPlayGroup();
+            break;
+        case 'syncplay-toggle-pause':
+            log('info', 'syncplay', 'SyncPlay toggle pause');
+            sendMpvCommand('cycle', ['pause']);
+            break;
         default:
             log('debug', 'osc', `Unknown OSC action: ${verb} ${arg || ''}`);
     }
@@ -2247,11 +2365,81 @@ async function pushOscState(hasMedia = true) {
         ]}
     };
 
+    // Tier 4: SyncPlay state
+    try {
+        const syncplayState = await getSyncPlayState();
+        if (syncplayState) {
+            state.syncplay = syncplayState;
+        }
+    } catch (e) {
+        // SyncPlay not available or error — omit from state
+    }
+
     sendMpvCommand('script-message', ['shim-jf-osc-state', JSON.stringify(state)]);
 }
 
 function pushOscSkipButton(label) {
     sendMpvCommand('script-message', ['shim-jf-osc-skip', label || '']);
+}
+
+// SyncPlay API functions
+async function getSyncPlayState() {
+    const headers = getAuthHeaders();
+    try {
+        const response = await axios.get(`${CONFIG.serverUrl}/SyncPlay/ListGroups`, { headers, timeout: 5000 });
+        const groups = response.data || [];
+        const groupsList = groups.map(g => ({
+            id: g.GroupId,
+            label: g.GroupName || `Group ${g.GroupId}`,
+            selected: g.GroupId === currentSyncPlayGroupId
+        }));
+        return {
+            enabled: currentSyncPlayGroupId !== null,
+            current: currentSyncPlayGroupName || 'None (Disabled)',
+            groups: groupsList
+        };
+    } catch (e) {
+        log('debug', 'syncplay', `Failed to get SyncPlay groups: ${e.message}`);
+        return null;
+    }
+}
+
+async function joinSyncPlayGroup(groupId) {
+    const headers = getAuthHeaders();
+    try {
+        await axios.post(`${CONFIG.serverUrl}/SyncPlay/Join`, { GroupId: groupId }, { headers, timeout: 10000 });
+        log('info', 'syncplay', `Joined SyncPlay group: ${groupId}`);
+        // Server will send GroupJoined update, but set locally as fallback
+        currentSyncPlayGroupId = groupId;
+        pushOscState();
+    } catch (e) {
+        log('error', 'syncplay', `Failed to join SyncPlay group: ${e.message}`);
+    }
+}
+
+async function leaveSyncPlayGroup() {
+    const headers = getAuthHeaders();
+    try {
+        await axios.post(`${CONFIG.serverUrl}/SyncPlay/Leave`, {}, { headers, timeout: 10000 });
+        log('info', 'syncplay', 'Left SyncPlay group');
+        // Server will send GroupLeft update, but set locally as fallback
+        currentSyncPlayGroupId = null;
+        currentSyncPlayGroupName = null;
+        pushOscState();
+    } catch (e) {
+        log('error', 'syncplay', `Failed to leave SyncPlay group: ${e.message}`);
+    }
+}
+
+async function createSyncPlayGroup() {
+    const headers = getAuthHeaders();
+    try {
+        await axios.post(`${CONFIG.serverUrl}/SyncPlay/New`, {}, { headers, timeout: 10000 });
+        log('info', 'syncplay', 'Created new SyncPlay group');
+        pushOscState();
+    } catch (e) {
+        log('error', 'syncplay', `Failed to create SyncPlay group: ${e.message}`);
+    }
 }
 
 async function toggleFavorite() {
