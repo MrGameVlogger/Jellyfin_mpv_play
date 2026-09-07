@@ -20,8 +20,12 @@ module.exports = {
     // Any name, but different from the one you put in deviceName
     deviceId: 'jellyfin-mpv-play',
     
-    // IPC socket path (optional — defaults to /tmp/mpv-ipc.sock on Linux/macOS, \\.\pipe\mpv-ipc on Windows)
+    // IPC socket path (optional — defaults to $XDG_RUNTIME_DIR/mpv-ipc.sock on Linux, /tmp/mpv-ipc.sock on macOS, \\.\pipe\mpv-ipc on Windows)
     // ipcSocketPath: '/tmp/mpv-ipc.sock'
+
+    // Multi-config support: create multiple config files (e.g., config.work.js, config.personal.js)
+    // and run with: node shim.js config.work.js
+    // Each config gets its own deviceId, token, positions, and IPC socket.
 
     // Start MPV in fullscreen (optional — default: false)
     // fullscreen: true,

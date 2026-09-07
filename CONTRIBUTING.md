@@ -59,6 +59,9 @@ Jellyfin_mpv_play/
 - No build step — plain Node.js
 - Log messages must match the patterns in `AGENTS.md` (the macOS app parses stdout)
 - Use `console.log()` for state changes, `console.error()` for errors
+- API keys and tokens must be redacted in log output (use `redact()` function)
+- IPC socket defaults to `$XDG_RUNTIME_DIR` on Linux (user-private directory)
+- Supports multi-config: `node shim.js config.work.js` for multiple Jellyfin accounts
 
 ### macapp/ (Swift)
 
