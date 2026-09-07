@@ -401,17 +401,7 @@ See [CHANGELOG.md](CHANGELOG.md) for full release history.
 
 **v1.10.8** — Fixed ForceKeepAlive data parsing, restored KeepAlive in noisyTypes ([details](CHANGELOG.md#v1108))
 
-~~**v1.10.7**~~ — ~~Restored 30s KeepAlive, half-interval on ForceKeepAlive~~ (superseded by v1.10.8)
-
-~~**v1.10.6**~~ — ~~Changed KeepAlive to 60s~~ (wrong — still too slow, superseded by v1.10.8)
-
-~~**v1.10.5**~~ — ~~Added ping/pong handler~~ (redundant — ws already auto-responds, superseded by v1.10.8)
-
-**v1.10.4** — Fixed auto-advance at end of playlist, NextUp episode insertion ([details](CHANGELOG.md#v1104))
-
-**v1.10.3** — Crash reporting, graceful shutdown, shim stays running after MPV closes ([details](CHANGELOG.md#v1103))
-
-**v1.10.2** — Bug audit fixes: reconnection, OSD pause, watched marking, Preferences UI ([details](CHANGELOG.md#v1102))
+See [CHANGELOG.md](CHANGELOG.md) for full release history.
 
 **v1.10.1** — OSC integration fixes, subtitle styling, graceful close ([details](CHANGELOG.md#v1101))
 - Fixed OSC close button, playlist title flash, subtitle/audio track selection
