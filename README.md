@@ -400,7 +400,9 @@ See [CHANGELOG.md](CHANGELOG.md) for full release history.
 
 ### Recent Releases
 
-**v1.11.1** — Multi-config support, security improvements, config file selector ([details](CHANGELOG.md#v1111))
+**v1.11.2** — Multi-config support, SyncPlay endpoint fix, security improvements ([details](CHANGELOG.md#v1112))
+
+**v1.11.1** — XDG_RUNTIME_DIR for IPC, stale socket cleanup, cache=yes, secrets redaction ([details](CHANGELOG.md#v1111))
 
 **v1.11.0** — Full SyncPlay support, SetShuffleQueue, SetSubtitleDelay, SetAudioDelay ([details](CHANGELOG.md#v1110))
 
