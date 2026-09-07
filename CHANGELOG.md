@@ -52,7 +52,6 @@ All notable changes to Jellyfin MPV Play are documented here.
 
 ### New Features
 - **EOF detection via MPV property** — Added `eof-reached` observer (ID 8) to detect end-of-file events. Logs item ID, position, duration, queue index, and whether it's the last item. This is more reliable than the progress poll's position-based check for triggering auto-close.
-- **SyncPlay support** — Added basic SyncPlay command handling. The shim now responds to SyncPlayCommand messages (Unpause, Pause, Stop, Seek, SetPlaylistOrder, SetRepeatMode, SetShuffleMode) and logs SyncPlayGroupUpdate messages. This allows the MPV client to participate in SyncPlay sessions controlled from the Jellyfin web UI.
 
 ---
 
