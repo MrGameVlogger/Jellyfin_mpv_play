@@ -564,8 +564,14 @@ async function handleMessage(msg) {
                     try {
                         const info = await getEpisodeInfo(orderedItems[0], true);
                         if (info.isSeries && info.seasonNumber > 0 && info.episodes && info.episodes.length >= orderedItems.length) {
-                            playQueue = info.episodes.map(ep => ep.Id);
-                            queuePosition = info.currentIndex >= 0 ? info.currentIndex : 0;
+                            if (playCommand === 'PlayShuffle') {
+                                // Preserve shuffled order for PlayShuffle
+                                playQueue = [...orderedItems];
+                                queuePosition = startIndex;
+                            } else {
+                                playQueue = info.episodes.map(ep => ep.Id);
+                                queuePosition = info.currentIndex >= 0 ? info.currentIndex : 0;
+                            }
                             targetId = playQueue[queuePosition];
                             log('info', 'queue', `📋 Full season queue: ${playQueue.length} episodes, starting at ${queuePosition + 1} (${info.seriesName} S${info.seasonNumber})`);
                         } else if (info.isSeries && info.seasonNumber === 0) {
@@ -931,6 +937,9 @@ let osdRestoreTimeout = null;
 
 function showSkipOsd(text) {
     if (osdRestoreTimeout) { clearTimeout(osdRestoreTimeout); osdRestoreTimeout = null; }
+    const savedSize = displayMessageOriginalFontSize || 55;
+    const savedAlignX = displayMessageOriginalAlignX || 'center';
+    const savedAlignY = displayMessageOriginalAlignY || 'bottom';
     if (displayMessageTimeout) {
         clearTimeout(displayMessageTimeout);
         displayMessageTimeout = null;
@@ -940,9 +949,6 @@ function showSkipOsd(text) {
         displayMessageOriginalAlignX = null;
         displayMessageOriginalAlignY = null;
     }
-    const savedSize = displayMessageOriginalFontSize || 55;
-    const savedAlignX = displayMessageOriginalAlignX || 'center';
-    const savedAlignY = displayMessageOriginalAlignY || 'bottom';
     sendMpvCommand('set_property', ['osd-font-size', 40]);
     sendMpvCommand('set_property', ['osd-align-x', 'right']);
     sendMpvCommand('set_property', ['osd-align-y', 'bottom']);
@@ -960,6 +966,9 @@ function showErrorOsd(text) {
     if (now - lastErrorOsdTime < 30000) return;
     lastErrorOsdTime = now;
     if (osdRestoreTimeout) { clearTimeout(osdRestoreTimeout); osdRestoreTimeout = null; }
+    const savedSize = displayMessageOriginalFontSize || 55;
+    const savedAlignX = displayMessageOriginalAlignX || 'center';
+    const savedAlignY = displayMessageOriginalAlignY || 'bottom';
     if (displayMessageTimeout) {
         clearTimeout(displayMessageTimeout);
         displayMessageTimeout = null;
@@ -969,9 +978,6 @@ function showErrorOsd(text) {
         displayMessageOriginalAlignX = null;
         displayMessageOriginalAlignY = null;
     }
-    const savedSize = displayMessageOriginalFontSize || 55;
-    const savedAlignX = displayMessageOriginalAlignX || 'center';
-    const savedAlignY = displayMessageOriginalAlignY || 'bottom';
     sendMpvCommand('set_property', ['osd-font-size', 35]);
     sendMpvCommand('set_property', ['osd-align-x', 'right']);
     sendMpvCommand('set_property', ['osd-align-y', 'top']);
@@ -1009,6 +1015,7 @@ async function loadNewQueue(itemId, startTicks) {
         currentItemId = null;
         currentEpisodeInfo = null;
         isPlayingNext = false;
+        isNewQueueLoad = false;
         return;
     }
 
@@ -1305,6 +1312,7 @@ function connectToMpvIpc(gen) {
             sendMpvCommand('observe_property', [5, 'sid']);
             sendMpvCommand('observe_property', [6, 'seeking']);
             sendMpvCommand('observe_property', [7, 'playlist-pos']);
+            sendMpvCommand('observe_property', [8, 'eof-reached']);
             
             sendMpvCommand('keybind', ['>', 'script-message jellyfin-next']);
             sendMpvCommand('keybind', ['<', 'script-message jellyfin-prev']);
@@ -1660,6 +1668,20 @@ function handleMpvEvent(event) {
         return;
     }
 
+    if (event.event === 'property-change' && event.name === 'eof-reached' && event.data === true) {
+        const isLastInPlaylist = queuePosition >= playQueue.length - 1;
+        const posStr = currentPositionSeconds ? currentPositionSeconds.toFixed(1) : '?';
+        const durStr = currentDuration ? currentDuration.toFixed(1) : '?';
+        log('info', 'mpv', `End of file reached — itemId=${currentItemId || 'none'}, pos=${posStr}s/${durStr}s, queue=${queuePosition}/${playQueue.length - 1}, isLast=${isLastInPlaylist}`);
+        if (currentItemId && !isPlayingNext && isLastInPlaylist) {
+            log('info', 'queue', 'EOF on last item, checking for auto-close');
+            markItemAsWatched(currentItemId);
+            reportPlaybackStop(currentItemId, Math.round(currentPositionSeconds * 10000000));
+            playNextEpisode();
+        }
+        return;
+    }
+
     if (event.event === 'client-message' && event.args && event.args[0]) {
         if (event.args[0] === 'jellyfin-next') {
             log('info', 'episode', '⏭️ Next episode requested (Keypress)');
@@ -1764,6 +1786,8 @@ async function playNextEpisode() {
             reportPlaybackStop(prevItemId, Math.round(prevPos * 10000000));
         }
         if (!ipcClient || ipcClient.destroyed || !mpvProcess) {
+            playQueue = [nextEp.Id];
+            queuePosition = 0;
             playMedia(nextEp.Id, 0).catch(err => {
                     log('error', 'episode', '⚠️ Error playing next episode:', err.message);
                 isPlayingNext = false;
@@ -1917,6 +1941,8 @@ async function playPreviousEpisode() {
     const prevTitle = [currentEpisodeInfo.seriesName, `${currentEpisodeInfo.seasonNumber}x${prevEp.IndexNumber}`, prevEp.Name].filter(Boolean).join(' - ');
     log('info', 'queue', `◀️ Starting previous episode: ${prevTitle}`);
     // Use playMedia for cross-season previous to avoid queue desync
+    playQueue = [prevEp.Id];
+    queuePosition = 0;
     playMedia(prevEp.Id, 0).catch(err => {
         log('error', 'episode', '⚠️ Error playing previous episode:', err.message);
         isPlayingNext = false;
@@ -1945,7 +1971,7 @@ function reportPlaybackStart(itemId, positionTicks) {
 
     log('info', 'report', '📡 Reporting playback start...');
     
-    axios.post(`${CONFIG.serverUrl}/Sessions/Playing`, data, { headers })
+    axios.post(`${CONFIG.serverUrl}/Sessions/Playing`, data, { headers, timeout: 10000 })
         .then(() => {
             log('info', 'report', '✅ Playback start reported');
         })
@@ -1994,7 +2020,7 @@ function reportPlaybackProgress(itemId, positionTicks) {
         PlaybackOrder: 'Default'
     };
 
-    axios.post(`${CONFIG.serverUrl}/Sessions/Playing/Progress`, data, { headers })
+    axios.post(`${CONFIG.serverUrl}/Sessions/Playing/Progress`, data, { headers, timeout: 10000 })
         .catch(e => {
             log('error', 'report', '⚠️ Failed to report progress:', e.message);
         });
@@ -2264,7 +2290,7 @@ function shutdown(signal) {
             PlaySessionId: playSessionId
         };
         const stopTimeout = setTimeout(doExit, 3000);
-        axios.post(`${CONFIG.serverUrl}/Sessions/Playing/Stopped`, data, { headers })
+        axios.post(`${CONFIG.serverUrl}/Sessions/Playing/Stopped`, data, { headers, timeout: 10000 })
             .catch(() => {})
             .finally(() => { clearTimeout(stopTimeout); doExit(); });
     } else {
