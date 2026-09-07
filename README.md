@@ -405,6 +405,18 @@ See [CHANGELOG.md](CHANGELOG.md) for full release history.
 
 ### Older Releases
 
+**v1.10.7** — Restored 30s KeepAlive, half-interval on ForceKeepAlive ([details](CHANGELOG.md#v1107))
+
+**v1.10.6** — Fixed KeepAlive interval to match server timeout ([details](CHANGELOG.md#v1106))
+
+**v1.10.5** — Fixed WebSocket disconnecting every ~30 minutes ([details](CHANGELOG.md#v1105))
+
+**v1.10.4** — Fixed auto-advance at end of playlist, NextUp episode insertion ([details](CHANGELOG.md#v1104))
+
+**v1.10.3** — Crash reporting, graceful shutdown, shim stays running after MPV closes ([details](CHANGELOG.md#v1103))
+
+**v1.10.2** — Bug audit fixes: reconnection, OSD pause, watched marking, Preferences UI ([details](CHANGELOG.md#v1102))
+
 **v1.10.1** — OSC integration fixes, subtitle styling, graceful close ([details](CHANGELOG.md#v1101))
 - Fixed OSC close button, playlist title flash, subtitle/audio track selection
 - Added jf-mpv-osc Tier 1-3 integration, subtitle styling controls
