@@ -344,7 +344,7 @@ Set WshShell = Nothing
 | **`serverUrl` format** | Use `http://host:port` — no trailing slash, no `ws://` prefix. The shim converts HTTP to WS automatically |
 | **Headless mode — where are logs?** | Check `data/shim.log`. On Linux with systemd: `journalctl --user -u jellyfin-mpv-play -f` |
 | **Multiple instances conflict** | Set different `ipcSocketPath` in each `config.js`, or use multi-config: `node shim.js config.work.js` |
-| **WebSocket disconnects every ~30 min** | Network-level drops (close code 1006), not server timeouts. The shim reconnects automatically within ~20 seconds. |
+| **WebSocket disconnects every ~30 min** | Likely a reverse proxy connection timeout (nginx, Apache, Caddy). The shim reconnects automatically within ~20 seconds. Playback is not affected. |
 | **Linux: "mpv is not installed"** | Install via `sudo apt install mpv` (or your distro's package manager) |
 | **Windows: "mpv is not installed"** | Download from [mpv.io](https://mpv.io/installation/) and add to your PATH |
 
