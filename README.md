@@ -403,6 +403,8 @@ See [CHANGELOG.md](CHANGELOG.md) for full release history.
 
 See [CHANGELOG.md](CHANGELOG.md) for full release history.
 
+### Older Releases
+
 **v1.10.1** — OSC integration fixes, subtitle styling, graceful close ([details](CHANGELOG.md#v1101))
 - Fixed OSC close button, playlist title flash, subtitle/audio track selection
 - Added jf-mpv-osc Tier 1-3 integration, subtitle styling controls
