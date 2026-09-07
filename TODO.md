@@ -17,11 +17,27 @@ Features, bugs, and improvements planned for Jellyfin MPV Play.
 | Subtitle sync | v1.8.0 | Bidirectional sync between MPV and Jellyfin server |
 | Windows support | v1.8.3 | `launch.bat` with headless support |
 | CI version sync | v1.8.3 | Info.plist auto-synced from package.json in CI |
-| Seek progress reports | v1.9.0 | Report progress immediately on user-initiated seeks (MPV seeking property) |
+| Seek progress reports | v1.9.0 | Report progress immediately on user-initiated seeks |
 | Auto-skip intros/outros | v1.9.0 | MediaSegments API, auto-skip or S key, config option `autoSkipIntros` |
 | Error OSD messages | v1.9.0 | Connection/auth errors shown in MPV OSD with rate limiting |
 | Better logging | v1.9.0 | Log levels, timestamps, component names, `verbose` config option |
 | Next-up notification | v1.9.0 | Show next episode title 10s before current episode ends |
+| Full season queue | v1.10.0 | Playing a single episode loads all episodes from that season |
+| NextUp for specials | v1.10.0 | Uses NextUp API when Jellyfin sends season 0 |
+| Playlist navigation observer | v1.10.0 | `playlist-pos` property observer for reliable MPV navigation detection |
+| jf-mpv-osc integration | v1.10.0 | Tier 0-3: track naming, skip button, queue navigation, favorites |
+| Crash reporting | v1.10.3 | Crash dialog (macOS NSAlert, Windows PowerShell, Linux zenity), crash.log |
+| Graceful shutdown | v1.10.3 | Shim stays running after MPV closes; only exits on SIGINT/SIGTERM |
+| EOF detection | v1.10.10 | `eof-reached` observer for reliable end-of-file detection |
+| SyncPlay support | v1.11.0 | Full SyncPlay: commands, group updates, waiting/ready states, UTC time sync |
+| SetShuffleQueue | v1.11.0 | Server can shuffle the queue |
+| SetSubtitleDelay | v1.11.0 | Server can adjust subtitle timing |
+| SetAudioDelay | v1.11.0 | Server can adjust audio timing |
+| Multi-config support | v1.11.1 | `node shim.js config.work.js`, config file selector in macOS Preferences |
+| Secrets redaction | v1.11.1 | API keys/tokens masked in log output |
+| XDG_RUNTIME_DIR | v1.11.1 | IPC socket defaults to `$XDG_RUNTIME_DIR` on Linux |
+| Stale IPC socket cleanup | v1.11.1 | Cleans up stale sockets before spawning mpv |
+| `--cache=yes` | v1.11.1 | Better buffering for network streams |
 
 ---
 
@@ -46,10 +62,12 @@ MPV freezes when playing videos with Japanese subtitles. This is an MPV issue, n
 | Audio language preference | Jellyfin handles this natively — user settings in Jellyfin control default audio/subtitle languages |
 | Subtitle language preference | Jellyfin handles this natively — same as above |
 | Resume confirmation | Jellyfin handles this natively — web UI shows "Resume from X?" dialog before sending play command |
+| Quality selection | Requires transcode API integration — not supported |
+| Shader profiles | Requires shader management — not supported |
 
 ---
 
 ## Ideas (Low Priority)
 
-- **Multi-server support** — Connect to multiple Jellyfin servers
+- **Multi-server support** — Connect to multiple Jellyfin servers simultaneously (partially addressed by multi-config support)
 - **Trakt integration** — Scrobble to Trakt.tv
