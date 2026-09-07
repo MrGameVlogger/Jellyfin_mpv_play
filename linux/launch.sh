@@ -13,6 +13,16 @@ SCRIPT_DIR="$(cd "$(dirname "$SOURCE")" && pwd)"
 CONFIG_FILE="$SCRIPT_DIR/config.js"
 EXAMPLE_CONFIG="$SCRIPT_DIR/config.example.js"
 
+# Accept config file as first argument (e.g., ./launch.sh config.work.js)
+if [ -n "$1" ] && [[ "$1" != --* ]]; then
+    if [[ "$1" = /* ]]; then
+        CONFIG_FILE="$1"
+    else
+        CONFIG_FILE="$SCRIPT_DIR/$1"
+    fi
+    shift
+fi
+
 if [ ! -f "$CONFIG_FILE" ]; then
     if [ -f "$EXAMPLE_CONFIG" ]; then
         cp "$EXAMPLE_CONFIG" "$CONFIG_FILE"
@@ -122,7 +132,7 @@ elif [ -f "$CONFIG_FILE" ] && "$NODE_BIN" -e "const c=require(process.argv[1]); 
 fi
 
 if [ "$IS_HEADLESS" = true ]; then
-    nohup "$NODE_BIN" "$SCRIPT_DIR/shim.js" > /dev/null 2>&1 &
+    nohup "$NODE_BIN" "$SCRIPT_DIR/shim.js" "$CONFIG_FILE" > /dev/null 2>&1 &
     NODE_PID=$!
     disown $NODE_PID
     echo "Running headless (PID: $NODE_PID). Logs: $SCRIPT_DIR/data/shim.log"
@@ -137,12 +147,12 @@ elif [ ! -t 0 ] && [ "$1" != "--terminal" ]; then
     done
     # No terminal found, fall back to running silently
     echo "No terminal emulator found. Running silently. Logs: $SCRIPT_DIR/data/shim.log"
-    nohup "$NODE_BIN" "$SCRIPT_DIR/shim.js" > /dev/null 2>&1 &
+    nohup "$NODE_BIN" "$SCRIPT_DIR/shim.js" "$CONFIG_FILE" > /dev/null 2>&1 &
     NODE_PID=$!
     disown $NODE_PID
     exit 0
 else
-    "$NODE_BIN" "$SCRIPT_DIR/shim.js" &
+    "$NODE_BIN" "$SCRIPT_DIR/shim.js" "$CONFIG_FILE" &
     NODE_PID=$!
     trap 'kill $NODE_PID 2>/dev/null' INT TERM
     wait $NODE_PID

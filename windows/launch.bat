@@ -6,6 +6,16 @@ if "%SCRIPT_DIR:~-1%"=="\" set "SCRIPT_DIR=%SCRIPT_DIR:~0,-1%"
 set "CONFIG_FILE=%SCRIPT_DIR%\config.js"
 set "EXAMPLE_CONFIG=%SCRIPT_DIR%\config.example.js"
 
+:: Accept config file as first argument (e.g., launch.bat config.work.js)
+if not "%~1"=="" if not "%~1:~0,2%"=="--" (
+    if "%~1"=="%~dp1" (
+        set "CONFIG_FILE=%~1"
+    ) else (
+        set "CONFIG_FILE=%SCRIPT_DIR%\%~1"
+    )
+    shift
+)
+
 if not exist "%CONFIG_FILE%" (
     if exist "%EXAMPLE_CONFIG%" (
         copy "%EXAMPLE_CONFIG%" "%CONFIG_FILE%" >nul
@@ -85,11 +95,11 @@ if "%IS_HEADLESS%"=="false" (
 
 if "%IS_HEADLESS%"=="true" (
     echo Running headless. Logs: %SCRIPT_DIR%\data\shim.log
-    start "" /B "%NODE_BIN%" "%SCRIPT_DIR%\shim.js"
+    start "" /B "%NODE_BIN%" "%SCRIPT_DIR%\shim.js" "%CONFIG_FILE%"
     exit /b 0
 )
 
-"%NODE_BIN%" "%SCRIPT_DIR%\shim.js"
+"%NODE_BIN%" "%SCRIPT_DIR%\shim.js" "%CONFIG_FILE%"
 if errorlevel 1 (
     echo.
     echo Shim exited with an error.

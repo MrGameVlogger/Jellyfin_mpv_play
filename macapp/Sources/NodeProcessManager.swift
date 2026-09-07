@@ -67,7 +67,8 @@ class NodeProcessManager {
 
         let process = Process()
         process.executableURL = URL(fileURLWithPath: nodePath)
-        process.arguments = [shimPath]
+        let selectedConfig = UserDefaults.standard.string(forKey: "selectedConfigFile") ?? "config.js"
+        process.arguments = [shimPath, appSupport + "/" + selectedConfig]
         process.currentDirectoryURL = URL(fileURLWithPath: appSupport)
         var env = ProcessInfo.processInfo.environment
         env["NODE_PATH"] = nodeModulesPath
