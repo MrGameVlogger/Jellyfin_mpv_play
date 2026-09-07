@@ -648,6 +648,13 @@ Read EVERY file completely. Do not skip or summarize. Check for:
 
 Read ALL docs completely. Check for:
 
+**README structure:**
+- "Recent Releases" section shows only the latest 4 releases
+- All older releases are inside the `<details><summary><b>Older releases</b></summary>` collapsible section
+- Broken/superseded releases have strikethrough (`~~text~~`)
+- Never delete release entries — move them to the collapsible section
+- Never create duplicate collapsible sections
+
 **Version consistency:**
 - package.json version matches Info.plist (auto-synced by CI)
 - shim.js reads from package.json (no hardcoded version)
