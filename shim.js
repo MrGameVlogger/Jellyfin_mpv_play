@@ -560,18 +560,13 @@ async function handleMessage(msg) {
                 return;
             } else {
                 // Expand to full season queue if items are episodes from the same season
-                if (orderedItems.length >= 1) {
+                // Skip expansion for PlayShuffle — user selected specific episodes to shuffle
+                if (orderedItems.length >= 1 && playCommand !== 'PlayShuffle') {
                     try {
                         const info = await getEpisodeInfo(orderedItems[0], true);
                         if (info.isSeries && info.seasonNumber > 0 && info.episodes && info.episodes.length >= orderedItems.length) {
-                            if (playCommand === 'PlayShuffle') {
-                                // Preserve shuffled order for PlayShuffle
-                                playQueue = [...orderedItems];
-                                queuePosition = startIndex;
-                            } else {
-                                playQueue = info.episodes.map(ep => ep.Id);
-                                queuePosition = info.currentIndex >= 0 ? info.currentIndex : 0;
-                            }
+                            playQueue = info.episodes.map(ep => ep.Id);
+                            queuePosition = info.currentIndex >= 0 ? info.currentIndex : 0;
                             targetId = playQueue[queuePosition];
                             log('info', 'queue', `📋 Full season queue: ${playQueue.length} episodes, starting at ${queuePosition + 1} (${info.seriesName} S${info.seasonNumber})`);
                         } else if (info.isSeries && info.seasonNumber === 0) {
@@ -775,6 +770,47 @@ async function handleMessage(msg) {
         } else if (command === 'SkipIntro') {
             skipIntro();
         }
+    }
+    else if (msg.MessageType === "SyncPlayCommand") {
+        const data = msg.Data || {};
+        const command = data.Command || 'unknown';
+        log('info', 'syncplay', `SyncPlay command: ${command}`);
+        switch (command) {
+            case 'Unpause':
+                sendMpvCommand('set_property', ['pause', false]);
+                break;
+            case 'Pause':
+                sendMpvCommand('set_property', ['pause', true]);
+                break;
+            case 'Stop':
+                killMpv();
+                break;
+            case 'Seek':
+                if (data.StartPositionTicks !== undefined) {
+                    const seekSeconds = data.StartPositionTicks / 10000000;
+                    sendMpvCommand('seek', [seekSeconds, 'absolute']);
+                }
+                break;
+            case 'SetPlaylistOrder':
+                if (data.PlaybackOrder === 'Shuffle') sendMpvCommand('set_property', ['shuffle', true]);
+                else sendMpvCommand('set_property', ['shuffle', false]);
+                break;
+            case 'SetRepeatMode':
+                if (data.RepeatMode === 'RepeatAll') sendMpvCommand('set_property', ['loop-playlist', 'inf']);
+                else if (data.RepeatMode === 'RepeatOne') sendMpvCommand('set_property', ['loop-file', 'inf']);
+                else { sendMpvCommand('set_property', ['loop-playlist', 'no']); sendMpvCommand('set_property', ['loop-file', 'no']); }
+                break;
+            case 'SetShuffleMode':
+                sendMpvCommand('set_property', ['shuffle', data.ShuffleMode || false]);
+                break;
+            default:
+                log('info', 'syncplay', `Unknown SyncPlay command: ${command}`);
+        }
+    }
+    else if (msg.MessageType === "SyncPlayGroupUpdate") {
+        const data = msg.Data || {};
+        const updateType = data.Type || 'unknown';
+        log('info', 'syncplay', `SyncPlay group update: ${updateType}`);
     }
     else if (msg.MessageType === "RestartRequired") {
         log('info', 'ws', '🔄 Server requires restart');
