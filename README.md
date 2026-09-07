@@ -27,10 +27,12 @@
 - **Smart Resume** — Remembers where you left off; "Play from beginning" in Jellyfin starts fresh
 - **Auto-Play Next Episode** — Binge-watch series seamlessly with cross-season support
 - **Full Queue System** — Native MPV playlist; Play Next / Play Last from Jellyfin UI; next/prev navigation
+- **SyncPlay Support** — Join SyncPlay groups from Jellyfin web UI; synchronized playback with other clients
 - **Auto-Skip Intros/Outros** — MediaSegments API integration; auto-skip after 3s or press S to skip; `autoSkipIntros` config option
 - **Next-Up Notification** — Shows "Next up: SeriesName - SxEp" 10 seconds before episode ends
+- **EOF Detection** — Reliable end-of-file detection via MPV's `eof-reached` property for accurate auto-advance
 - **Error OSD Messages** — Connection/auth errors shown in MPV with rate limiting
-- **Hardware Acceleration** — Smooth playback powered by MPV
+- **Hardware Acceleration** — Smooth playback powered by MPV with `--cache=yes` for network streams
 - **Auto-Reconnect** — Handles network interruptions with exponential backoff
 - **Subtitle Sync** — Change subtitles in MPV, Jellyfin tracks the change
 - **Display Messages** — Jellyfin notifications appear as OSD overlays in MPV
@@ -38,8 +40,9 @@
 - **Auto-Close** — Optional shutdown when playback queue is exhausted
 - **Custom MPV Flags** — Pass any MPV options from config
 - **Headless Mode** — Run as a background service on Linux (systemd support)
+- **Multi-Config Support** — Run multiple instances with different configs (`node shim.js config.work.js`)
 - **Better Logging** — Structured `[timestamp] [component]` format with `verbose` config option
-- **Native macOS App** — Menubar icon, notifications, preferences editor, log viewer, setup wizard
+- **Native macOS App** — Menubar icon, notifications, preferences editor, log viewer, setup wizard, config file selector
 - **Self-Contained Bundles** — All platforms bundle Node.js 22 LTS; just install MPV and go
 - **Built-in Help** — Reference guide accessible from the menu bar (macOS)
 
@@ -211,6 +214,7 @@ While watching in MPV:
 |-----|--------|
 | `>` | Next episode |
 | `<` | Previous episode |
+| `S` | Skip intro/outro |
 | `j` | Cycle subtitles (synced to Jellyfin) |
 
 MPV's native `Media Next` / `Media Previous` keys also work for playlist navigation.
@@ -339,7 +343,8 @@ Set WshShell = Nothing
 | **Episode navigation (`>`/`<`) not working** | Custom keybinds in `~/.config/mpv/input.conf` may override defaults |
 | **`serverUrl` format** | Use `http://host:port` — no trailing slash, no `ws://` prefix. The shim converts HTTP to WS automatically |
 | **Headless mode — where are logs?** | Check `data/shim.log`. On Linux with systemd: `journalctl --user -u jellyfin-mpv-play -f` |
-| **Multiple instances conflict** | Set different `ipcSocketPath` in each `config.js` |
+| **Multiple instances conflict** | Set different `ipcSocketPath` in each `config.js`, or use multi-config: `node shim.js config.work.js` |
+| **WebSocket disconnects every ~30 min** | Network-level drops (close code 1006), not server timeouts. The shim reconnects automatically within ~20 seconds. |
 | **Linux: "mpv is not installed"** | Install via `sudo apt install mpv` (or your distro's package manager) |
 | **Windows: "mpv is not installed"** | Download from [mpv.io](https://mpv.io/installation/) and add to your PATH |
 
@@ -382,8 +387,10 @@ Jellyfin_mpv_play/
 
 - **Never share `config.js`** — it contains your password
 - Your password is only used to authenticate with Jellyfin
-- Tokens and playback positions are stored locally in the `data/` folder
+- Tokens and playback positions are stored locally in the `data/` folder with restricted permissions (chmod 600/700)
+- API keys and tokens are redacted in log output
 - `config.js` and `data/` are gitignored — they stay on your machine
+- On Linux, the IPC socket defaults to `$XDG_RUNTIME_DIR` (user-private directory) instead of `/tmp`
 
 ---
 
@@ -392,6 +399,8 @@ Jellyfin_mpv_play/
 See [CHANGELOG.md](CHANGELOG.md) for full release history.
 
 ### Recent Releases
+
+**v1.11.1** — Multi-config support, security improvements, config file selector ([details](CHANGELOG.md#v1111))
 
 **v1.11.0** — Full SyncPlay support, SetShuffleQueue, SetSubtitleDelay, SetAudioDelay ([details](CHANGELOG.md#v1110))
 
@@ -540,7 +549,10 @@ A: Yes. Download the Linux bundle from [Releases](https://github.com/MrGameVlogg
 A: Yes, if your Jellyfin server is accessible, but LAN is recommended.
 
 **Q: Can I run multiple instances?**
-A: Yes, use different `deviceId` and `ipcSocketPath` for each.
+A: Yes, use multi-config support: `node shim.js config.work.js` or `./launch.sh config.work.js`. Each config gets its own deviceId, token, positions, and IPC socket. On macOS, use the config file selector in Preferences.
+
+**Q: Does SyncPlay work?**
+A: Yes, full SyncPlay support is included. Join a SyncPlay group from the Jellyfin web UI and the MPV client will follow along — pause, unpause, seek, and playlist changes are all synchronized.
 
 **Q: Where is my config on macOS?**
 A: `~/Library/Application Support/JellyfinMpvPlay/config.js`. The setup wizard configures this on first launch.

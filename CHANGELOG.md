@@ -18,6 +18,22 @@ All notable changes to Jellyfin MPV Play are documented here.
 
 -->
 
+## v1.11.1
+
+### New Features
+- **Multi-config support** — Run multiple instances with different configs: `node shim.js config.work.js`, `./launch.sh config.work.js`, `launch.bat config.work.js`. On macOS, config file selector in Preferences UI. Each config gets its own deviceId, token, positions, and IPC socket.
+- **XDG_RUNTIME_DIR for IPC socket** — On Linux, IPC socket defaults to `$XDG_RUNTIME_DIR/mpv-ipc.sock` (user-private directory) instead of `/tmp/mpv-ipc.sock`
+
+### Bug Fixes
+- **Fixed stale IPC socket cleanup** — Added `fs.unlinkSync()` before spawning mpv to clean up stale sockets from previous crashes
+- **Added `--cache=yes` to mpv arguments** — Better buffering for network streams
+
+### Security
+- **Secrets redaction** — Added `redact()` function to mask API keys and tokens in log output
+- **Token file permissions** — Data directory created with `chmod 0o700`, token files with `chmod 0o600`
+
+---
+
 ## v1.11.0
 
 ### New Features

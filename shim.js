@@ -6,7 +6,20 @@ const net = require('net');
 const fs = require('fs');
 const path = require('path');
 
-const userConfig = require('./config.js');
+// Which config to load. Lets you run one instance per Jellyfin account:
+//   node shim.js config.work.js
+//   JELLYFIN_MPV_CONFIG=config.work.js node shim.js
+// Defaults to config.js for the single-account case.
+const configFile = process.env.JELLYFIN_MPV_CONFIG || process.argv[2] || 'config.js';
+const configPath = path.isAbsolute(configFile) ? configFile : path.join(__dirname, configFile);
+if (!fs.existsSync(configPath)) {
+    console.error(`❌ Config file not found: ${configPath}`);
+    console.error('   Create one from the template, e.g.:  cp config.example.js config.js');
+    process.exit(1);
+}
+const userConfig = require(configPath);
+console.log(`🗂️  Using config: ${path.basename(configPath)}`);
+
 const pkg = require('./package.json');
 
 const CONFIG = {
@@ -18,7 +31,7 @@ const CONFIG = {
     deviceId: userConfig.deviceId || generateOrLoadDeviceId(),
     
     clientVersion: pkg.version,
-    ipcSocketPath: userConfig.ipcSocketPath || (process.platform === 'win32' ? '\\\\.\\pipe\\mpv-ipc' : '/tmp/mpv-ipc.sock'),
+    ipcSocketPath: userConfig.ipcSocketPath || (process.platform === 'win32' ? '\\\\.\\pipe\\mpv-ipc' : (process.env.XDG_RUNTIME_DIR ? path.join(process.env.XDG_RUNTIME_DIR, 'mpv-ipc.sock') : '/tmp/mpv-ipc.sock')),
     mpvLoadDelayMs: 100,
     fullscreen: userConfig.fullscreen || false,
     autoClose: userConfig.autoClose || false,
@@ -65,6 +78,14 @@ function log(level, component, ...args) {
     } else {
         console.log(prefix, ...args);
     }
+}
+
+// Hide secrets (api_key / token) before logging URLs or headers
+function redact(value) {
+    if (!value) return value;
+    return String(value)
+        .replace(/(api_key=)[^&\s]+/gi, '$1***')
+        .replace(/(X-Emby-Token[":=\s]+)[^",\s]+/gi, '$1***');
 }
 
 const TOKEN_FILE = path.join(__dirname, 'data', `jellyfin_token_${CONFIG.deviceId}.json`);
@@ -145,7 +166,7 @@ function generateOrLoadDeviceId() {
     const id = `mpv-${crypto.randomBytes(8).toString('hex')}`;
     try {
         const dataDir = path.join(__dirname, 'data');
-        if (!fs.existsSync(dataDir)) fs.mkdirSync(dataDir);
+        if (!fs.existsSync(dataDir)) fs.mkdirSync(dataDir, { mode: 0o700 });
         fs.writeFileSync(idFile, id, { mode: 0o600 });
     } catch {}
     return id;
@@ -1249,7 +1270,7 @@ async function playMedia(itemId, startTicks) {
 
     log('info', 'mpv', '🍿 Launching MPV (Idle Mode)...');
     log('info', 'mpv', `    Item ID: ${itemId}`);
-    log('info', 'mpv', `    Stream URL: ${CONFIG.serverUrl}/Videos/${itemId}/stream?static=true&api_key=***`);
+    log('info', 'mpv', `    Stream URL: ${redact(pendingStreamUrl)}`);
     log('info', 'mpv', `    MPV Path: ${CONFIG.mpvPath}`);
 
     const titleText = currentEpisodeInfo.isSeries 
@@ -1263,7 +1284,8 @@ async function playMedia(itemId, startTicks) {
         `--title=Jellyfin - ${titleText}`,
         '--keep-open=yes',
         `--input-ipc-server=${CONFIG.ipcSocketPath}`,
-        '--save-position-on-quit=no'
+        '--save-position-on-quit=no',
+        '--cache=yes'
     ];
 
     if (CONFIG.fullscreen) {
@@ -1275,6 +1297,14 @@ async function playMedia(itemId, startTicks) {
     }
 
     log('info', 'mpv', '🔧 MPV arguments:', args.join(' '));
+
+    // Clear any stale IPC socket left behind by a previous crash
+    try {
+        if (fs.existsSync(CONFIG.ipcSocketPath)) {
+            fs.unlinkSync(CONFIG.ipcSocketPath);
+            log('info', 'mpv', '🧹 Cleaned up stale IPC socket');
+        }
+    } catch (e) {}
 
     try {
         mpvProcess = spawn(CONFIG.mpvPath, args, {
@@ -2538,7 +2568,7 @@ process.on('unhandledRejection', (reason) => {
 function writeCrashLog(type, error) {
     try {
         const dataDir = path.join(__dirname, 'data');
-        if (!fs.existsSync(dataDir)) fs.mkdirSync(dataDir, { recursive: true });
+        if (!fs.existsSync(dataDir)) fs.mkdirSync(dataDir, { recursive: true, mode: 0o700 });
         const crashFile = path.join(dataDir, 'crash.log');
         const timestamp = new Date().toISOString();
         const message = error instanceof Error ? error.stack || error.message : String(error);
@@ -2573,7 +2603,7 @@ async function main() {
     
     const dataDir = path.join(__dirname, 'data');
     if (!fs.existsSync(dataDir)) {
-        fs.mkdirSync(dataDir);
+        fs.mkdirSync(dataDir, { mode: 0o700 });
     }
 	
     const hasToken = loadToken();
