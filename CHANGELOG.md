@@ -20,6 +20,9 @@ All notable changes to Jellyfin MPV Play are documented here.
 
 ## v1.11.2
 
+### New Features
+- **Multi-config support** — Run multiple instances with different configs: `node shim.js config.work.js`, `./launch.sh config.work.js`, `launch.bat config.work.js`. On macOS, config file selector in Preferences UI. Each config gets its own deviceId, token, positions, and IPC socket.
+
 ### Bug Fixes
 - **Fixed SyncPlay ListGroups endpoint** — Changed `/SyncPlay/ListGroups` to `/SyncPlay/List` (correct Jellyfin API endpoint)
 - **Redacted API keys in MPV loadfile logs** — Applied `redact()` function to URLs passed to `sendMpvCommand` to prevent API key exposure in logs
@@ -34,7 +37,6 @@ All notable changes to Jellyfin MPV Play are documented here.
 ## v1.11.1
 
 ### New Features
-- **Multi-config support** — Run multiple instances with different configs: `node shim.js config.work.js`, `./launch.sh config.work.js`, `launch.bat config.work.js`. On macOS, config file selector in Preferences UI. Each config gets its own deviceId, token, positions, and IPC socket.
 - **XDG_RUNTIME_DIR for IPC socket** — On Linux, IPC socket defaults to `$XDG_RUNTIME_DIR/mpv-ipc.sock` (user-private directory) instead of `/tmp/mpv-ipc.sock`
 
 ### Bug Fixes
