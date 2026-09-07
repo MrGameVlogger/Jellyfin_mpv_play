@@ -428,7 +428,7 @@ See [CHANGELOG.md](CHANGELOG.md) for full release history.
 - 12 bug fixes, 8 audit fixes, 7 new tests
 
 <details>
-<summary>v1.9.x and older</summary>
+<summary><b>Older releases</b></summary>
 
 **v1.9.2** — ConfigParser fix, Preferences UI, bug fixes ([details](CHANGELOG.md#v192))
 
@@ -470,8 +470,6 @@ See [CHANGELOG.md](CHANGELOG.md) for full release history.
 - Fixed signal forwarding in launch.sh, path handling in launch.bat
 - Extracted shared utilities, SHA256 checksum verification
 
-</details>
-
 **v1.7.2** — Bug fixes: deviceId persistence, pendingQueries hang, stderr buffering ([details](CHANGELOG.md#v172))
 - Fixed random deviceId creating zombie sessions on restart
 - Fixed pendingQueries not resolved on MPV close (poll timer hang)
@@ -492,9 +490,6 @@ See [CHANGELOG.md](CHANGELOG.md) for full release history.
 
 **v1.5.0** — Apple HIG compliance and major feature release ([details](CHANGELOG.md#v150--apple-hig-compliance-bug-fixes-new-features))
 - Full playback control from Jellyfin, auto-play overhaul, 13 bug fixes
-
-<details>
-<summary><b>Older releases</b></summary>
 
 **v1.4.0** — Bug fixes, logo, UI overhaul ([details](CHANGELOG.md#v140--bug-fixes-logo-ui-overhaul))
 
