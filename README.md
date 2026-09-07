@@ -415,6 +415,9 @@ See [CHANGELOG.md](CHANGELOG.md) for full release history.
 - Playlist navigation observer for reliable MPV navigation detection
 - 12 bug fixes, 8 audit fixes, 7 new tests
 
+<details>
+<summary>v1.9.x and older</summary>
+
 **v1.9.2** — ConfigParser fix, Preferences UI, bug fixes ([details](CHANGELOG.md#v192))
 
 **v1.9.1** — Audio loss fix, seek race condition, disableSkipIntro option ([details](CHANGELOG.md#v191))
@@ -454,6 +457,8 @@ See [CHANGELOG.md](CHANGELOG.md) for full release history.
 - Fixed StatusBarController icon colors actually rendering
 - Fixed signal forwarding in launch.sh, path handling in launch.bat
 - Extracted shared utilities, SHA256 checksum verification
+
+</details>
 
 **v1.7.2** — Bug fixes: deviceId persistence, pendingQueries hang, stderr buffering ([details](CHANGELOG.md#v172))
 - Fixed random deviceId creating zombie sessions on restart
