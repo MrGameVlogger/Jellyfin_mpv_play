@@ -18,6 +18,19 @@ All notable changes to Jellyfin MPV Play are documented here.
 
 -->
 
+## v1.11.2
+
+### Bug Fixes
+- **Fixed SyncPlay ListGroups endpoint** — Changed `/SyncPlay/ListGroups` to `/SyncPlay/List` (correct Jellyfin API endpoint)
+- **Redacted API keys in MPV loadfile logs** — Applied `redact()` function to URLs passed to `sendMpvCommand` to prevent API key exposure in logs
+- **Suppressed MPV cache status log lines** — Filtered out `(Paused) AV:`, `(...) AV:`, and `Cache:` lines from MPV stdout/stderr to reduce log noise (even in verbose mode)
+- **Improved message type logging** — Changed "Unhandled message type" to "Received message type" for less alarming debug output
+
+### Internal
+- **Verified all API endpoints** — Confirmed all endpoints against official Jellyfin OpenAPI spec (System/Info, Sessions/Capabilities, Shows/*, MediaSegments, SyncPlay/*)
+
+---
+
 ## v1.11.1
 
 ### New Features

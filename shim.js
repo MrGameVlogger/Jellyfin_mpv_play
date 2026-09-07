@@ -940,7 +940,7 @@ async function handleMessage(msg) {
     }
     else {
         if (!NOISY_WS_TYPES.includes(msg.MessageType)) {
-            log('debug', 'ws', `Unhandled message type: ${msg.MessageType}`);
+            log('debug', 'ws', `Received message type: ${msg.MessageType}`);
         }
     }
 }
@@ -1325,14 +1325,14 @@ async function playMedia(itemId, startTicks) {
 
         mpvProcess.stdout.on('data', (data) => { 
             const line = data.toString().trim();
-            if (line && !line.startsWith('AV:')) {
+            if (line && !line.startsWith('AV:') && !line.startsWith('(Paused)') && !line.startsWith('(...)') && !line.includes('Cache:')) {
                 log('debug', 'mpv', `MPV: ${line}`);
             }
         });
         
         mpvProcess.stderr.on('data', (data) => {
             const line = data.toString().trim();
-            if (line && !line.startsWith('AV:') && !line.includes('File tags:')) {
+            if (line && !line.startsWith('AV:') && !line.startsWith('(Paused)') && !line.startsWith('(...)') && !line.includes('Cache:') && !line.includes('File tags:')) {
                 log('debug', 'mpv', `MPV stderr: ${line}`);
             }
         });
@@ -1618,7 +1618,8 @@ function sendMpvCommand(command, args = []) {
 
     try {
         const cmdStr = JSON.stringify(cmd) + '\n';
-        log('debug', 'mpv', '→', command, ...args);
+        const logArgs = args.map(arg => typeof arg === 'string' && arg.includes('api_key=') ? redact(arg) : arg);
+        log('debug', 'mpv', '→', command, ...logArgs);
         ipcClient.write(cmdStr);
     } catch (e) {
         log('error', 'mpv', 'Error sending command:', e.message);
@@ -2416,7 +2417,7 @@ function pushOscSkipButton(label) {
 async function getSyncPlayState() {
     const headers = getAuthHeaders();
     try {
-        const response = await axios.get(`${CONFIG.serverUrl}/SyncPlay/ListGroups`, { headers, timeout: 5000 });
+        const response = await axios.get(`${CONFIG.serverUrl}/SyncPlay/List`, { headers, timeout: 5000 });
         const groups = response.data || [];
         const groupsList = groups.map(g => ({
             id: g.GroupId,

@@ -60,12 +60,13 @@ enum ConfigParser {
         return appSupport.appendingPathComponent("JellyfinMpvPlay").path
     }
 
-    static func configPath() -> String {
-        return applicationSupportDir() + "/config.js"
+    static func configPath(fileName: String = "config.js") -> String {
+        return applicationSupportDir() + "/\(fileName)"
     }
 
-    static func loadConfigContent() -> String? {
-        return try? String(contentsOfFile: configPath(), encoding: .utf8)
+    static func loadConfigContent(fileName: String? = nil) -> String? {
+        let name = fileName ?? UserDefaults.standard.string(forKey: "selectedConfigFile") ?? "config.js"
+        return try? String(contentsOfFile: configPath(fileName: name), encoding: .utf8)
     }
 
     static func escapeConfigValue(_ s: String) -> String {

@@ -2,6 +2,7 @@ import Cocoa
 import ServiceManagement
 
 class PreferencesWindowController: NSWindowController {
+    private var configFilePopup: NSPopUpButton!
     private var serverUrlField: NSTextField!
     private var usernameField: NSTextField!
     private var passwordField: NSSecureTextField!
@@ -23,7 +24,7 @@ class PreferencesWindowController: NSWindowController {
 
     convenience init() {
         let window = NSWindow(
-            contentRect: NSRect(x: 0, y: 0, width: 560, height: 670),
+            contentRect: NSRect(x: 0, y: 0, width: 560, height: 700),
             styleMask: [.titled, .closable],
             backing: .buffered,
             defer: false
@@ -33,6 +34,7 @@ class PreferencesWindowController: NSWindowController {
         window.isReleasedWhenClosed = false
         self.init(window: window)
         setupUI()
+        populateConfigFiles()
         loadConfig()
     }
 
@@ -44,7 +46,36 @@ class PreferencesWindowController: NSWindowController {
     private func setupUI() {
         guard let contentView = window?.contentView else { return }
 
-        var yOffset: CGFloat = 630
+        var yOffset: CGFloat = 660
+
+        // MARK: - Config File Section
+        let configLabel = sectionLabel("Config File")
+        configLabel.frame = NSRect(x: 20, y: yOffset, width: 520, height: 20)
+        contentView.addSubview(configLabel)
+        yOffset -= 28
+
+        let configFileLabel = NSTextField(labelWithString: "Active config:")
+        configFileLabel.frame = NSRect(x: 20, y: yOffset, width: 100, height: 24)
+        configFileLabel.alignment = .right
+        contentView.addSubview(configFileLabel)
+
+        configFilePopup = NSPopUpButton()
+        configFilePopup.frame = NSRect(x: 130, y: yOffset, width: 300, height: 24)
+        configFilePopup.target = self
+        configFilePopup.action = #selector(configFileChanged)
+        contentView.addSubview(configFilePopup)
+
+        let refreshButton = NSButton(title: "Refresh", target: self, action: #selector(refreshConfigFiles))
+        refreshButton.frame = NSRect(x: 440, y: yOffset, width: 70, height: 24)
+        contentView.addSubview(refreshButton)
+        yOffset -= 30
+
+        // Separator
+        let separator0 = NSBox()
+        separator0.boxType = .separator
+        separator0.frame = NSRect(x: 20, y: yOffset, width: 540, height: 1)
+        contentView.addSubview(separator0)
+        yOffset -= 20
 
         // MARK: - Connection Section
         let connectionLabel = sectionLabel("Connection")
@@ -255,8 +286,42 @@ class PreferencesWindowController: NSWindowController {
         return label
     }
 
+    private func selectedConfigFileName() -> String {
+        return UserDefaults.standard.string(forKey: "selectedConfigFile") ?? "config.js"
+    }
+
+    @objc private func configFileChanged() {
+        guard let selected = configFilePopup.titleOfSelectedItem else { return }
+        UserDefaults.standard.set(selected, forKey: "selectedConfigFile")
+        loadConfig()
+    }
+
+    @objc private func refreshConfigFiles() {
+        populateConfigFiles()
+        loadConfig()
+    }
+
+    private func populateConfigFiles() {
+        configFilePopup.removeAllItems()
+        let appSupport = ConfigParser.applicationSupportDir()
+        let fileManager = FileManager.default
+        guard let files = try? fileManager.contentsOfDirectory(atPath: appSupport) else { return }
+        let configFiles = files.filter { $0.hasSuffix(".js") && ($0 == "config.js" || $0.hasPrefix("config.")) }.sorted()
+        if configFiles.isEmpty {
+            configFilePopup.addItem(withTitle: "config.js")
+        } else {
+            configFilePopup.addItems(withTitles: configFiles)
+        }
+        let selected = selectedConfigFileName()
+        if let index = configFilePopup.itemTitles.firstIndex(of: selected) {
+            configFilePopup.selectItem(at: index)
+        }
+    }
+
     private func loadConfig() {
-        guard let content = ConfigParser.loadConfigContent() else { return }
+        let configFileName = selectedConfigFileName()
+        let configPath = ConfigParser.configPath(fileName: configFileName)
+        guard let content = try? String(contentsOfFile: configPath, encoding: .utf8) else { return }
 
         serverUrlField.stringValue = ConfigParser.extractValue(from: content, key: "serverUrl")
         usernameField.stringValue = ConfigParser.extractValue(from: content, key: "username")
@@ -374,7 +439,7 @@ class PreferencesWindowController: NSWindowController {
         lines.append("};")
 
         let config = lines.joined(separator: "\n")
-        let configPath = ConfigParser.configPath()
+        let configPath = ConfigParser.configPath(fileName: selectedConfigFileName())
         do {
             try config.write(toFile: configPath, atomically: true, encoding: .utf8)
             onSave?()
