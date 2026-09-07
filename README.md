@@ -250,7 +250,7 @@ Replaces MPV's default on-screen controller with a Jellyfin-styled UI: Material 
 | 4 | Subtitle styling | ✅ | Size, position, color options in settings |
 | 4 | Quality selection | ❌ | Requires transcode API integration |
 | 4 | Shader profiles | ❌ | Requires shader management |
-| 4 | SyncPlay | ❌ | Requires group management |
+| 4 | SyncPlay | ✅ | Group join/leave, waiting/ready states, UTC time sync |
 
 All integration is optional — if jf-mpv-osc isn't loaded, the `script-message` calls are silently ignored by MPV.
 
