@@ -357,8 +357,11 @@ class PreferencesWindowController: NSWindowController {
         }
         let mpvFlags = mpvFlagsField.stringValue.trimmingCharacters(in: .whitespaces)
         if !mpvFlags.isEmpty {
-            // Parse comma-separated flags into a JS array
-            let flags = mpvFlags.components(separatedBy: ",").map { "'\($0.trimmingCharacters(in: .whitespaces))'" }.joined(separator: ", ")
+            // Parse comma or space-separated flags into a JS array
+            let flags = mpvFlags.components(separatedBy: CharacterSet(charactersIn: ", "))
+                .filter { !$0.isEmpty }
+                .map { "'\($0)'" }
+                .joined(separator: ", ")
             lines.append("    mpvFlags: [\(flags)],")
         }
 
