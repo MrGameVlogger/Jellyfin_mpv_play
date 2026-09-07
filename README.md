@@ -401,8 +401,6 @@ See [CHANGELOG.md](CHANGELOG.md) for full release history.
 
 **v1.10.8** — Fixed ForceKeepAlive data parsing, restored KeepAlive in noisyTypes ([details](CHANGELOG.md#v1108))
 
-See [CHANGELOG.md](CHANGELOG.md) for full release history.
-
 <details>
 <summary><b>Older releases</b></summary>
 
