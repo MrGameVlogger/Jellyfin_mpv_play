@@ -16,6 +16,10 @@ This is a Jellyfin MPV Play project — a Node.js shim that connects to Jellyfin
 
 5. **Jellyfin API compliance** — `SupportedCommands` must use exact `GeneralCommandType` enum names from Jellyfin source. Wrong names cause 400 errors.
 
+6. **WebSocket keep-alive** — The `ws` library v8.x auto-responds to protocol-level ping/pong. Don't add manual ping handlers. KeepAlive messages are sent every 30s. ForceKeepAlive data can be number, string, or object — always parse safely.
+
+7. **Secrets redaction** — API keys and tokens must be redacted in log output using the `redact()` function.
+
 ## What to Look For
 
 - Changes to console.log strings that match known patterns (see AGENTS.md)
@@ -24,6 +28,8 @@ This is a Jellyfin MPV Play project — a Node.js shim that connects to Jellyfin
 - Hardcoded paths that should be configurable
 - Missing cleanup on shutdown
 - Changes that would break the build script
+- ForceKeepAlive data parsing (can be number, string, or object)
+- WebSocket message types that should be handled but aren't
 
 ## Style Notes
 
@@ -31,3 +37,5 @@ This is a Jellyfin MPV Play project — a Node.js shim that connects to Jellyfin
 - No build step for Node.js code
 - Swift code targets macOS 13.0+
 - MPV arguments are minimal — user's mpv.conf handles most settings
+- IPC socket defaults to `$XDG_RUNTIME_DIR` on Linux
+- Multi-config support: `node shim.js config.work.js`
