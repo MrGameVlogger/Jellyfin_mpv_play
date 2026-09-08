@@ -519,7 +519,7 @@ Title format for `Episode detected`: `SeriesName - SxEp - EpisodeName` (parsed b
 - All windows use standard layering (no `.floating`). Status bar icons are template images — they adapt to light/dark mode automatically.
 - `ConfigParser.swift` is the shared utility for config file parsing and Application Support paths. Used by AppDelegate, NodeProcessManager, and PreferencesWindowController.
 - `Info.plist` has TWO version keys: `CFBundleVersion` (build number) and `CFBundleShortVersionString` (display version). Both must be updated when testing locally.
-- `Info.plist` version is auto-synced by CI — don't edit manually.
+- `Info.plist` version is auto-synced by CI — don't edit manually for release builds. For local builds, use `sed -i '' 's/old/new/g' macapp/Info.plist`.
 - Config file location: `~/Library/Application Support/JellyfinMpvPlay/config.js`
 - Log file location: `~/Library/Application Support/JellyfinMpvPlay/data/jellyfin-mpv-play-*.log` (timestamped)
 
@@ -570,9 +570,14 @@ Key architectural decisions:
 
 1. Increment version in `package.json` (use `npm version X.Y.Z`)
    - **Important:** `npm version` automatically updates both `package.json` and `package-lock.json`. Always use this command instead of manually editing version numbers.
-2. Commit, push to a branch, and merge via PR
-3. Create and push a version tag: `git tag -a vX.Y.Z -m "vX.Y.Z" && git push origin vX.Y.Z`
-4. The CI workflow (`.github/workflows/build.yml`) automatically:
+2. Update `macapp/Info.plist` version to match:
+   - Use `sed -i '' 's/old-version/new-version/g' macapp/Info.plist` (preserves formatting)
+   - **Do NOT use PlistBuddy** — it reorders keys and changes indentation
+   - Update both `CFBundleVersion` and `CFBundleShortVersionString`
+3. Update `CHANGELOG.md` with release notes
+4. Commit, push to a branch, and merge via PR
+5. Create and push a version tag: `git tag -a vX.Y.Z -m "vX.Y.Z" && git push origin vX.Y.Z`
+6. The CI workflow (`.github/workflows/build.yml`) automatically:
    - Reads version from `package.json`
    - Generates release notes from CHANGELOG.md entries
    - Builds macOS `.app` bundle (runs on `macos-latest`)
@@ -580,7 +585,7 @@ Key architectural decisions:
    - Builds Windows bundle with bundled Node.js (runs on `windows-latest`)
    - Creates a GitHub Release with auto-generated notes and all 3 platform artifacts
 
-`package.json` is the single source of truth for version. `shim.js` reads it at runtime. `Info.plist` and `SECURITY.md` are auto-synced by CI into release artifacts (not committed back to repo). Update `CHANGELOG.md` before tagging a release.
+`package.json` is the single source of truth for version. `shim.js` reads it at runtime. CI auto-syncs `Info.plist` into release artifacts, but **local builds require manual Info.plist updates**. The test `package.json version matches Info.plist version` will catch mismatches if Info.plist is included in the PR.
 
 The macOS `.app` can also be built locally: `cd macapp && ./build.sh` (deploys to `/Applications`). Use `CI=true` to skip the deploy step.
 
