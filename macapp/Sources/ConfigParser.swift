@@ -98,7 +98,7 @@ enum ConfigParser {
         request.addValue("application/json", forHTTPHeaderField: "Content-Type")
         let version = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0.0"
         let authHeader = "MediaBrowser Client=\"Jellyfin MPV Play\", Device=\"\(deviceName)\", DeviceId=\"\(deviceId)\", Version=\"\(version)\""
-        request.addValue(authHeader, forHTTPHeaderField: "X-Emby-Authorization")
+        request.addValue(authHeader, forHTTPHeaderField: "Authorization")
         let body: [String: Any] = ["Username": username, "Pw": password]
         request.httpBody = try? JSONSerialization.data(withJSONObject: body)
 
