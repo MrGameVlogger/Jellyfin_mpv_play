@@ -1968,6 +1968,16 @@ async function playNextEpisode() {
 
     log('info', 'queue', '🔍 End of season, querying NextUp...');
     try {
+        // Mark current episode as watched BEFORE querying NextUp to prevent race condition
+        const prevItemId2 = currentItemId;
+        const prevPos2 = currentPositionSeconds;
+        const prevRuntime2 = currentEpisodeInfo?.itemRuntime || 0;
+        if (prevItemId2) {
+            if (prevRuntime2 > 0 && prevPos2 >= prevRuntime2 * 0.9) {
+                await markItemAsWatched(prevItemId2);
+            }
+            reportPlaybackStop(prevItemId2, Math.round(prevPos2 * 10000000));
+        }
         const nextUpId = await queryNextUp(currentEpisodeInfo.seriesId);
         if (nextUpId) {
             const nextUpInfo = await getEpisodeInfo(nextUpId);
@@ -1975,16 +1985,6 @@ async function playNextEpisode() {
                 ? [nextUpInfo.seriesName, `${nextUpInfo.seasonNumber}x${nextUpInfo.episodeNumber}`, nextUpInfo.title].filter(Boolean).join(' - ')
                 : (nextUpInfo.title || String(nextUpId));
             log('info', 'queue', `▶️ Starting next episode: ${nextUpTitle}`);
-            // Mark current episode as watched before advancing
-            const prevItemId2 = currentItemId;
-            const prevPos2 = currentPositionSeconds;
-            const prevRuntime2 = currentEpisodeInfo?.itemRuntime || 0;
-            if (prevItemId2) {
-                if (prevRuntime2 > 0 && prevPos2 >= prevRuntime2 * 0.9) {
-                    markItemAsWatched(prevItemId2);
-                }
-                reportPlaybackStop(prevItemId2, Math.round(prevPos2 * 10000000));
-            }
             if (!ipcClient || ipcClient.destroyed || !mpvProcess) {
                 playMedia(nextUpId, 0).catch(err => {
                 log('error', 'episode', '⚠️ Error playing next episode:', err.message);
