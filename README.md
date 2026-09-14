@@ -408,6 +408,9 @@ See [CHANGELOG.md](CHANGELOG.md) for full release history.
 
 **v1.11.1** — XDG_RUNTIME_DIR for IPC, stale socket cleanup, cache=yes, secrets redaction ([details](CHANGELOG.md#v1111))
 
+<details>
+<summary><b>Older releases</b></summary>
+
 **v1.11.0** — Full SyncPlay support, SetShuffleQueue, SetSubtitleDelay, SetAudioDelay ([details](CHANGELOG.md#v1110))
 
 **v1.10.10** — Bug audit: EOF detection, queue state fixes, OSD corruption fix ([details](CHANGELOG.md#v11010))
