@@ -21,7 +21,7 @@ All notable changes to Jellyfin MPV Play are documented here.
 ## v1.11.4
 
 ### Bug Fixes
-- **Fixed NextUp returning same episode** — Added retry logic with1s delay when Jellyfin NextUp API returns the episode that was just watched (server-side caching issue). Retries up to3 times before giving up.
+- **Fixed NextUp returning same episode** — Added retry logic with 1s delay when Jellyfin NextUp API returns the episode that was just watched (server-side caching issue). Queries up to 3 total attempts before giving up.
 
 ---
 
