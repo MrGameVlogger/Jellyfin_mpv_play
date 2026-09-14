@@ -1977,10 +1977,13 @@ async function playNextEpisode() {
         const prevRuntime2 = currentEpisodeInfo?.itemRuntime || 0;
         if (prevItemId2) {
             if (prevRuntime2 > 0 && prevPos2 >= prevRuntime2 * 0.9) {
-                const marked = await markItemAsWatched(prevItemId2);
+                let marked = await markItemAsWatched(prevItemId2);
                 if (!marked) {
                     log('warn', 'queue', '⚠️ Failed to mark episode as watched, retrying...');
-                    await markItemAsWatched(prevItemId2); // One retry
+                    marked = await markItemAsWatched(prevItemId2); // One retry
+                    if (!marked) {
+                        log('error', 'queue', '❌ Failed to mark episode as watched after retry, proceeding anyway');
+                    }
                 }
             }
             reportPlaybackStop(prevItemId2, Math.round(prevPos2 * 10000000));
