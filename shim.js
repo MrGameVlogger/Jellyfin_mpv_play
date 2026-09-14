@@ -85,6 +85,7 @@ function redact(value) {
     if (!value) return value;
     return String(value)
         .replace(/(api_key=)[^&\s]+/gi, '$1***')
+        .replace(/(Token=")[^"]+/gi, '$1***')
         .replace(/(X-Emby-Token[":=\s]+)[^",\s]+/gi, '$1***');
 }
 
@@ -224,7 +225,7 @@ async function authenticateUser() {
             {
                 headers: {
                     'Content-Type': 'application/json',
-                    'X-Emby-Authorization': authHeader
+                    'Authorization': authHeader
                 }
             }
         );
@@ -270,8 +271,7 @@ function savePlaybackPosition(itemId, positionTicks) {
 
 function getAuthHeaders() {
     return {
-        'X-Emby-Token': accessToken,
-        'X-Emby-Authorization': `MediaBrowser Client="${CONFIG.deviceName}", Device="${CONFIG.deviceName}", DeviceId="${CONFIG.deviceId}", Version="${CONFIG.clientVersion}"`
+        'Authorization': `MediaBrowser Token="${accessToken}", Client="${CONFIG.deviceName}", Device="${CONFIG.deviceName}", DeviceId="${CONFIG.deviceId}", Version="${CONFIG.clientVersion}"`
     };
 }
 
