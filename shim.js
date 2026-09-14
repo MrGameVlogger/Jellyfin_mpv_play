@@ -80,11 +80,12 @@ function log(level, component, ...args) {
     }
 }
 
-// Hide secrets (api_key / token) before logging URLs or headers
+// Hide secrets (ApiKey / token) before logging URLs or headers
 function redact(value) {
     if (!value) return value;
     return String(value)
         .replace(/(api_key=)[^&\s]+/gi, '$1***')
+        .replace(/(ApiKey=)[^&\s]+/gi, '$1***')
         .replace(/(Token=")[^"]+/gi, '$1***')
         .replace(/(X-Emby-Token[":=\s]+)[^",\s]+/gi, '$1***');
 }
@@ -296,7 +297,7 @@ async function connectWebSocket() {
         ws = null;
     }
     
-    const wsUrl = CONFIG.serverUrl.replace(/^http/, 'ws') + `/socket?api_key=${accessToken}&deviceId=${CONFIG.deviceId}`;
+    const wsUrl = CONFIG.serverUrl.replace(/^http/, 'ws') + `/socket?ApiKey=${accessToken}&deviceId=${CONFIG.deviceId}`;
     
     log('info', 'ws', '🔌 Connecting to Jellyfin...');
     
@@ -570,7 +571,7 @@ async function handleMessage(msg) {
                 const insertAt = queuePosition + 1;
                 playQueue.splice(insertAt, 0, ...orderedItems);
                 for (let i = 0; i < orderedItems.length; i++) {
-                    const url = `${CONFIG.serverUrl}/Videos/${orderedItems[i]}/stream?static=true&api_key=${accessToken}`;
+                    const url = `${CONFIG.serverUrl}/Videos/${orderedItems[i]}/stream?static=true&ApiKey=${accessToken}`;
                     sendMpvCommand('loadfile', [url, 'insert-at-index', insertAt + i]);
                 }
                 log('info', 'queue', `➕ Added ${orderedItems.length} item(s) to queue after position ${queuePosition}`);
@@ -578,7 +579,7 @@ async function handleMessage(msg) {
             } else if (playCommand === 'PlayLast') {
                 playQueue.push(...orderedItems);
                 for (const id of orderedItems) {
-                    const url = `${CONFIG.serverUrl}/Videos/${id}/stream?static=true&api_key=${accessToken}`;
+                    const url = `${CONFIG.serverUrl}/Videos/${id}/stream?static=true&ApiKey=${accessToken}`;
                     sendMpvCommand('loadfile', [url, 'append']);
                 }
                 log('info', 'queue', `➕ Appended ${orderedItems.length} item(s) to queue (total: ${playQueue.length})`);
@@ -806,7 +807,7 @@ async function handleMessage(msg) {
                 // Rebuild MPV playlist to match new order
                 sendMpvCommand('playlist-clear');
                 for (const id of playQueue) {
-                    const url = `${CONFIG.serverUrl}/Videos/${id}/stream?static=true&api_key=${accessToken}`;
+                    const url = `${CONFIG.serverUrl}/Videos/${id}/stream?static=true&ApiKey=${accessToken}`;
                     sendMpvCommand('loadfile', [url, 'append']);
                 }
                 if (queuePosition > 0) {
@@ -1203,7 +1204,7 @@ async function loadNewQueue(itemId, startTicks) {
 
     sendMpvCommand('playlist-clear');
     for (let i = 0; i < playQueue.length; i++) {
-        const url = `${CONFIG.serverUrl}/Videos/${playQueue[i]}/stream?static=true&api_key=${accessToken}`;
+        const url = `${CONFIG.serverUrl}/Videos/${playQueue[i]}/stream?static=true&ApiKey=${accessToken}`;
         sendMpvCommand('loadfile', [url, i === 0 ? 'replace' : 'append']);
     }
     queueLoadCounter = 1;
@@ -1265,7 +1266,7 @@ async function playMedia(itemId, startTicks) {
 
     playSessionId = crypto.randomUUID();
 
-    pendingStreamUrl = `${CONFIG.serverUrl}/Videos/${itemId}/stream?static=true&api_key=${accessToken}`;
+    pendingStreamUrl = `${CONFIG.serverUrl}/Videos/${itemId}/stream?static=true&ApiKey=${accessToken}`;
     pendingStartSeconds = startTicks / 10000000;
 
     log('info', 'mpv', '🍿 Launching MPV (Idle Mode)...');
@@ -1444,7 +1445,7 @@ function connectToMpvIpc(gen) {
                 if (pendingStreamUrl && gen === playbackGeneration) {
                     log('info', 'ipc', '📡 Loading playlist into MPV...');
                     for (let i = 0; i < playQueue.length; i++) {
-                        const url = `${CONFIG.serverUrl}/Videos/${playQueue[i]}/stream?static=true&api_key=${accessToken}`;
+                        const url = `${CONFIG.serverUrl}/Videos/${playQueue[i]}/stream?static=true&ApiKey=${accessToken}`;
                         sendMpvCommand('loadfile', [url, i === 0 ? 'replace' : 'append']);
                     }
                     log('info', 'ipc', `    ✅ Loaded ${playQueue.length} items into playlist.`);
@@ -1621,7 +1622,7 @@ function sendMpvCommand(command, args = []) {
 
     try {
         const cmdStr = JSON.stringify(cmd) + '\n';
-        const logArgs = args.map(arg => typeof arg === 'string' && arg.includes('api_key=') ? redact(arg) : arg);
+        const logArgs = args.map(arg => typeof arg === 'string' && (arg.includes('api_key=') || arg.includes('ApiKey=')) ? redact(arg) : arg);
         log('debug', 'mpv', '→', command, ...logArgs);
         ipcClient.write(cmdStr);
     } catch (e) {
@@ -1960,7 +1961,7 @@ async function playNextEpisode() {
             });
             return;
         }
-        const url = `${CONFIG.serverUrl}/Videos/${nextEp.Id}/stream?static=true&api_key=${accessToken}`;
+        const url = `${CONFIG.serverUrl}/Videos/${nextEp.Id}/stream?static=true&ApiKey=${accessToken}`;
         playQueue.push(nextEp.Id);
         queuePosition = playQueue.length - 1;
         currentItemId = nextEp.Id;
@@ -2002,7 +2003,7 @@ async function playNextEpisode() {
                 });
                 return;
             }
-            const url = `${CONFIG.serverUrl}/Videos/${nextUpId}/stream?static=true&api_key=${accessToken}`;
+            const url = `${CONFIG.serverUrl}/Videos/${nextUpId}/stream?static=true&ApiKey=${accessToken}`;
             playQueue.push(nextUpId);
             queuePosition = playQueue.length - 1;
             currentItemId = nextUpId;
