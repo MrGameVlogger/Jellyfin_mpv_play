@@ -24,6 +24,7 @@ All notable changes to Jellyfin MPV Play are documented here.
 - **Fixed NextUp race condition** — `markItemAsWatched()` is now awaited before querying NextUp API, preventing the same episode from being loaded twice at end of season
 - **Added retry logic for markItemAsWatched** — Returns boolean indicating success, clears `markedWatched` flag on failure to allow retry, retries once in NextUp path
 - **Redacted API keys in MPV stdout/stderr** — Applied `redact()` to all MPV output to prevent API key exposure in logs (MPV logs stream URLs to stdout)
+- **Fixed Swift weak-self capture warnings** — Added `[weak self]` to outer closure in `NodeProcessManager.sendMpvCommand()` to properly propagate weak reference
 
 ---
 
