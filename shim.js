@@ -2029,18 +2029,29 @@ async function playNextEpisode() {
 
 async function queryNextUp(seriesId, excludeItemId = null) {
     const headers = getAuthHeaders();
-    const response = await axios.get(`${CONFIG.serverUrl}/Shows/NextUp`, {
-        headers,
-        params: { userId, seriesId, limit: 1 }
-    });
-    if (response.data?.Items && response.data.Items.length > 0) {
-        const nextEp = response.data.Items[0];
-        log('info', 'episode', `📺 NextUp from Jellyfin: ${nextEp.SeriesName} - S${nextEp.ParentIndexNumber}E${nextEp.IndexNumber} - ${nextEp.Name} (itemId: ${nextEp.Id})`);
-        if (excludeItemId && nextEp.Id === excludeItemId) {
-            log('warn', 'queue', '⚠️ NextUp returned same episode that was just watched, skipping');
-            return null;
+    const maxRetries = 3;
+    const retryDelay = 1000; // 1 second
+
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+        const response = await axios.get(`${CONFIG.serverUrl}/Shows/NextUp`, {
+            headers,
+            params: { userId, seriesId, limit: 1 }
+        });
+        if (response.data?.Items && response.data.Items.length > 0) {
+            const nextEp = response.data.Items[0];
+            if (excludeItemId && nextEp.Id === excludeItemId) {
+                if (attempt < maxRetries) {
+                    log('info', 'queue', `⚠️ NextUp returned same episode (attempt ${attempt}/${maxRetries}), waiting ${retryDelay}ms for server cache update...`);
+                    await new Promise(r => setTimeout(r, retryDelay));
+                    continue;
+                }
+                log('warn', 'queue', '⚠️ NextUp still returning same episode after retries, skipping');
+                return null;
+            }
+            log('info', 'episode', `📺 NextUp from Jellyfin: ${nextEp.SeriesName} - S${nextEp.ParentIndexNumber}E${nextEp.IndexNumber} - ${nextEp.Name} (itemId: ${nextEp.Id})`);
+            return nextEp.Id;
         }
-        return nextEp.Id;
+        return null;
     }
     return null;
 }
