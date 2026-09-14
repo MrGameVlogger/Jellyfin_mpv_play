@@ -243,7 +243,7 @@ class NodeProcessManager {
             return
         }
 
-        DispatchQueue.global().async {
+        DispatchQueue.global().async { [weak self] in
             let sock = socket(AF_UNIX, SOCK_STREAM, 0)
             guard sock >= 0 else { return }
             defer { close(sock) }
@@ -272,7 +272,7 @@ class NodeProcessManager {
             }
 
             guard connected == 0 else {
-                DispatchQueue.main.async { [weak self] in
+                DispatchQueue.main.async {
                     self?.logHandler("WARN: Failed to connect to MPV IPC socket")
                 }
                 return
@@ -288,7 +288,7 @@ class NodeProcessManager {
                     return send(sock, ptr, data.count - totalSent, 0)
                 }
                 if result <= 0 {
-                    DispatchQueue.main.async { [weak self] in
+                    DispatchQueue.main.async {
                         self?.logHandler("WARN: Failed to send MPV IPC command")
                     }
                     break
