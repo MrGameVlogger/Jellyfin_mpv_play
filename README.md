@@ -400,6 +400,8 @@ See [CHANGELOG.md](CHANGELOG.md) for full release history.
 
 ### Recent Releases
 
+**v1.11.4** — Fixed NextUp returning same episode (retry with delay for server cache) ([details](CHANGELOG.md#v1114))
+
 **v1.11.3** — NextUp race condition fix, API key redaction in MPV output, Swift weak-self fix ([details](CHANGELOG.md#v1113))
 
 **v1.11.2** — Multi-config support, SyncPlay endpoint fix, security improvements ([details](CHANGELOG.md#v1112))
