@@ -1326,14 +1326,14 @@ async function playMedia(itemId, startTicks) {
         mpvProcess.stdout.on('data', (data) => { 
             const line = data.toString().trim();
             if (line && !line.startsWith('AV:') && !line.startsWith('(Paused)') && !line.startsWith('(...)') && !line.includes('Cache:')) {
-                log('debug', 'mpv', `MPV: ${line}`);
+                log('debug', 'mpv', `MPV: ${redact(line)}`);
             }
         });
         
         mpvProcess.stderr.on('data', (data) => {
             const line = data.toString().trim();
             if (line && !line.startsWith('AV:') && !line.startsWith('(Paused)') && !line.startsWith('(...)') && !line.includes('Cache:') && !line.includes('File tags:')) {
-                log('debug', 'mpv', `MPV stderr: ${line}`);
+                log('debug', 'mpv', `MPV stderr: ${redact(line)}`);
             }
         });
 
