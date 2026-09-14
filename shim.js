@@ -1988,7 +1988,7 @@ async function playNextEpisode() {
             }
             reportPlaybackStop(prevItemId2, Math.round(prevPos2 * 10000000));
         }
-        const nextUpId = await queryNextUp(currentEpisodeInfo.seriesId);
+        const nextUpId = await queryNextUp(currentEpisodeInfo.seriesId, prevItemId2);
         if (nextUpId) {
             const nextUpInfo = await getEpisodeInfo(nextUpId);
             const nextUpTitle = nextUpInfo.isSeries
@@ -2027,7 +2027,7 @@ async function playNextEpisode() {
     }
 }
 
-async function queryNextUp(seriesId) {
+async function queryNextUp(seriesId, excludeItemId = null) {
     const headers = getAuthHeaders();
     const response = await axios.get(`${CONFIG.serverUrl}/Shows/NextUp`, {
         headers,
@@ -2035,7 +2035,11 @@ async function queryNextUp(seriesId) {
     });
     if (response.data?.Items && response.data.Items.length > 0) {
         const nextEp = response.data.Items[0];
-        log('info', 'episode', `📺 NextUp from Jellyfin: ${nextEp.SeriesName} - S${nextEp.ParentIndexNumber}E${nextEp.IndexNumber} - ${nextEp.Name}`);
+        log('info', 'episode', `📺 NextUp from Jellyfin: ${nextEp.SeriesName} - S${nextEp.ParentIndexNumber}E${nextEp.IndexNumber} - ${nextEp.Name} (itemId: ${nextEp.Id})`);
+        if (excludeItemId && nextEp.Id === excludeItemId) {
+            log('warn', 'queue', '⚠️ NextUp returned same episode that was just watched, skipping');
+            return null;
+        }
         return nextEp.Id;
     }
     return null;
