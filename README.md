@@ -419,9 +419,6 @@ See [CHANGELOG.md](CHANGELOG.md) for full release history.
 
 **v1.10.8** — Fixed ForceKeepAlive data parsing, restored KeepAlive in noisyTypes ([details](CHANGELOG.md#v1108))
 
-<details>
-<summary><b>Older releases</b></summary>
-
 ~~**v1.10.7**~~ — ~~Restored 30s KeepAlive, half-interval on ForceKeepAlive~~ (superseded by v1.10.8)
 - Restored default KeepAlive to 30s (was incorrectly changed to 60s)
 - ForceKeepAlive handler resets interval to half server's requested value (capped at 30s)
