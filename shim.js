@@ -1548,7 +1548,7 @@ function connectToMpvIpc(gen) {
 }
 
 async function markItemAsWatched(itemId) {
-    if (markedWatched.has(itemId)) return;
+    if (markedWatched.has(itemId)) return true;
     markedWatched.add(itemId);
     try {
         const headers = getAuthHeaders();
@@ -1561,8 +1561,11 @@ async function markItemAsWatched(itemId) {
             fs.writeFileSync(POSITIONS_FILE, JSON.stringify(positions, null, 2));
             log('info', 'report', '🗑️ Local position cleared (content watched)');
         }
+        return true;
     } catch (error) {
         log('error', 'report', '⚠️ Error marking item as watched:', error.message);
+        markedWatched.delete(itemId); // Allow retry on next attempt
+        return false;
     }
 }
 
@@ -1974,7 +1977,11 @@ async function playNextEpisode() {
         const prevRuntime2 = currentEpisodeInfo?.itemRuntime || 0;
         if (prevItemId2) {
             if (prevRuntime2 > 0 && prevPos2 >= prevRuntime2 * 0.9) {
-                await markItemAsWatched(prevItemId2);
+                const marked = await markItemAsWatched(prevItemId2);
+                if (!marked) {
+                    log('warn', 'queue', '⚠️ Failed to mark episode as watched, retrying...');
+                    await markItemAsWatched(prevItemId2); // One retry
+                }
             }
             reportPlaybackStop(prevItemId2, Math.round(prevPos2 * 10000000));
         }
