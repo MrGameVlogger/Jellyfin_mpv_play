@@ -83,7 +83,7 @@ No lint or typecheck steps exist. Tests run via `npm test`.
 - **Auto-play**: Poll timer queries `time-pos` and `duration` via IPC every 1s. For the last item in the playlist, triggers `playNextEpisode()` when `pos >= dur - 1`. MPV handles all other transitions natively.
 - **DisplayMessage**: Shows OSD overlay in MPV, pauses playback for 10s, then resumes. Original pause state tracked globally (`displayMessageOriginalPause`) to handle concurrent messages.
 - **Subtitle sync**: Observes `sid` property. Changes from MPV are reported to Jellyfin via progress API. Changes from Jellyfin are flagged (`isSettingSubtitleFromJellyfin`) to prevent echo. 5s timeout clears the flag if no echo detected.
-- **Headless mode**: `headless: true` in config.js redirects console output to `data/shim-<configname>.log` and suppresses stdout/stderr. On Linux, `launch.sh` auto-detects headless config and re-opens a terminal if needed.
+- **Headless mode**: `headless: true` in config.js logs to `data/shim-<configname>.log` (writes to both log file and stdout/stderr). On Linux, `launch.sh` auto-detects headless config and runs in background via nohup.
 - **Playable types**: `Episode`, `Movie`, `Video`, `MusicVideo`, `Audio` — anything else is skipped.
 - **Watched threshold**: Item marked watched at 90% of runtime.
 - **EOF detection**: Observes `eof-reached` property (ID 8). Logs item ID, position, duration, queue index, and whether it's the last item. This is more reliable than the progress poll's position-based check for triggering auto-close.
@@ -159,7 +159,7 @@ All functions live in `shim.js`. There are no classes — the entire app is proc
 | `authenticateUser()` | 176 | POSTs to `/Users/AuthenticateByName`, saves token |
 | `loadToken()` | 139 | Reads JWT from `data/jellyfin_token_{deviceId}.json` |
 | `saveToken(authResponse)` | 164 | Persists JWT to disk |
-| `getAuthHeaders()` | 235 | Returns `Authorization: MediaBrowser Token=...` header |
+| `getAuthHeaders()` | 294 | Returns `Authorization: MediaBrowser Token=...` header |
 | `generateOrLoadDeviceId()` | 123 | Reads or generates device ID from `data/.device-id` |
 
 ### WebSocket & Jellyfin communication
