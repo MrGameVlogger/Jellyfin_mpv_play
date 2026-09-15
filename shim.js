@@ -50,7 +50,8 @@ if (CONFIG.autoSkipIntros && CONFIG.disableSkipIntro) {
 if (CONFIG.headless) {
     const logDir = path.join(__dirname, 'data');
     if (!fs.existsSync(logDir)) fs.mkdirSync(logDir, { recursive: true });
-    const logFile = path.join(logDir, 'shim.log');
+    const configBase = path.basename(configFile, path.extname(configFile));
+    const logFile = path.join(logDir, `shim-${configBase}.log`);
     const logStream = fs.createWriteStream(logFile, { flags: 'a' });
     const timestamp = () => new Date().toISOString();
     console.log = (...args) => {
@@ -2524,6 +2525,20 @@ function shutdown(signal) {
     isShuttingDown = true;
     log('info', 'main', `\n👋 Closing application (${signal})...`);
     
+    // Clean up lock file
+    const configBase = path.basename(configFile, path.extname(configFile));
+    const lockFile = path.join(__dirname, 'data', `${configBase}.lock`);
+    try {
+        if (fs.existsSync(lockFile)) {
+            const lockData = JSON.parse(fs.readFileSync(lockFile, 'utf8'));
+            if (lockData.pid === process.pid) {
+                fs.unlinkSync(lockFile);
+            }
+        }
+    } catch (e) {
+        // Ignore lock file errors
+    }
+    
     stopProgressPoll();
     for (const [, q] of pendingQueries) { if (q.timer) clearTimeout(q.timer); q.resolve(null); }
     pendingQueries.clear();
@@ -2631,6 +2646,39 @@ async function main() {
     const dataDir = path.join(__dirname, 'data');
     if (!fs.existsSync(dataDir)) {
         fs.mkdirSync(dataDir, { mode: 0o700 });
+    }
+
+    // Check for existing instance with same config
+    const configBase = path.basename(configFile, path.extname(configFile));
+    const lockFile = path.join(dataDir, `${configBase}.lock`);
+    try {
+        if (fs.existsSync(lockFile)) {
+            const lockData = JSON.parse(fs.readFileSync(lockFile, 'utf8'));
+            // Check if the process is still running
+            try {
+                process.kill(lockData.pid, 0); // Signal 0 checks if process exists
+                log('warn', 'main', `⚠️ Another instance is already running (PID: ${lockData.pid})`);
+                log('warn', 'main', `   Config: ${configFile}`);
+                log('warn', 'main', `   Started: ${lockData.started}`);
+                log('warn', 'main', '   Continuing anyway — multiple instances may cause conflicts');
+            } catch (e) {
+                // Process not running, stale lock file
+                fs.unlinkSync(lockFile);
+            }
+        }
+    } catch (e) {
+        // Ignore lock file errors
+    }
+
+    // Write lock file
+    try {
+        fs.writeFileSync(lockFile, JSON.stringify({
+            pid: process.pid,
+            config: configFile,
+            started: new Date().toISOString()
+        }));
+    } catch (e) {
+        // Ignore lock file errors
     }
 	
     const hasToken = loadToken();
