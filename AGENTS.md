@@ -59,7 +59,7 @@ No lint or typecheck steps exist. Tests run via `npm test`.
 | `config.example.js` | Template for `config.js` |
 | `package.json` | Version source of truth (single source — `clientVersion` reads from here at runtime) |
 | `data/` | Runtime state: auth tokens, playback positions, device ID (gitignored) |
-| `data/shim.log` | Headless mode log output (created when `headless: true`) |
+| `data/shim-<configname>.log` | Headless mode log output (created when `headless: true`) |
 | `macapp/Sources/*.swift` | Native macOS menubar app (11 files) |
 | `macapp/build.sh` | Compile Swift, bundle Node.js 22, deploy to `/Applications` |
 | `macapp/Info.plist` | App version — auto-synced by CI from `package.json`; don't edit manually |
@@ -83,7 +83,7 @@ No lint or typecheck steps exist. Tests run via `npm test`.
 - **Auto-play**: Poll timer queries `time-pos` and `duration` via IPC every 1s. For the last item in the playlist, triggers `playNextEpisode()` when `pos >= dur - 1`. MPV handles all other transitions natively.
 - **DisplayMessage**: Shows OSD overlay in MPV, pauses playback for 10s, then resumes. Original pause state tracked globally (`displayMessageOriginalPause`) to handle concurrent messages.
 - **Subtitle sync**: Observes `sid` property. Changes from MPV are reported to Jellyfin via progress API. Changes from Jellyfin are flagged (`isSettingSubtitleFromJellyfin`) to prevent echo. 5s timeout clears the flag if no echo detected.
-- **Headless mode**: `headless: true` in config.js redirects console output to `data/shim.log` and suppresses stdout/stderr. On Linux, `launch.sh` auto-detects headless config and re-opens a terminal if needed.
+- **Headless mode**: `headless: true` in config.js redirects console output to `data/shim-<configname>.log` and suppresses stdout/stderr. On Linux, `launch.sh` auto-detects headless config and re-opens a terminal if needed.
 - **Playable types**: `Episode`, `Movie`, `Video`, `MusicVideo`, `Audio` — anything else is skipped.
 - **Watched threshold**: Item marked watched at 90% of runtime.
 - **EOF detection**: Observes `eof-reached` property (ID 8). Logs item ID, position, duration, queue index, and whether it's the last item. This is more reliable than the progress poll's position-based check for triggering auto-close.
@@ -138,7 +138,7 @@ All options go in `config.js` (copy from `config.example.js`):
 | `fullscreen` | boolean | `false` | Start MPV in fullscreen mode |
 | `autoClose` | boolean | `false` | Close shim when playback ends |
 | `mpvFlags` | array | `[]` | Additional MPV arguments (e.g. `["--hwdec=auto"]`) |
-| `headless` | boolean | `false` | Redirect logs to `data/shim.log`, suppress stdout/stderr |
+| `headless` | boolean | `false` | Redirect logs to `data/shim-<configname>.log`, suppress stdout/stderr |
 | `autoSkipIntros` | boolean | `false` | Auto-skip intros/outros after 3s (or show "Press S to skip" OSD) |
 | `disableSkipIntro` | boolean | `false` | Completely disable intro/outro skip feature (hides prompts, no S key) |
 | `verbose` | boolean | `false` | Show debug-level logs with timestamps and component names |
@@ -159,7 +159,7 @@ All functions live in `shim.js`. There are no classes — the entire app is proc
 | `authenticateUser()` | 176 | POSTs to `/Users/AuthenticateByName`, saves token |
 | `loadToken()` | 139 | Reads JWT from `data/jellyfin_token_{deviceId}.json` |
 | `saveToken(authResponse)` | 164 | Persists JWT to disk |
-| `getAuthHeaders()` | 235 | Returns `X-Emby-Token` + `X-Emby-Authorization` headers |
+| `getAuthHeaders()` | 235 | Returns `Authorization: MediaBrowser Token=...` header |
 | `generateOrLoadDeviceId()` | 123 | Reads or generates device ID from `data/.device-id` |
 
 ### WebSocket & Jellyfin communication
@@ -461,7 +461,7 @@ Both `uncaughtException` and `unhandledRejection` handlers call `shutdown()` to 
 3. Testing Playstate commands (Pause, Seek, Next/Prev track)
 4. Testing DisplayMessage from Jellyfin dashboard
 5. Testing subtitle switching from both sides
-6. Testing headless mode (`headless: true` in config, check `data/shim.log`)
+6. Testing headless mode (`headless: true` in config, check `data/shim-<configname>.log`)
 7. Testing auto-close (`autoClose: true` in config)
 8. Testing fullscreen (`fullscreen: true` in config)
 9. On macOS: building the app and testing from the menubar
