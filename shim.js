@@ -2617,11 +2617,13 @@ process.on('SIGTERM', () => shutdown('SIGTERM'));
 process.on('uncaughtException', (err) => {
     log('error', 'main', '❌ Uncaught exception:', err);
     writeCrashLog('uncaughtException', err);
+    showHeadlessErrorDialog('Uncaught Exception', `An unexpected error occurred:\n\n${err.message || err}`);
     shutdown('uncaughtException');
 });
 process.on('unhandledRejection', (reason) => {
     log('error', 'main', '❌ Unhandled rejection:', reason);
     writeCrashLog('unhandledRejection', reason);
+    showHeadlessErrorDialog('Unhandled Rejection', `An unexpected error occurred:\n\n${reason?.message || reason}`);
     shutdown('unhandledRejection');
 });
 
@@ -2712,6 +2714,32 @@ function showDuplicateInstanceDialog(message) {
     });
 }
 
+function showHeadlessErrorDialog(title, message) {
+    if (!CONFIG.headless) return; // Only show dialogs in headless mode
+    
+    const { execFile } = require('child_process');
+    const fullMessage = `${title}\n\n${message}`;
+    
+    if (process.platform === 'darwin') {
+        const script = `display dialog "${fullMessage.replace(/"/g, '\\"')}" with title "Jellyfin MPV Play - Error" buttons {"OK"} default button "OK" with icon stop`;
+        execFile('osascript', ['-e', script], () => {});
+    } else if (process.platform === 'linux') {
+        const escapedMsg = fullMessage.replace(/'/g, "'\\''");
+        execFile('zenity', ['--error', '--title=Jellyfin MPV Play - Error', `--text=${escapedMsg}`, '--width=400'], (err) => {
+            if (err) {
+                // zenity not available, try kdialog
+                execFile('kdialog', ['--error', escapedMsg, '--title', 'Jellyfin MPV Play - Error'], () => {});
+            }
+        });
+    } else if (process.platform === 'win32') {
+        const psScript = `
+            Add-Type -AssemblyName System.Windows.Forms
+            [System.Windows.Forms.MessageBox]::Show('${fullMessage.replace(/'/g, "''")}', 'Jellyfin MPV Play - Error', 'OK', 'Error')
+        `;
+        execFile('powershell', ['-Command', psScript], () => {});
+    }
+}
+
 async function main() {
     log('info', 'main', '\n🚀 Starting Jellyfin MPV Shim...\n');
     
@@ -2767,6 +2795,7 @@ async function main() {
         const authenticated = await authenticateUser();
         if (!authenticated) {
             log('error', 'main', '❌ Could not authenticate. Check your CONFIG credentials.');
+            showHeadlessErrorDialog('Authentication Failed', 'Could not authenticate with Jellyfin server.\n\nCheck your config.js credentials and try again.');
             process.exit(1);
         }
     }
@@ -2782,5 +2811,6 @@ async function main() {
 
 main().catch(error => {
     log('error', 'main', '❌ Fatal error!:', error);
+    showHeadlessErrorDialog('Fatal Error', `Jellyfin MPV Play encountered a fatal error:\n\n${error.message || error}`);
     process.exit(1);
 });
