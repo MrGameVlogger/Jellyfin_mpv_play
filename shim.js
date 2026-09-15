@@ -1175,7 +1175,6 @@ async function loadNewQueue(itemId, startTicks) {
         }
         reportPlaybackStop(currentItemId, Math.round(currentPositionSeconds * 10000000));
     }
-    isReportingStop = false;
     isNewQueueLoad = true;
 
     currentItemId = itemId;
@@ -1266,7 +1265,6 @@ async function playMedia(itemId, startTicks) {
         reportPlaybackStop(currentItemId, Math.round(currentPositionSeconds * 10000000));
     }
     killMpv();
-    isReportingStop = false;
     
     playbackGeneration++;
     const gen = playbackGeneration;
@@ -1445,7 +1443,8 @@ function connectToMpvIpc(gen) {
             if (connectionAttempts < maxAttempts) {
                 setTimeout(attemptConnection, retryDelay);
             } else {
-                log('error', 'ipc', '❌ Maximum IPC connection attempts reached');
+                log('error', 'ipc', '❌ Maximum IPC connection attempts reached — killing MPV');
+                killMpv();
             }
             return;
         }
@@ -1857,6 +1856,7 @@ function handleMpvEvent(event) {
     }
 
     if (event.event === 'property-change' && event.name === 'eof-reached' && event.data === true) {
+        if (isNewQueueLoad) return; // Skip during new queue loads
         const isLastInPlaylist = queuePosition >= playQueue.length - 1;
         const posStr = currentPositionSeconds ? currentPositionSeconds.toFixed(1) : '?';
         const durStr = currentDuration ? currentDuration.toFixed(1) : '?';
@@ -2254,7 +2254,7 @@ function reportPlaybackStop(itemId, positionTicks) {
 
     log('info', 'report', `📡 Reporting playback stop (position: ${(positionTicks / 10000000).toFixed(2)}s)...`);
     
-    axios.post(`${CONFIG.serverUrl}/Sessions/Playing/Stopped`, data, { headers })
+    axios.post(`${CONFIG.serverUrl}/Sessions/Playing/Stopped`, data, { headers, timeout: 10000 })
         .then(() => {
             log('info', 'report', '✅ Playback stop reported correctly');
             isReportingStop = false;
