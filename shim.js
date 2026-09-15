@@ -51,7 +51,9 @@ if (CONFIG.headless) {
     const logDir = path.join(__dirname, 'data');
     if (!fs.existsSync(logDir)) fs.mkdirSync(logDir, { recursive: true });
     const configBase = path.basename(configFile, path.extname(configFile));
-    const logFile = path.join(logDir, `shim-${configBase}.log`);
+    const allowDuplicates = process.argv.includes('--allow-duplicates');
+    const logSuffix = allowDuplicates ? `-${process.pid}` : '';
+    const logFile = path.join(logDir, `shim-${configBase}${logSuffix}.log`);
     const logStream = fs.createWriteStream(logFile, { flags: 'a' });
     const timestamp = () => new Date().toISOString();
     console.log = (...args) => {

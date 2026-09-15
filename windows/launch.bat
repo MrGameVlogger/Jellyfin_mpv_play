@@ -95,12 +95,14 @@ if "%IS_HEADLESS%"=="false" (
 
 if "%IS_HEADLESS%"=="true" (
     for %%i in ("%CONFIG_FILE%") do set "CONFIG_BASE=%%~ni"
-    echo Running headless. Logs: %SCRIPT_DIR%\data\shim-%CONFIG_BASE%.log
-    start "" /B "%NODE_BIN%" "%SCRIPT_DIR%\shim.js" "%CONFIG_FILE%"
+    set "LOG_SUFFIX="
+    echo %* | findstr /C:"--allow-duplicates" >nul && set "LOG_SUFFIX=-%RANDOM%"
+    echo Running headless. Logs: %SCRIPT_DIR%\data\shim-%CONFIG_BASE%%LOG_SUFFIX%.log
+    start "" /B "%NODE_BIN%" "%SCRIPT_DIR%\shim.js" "%CONFIG_FILE%" %*
     exit /b 0
 )
 
-"%NODE_BIN%" "%SCRIPT_DIR%\shim.js" "%CONFIG_FILE%"
+"%NODE_BIN%" "%SCRIPT_DIR%\shim.js" "%CONFIG_FILE%" %*
 if errorlevel 1 (
     echo.
     echo Shim exited with an error.

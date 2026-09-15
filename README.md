@@ -40,7 +40,7 @@
 - **Auto-Close** — Optional shutdown when playback queue is exhausted
 - **Custom MPV Flags** — Pass any MPV options from config
 - **Headless Mode** — Run as a background service on Linux (systemd support)
-- **Multi-Config Support** — Run multiple instances with different configs (`node shim.js config.work.js`)
+- **Multi-Config Support** — Run multiple instances with different configs (`node shim.js config.work.js`), or same config with `--allow-duplicates` flag
 - **Better Logging** — Structured `[timestamp] [component]` format with `verbose` config option
 - **Native macOS App** — Menubar icon, notifications, preferences editor, log viewer, setup wizard, config file selector
 - **Self-Contained Bundles** — All platforms bundle Node.js 22 LTS; just install MPV and go
@@ -556,6 +556,9 @@ A: Yes, if your Jellyfin server is accessible, but LAN is recommended.
 
 **Q: Can I run multiple instances?**
 A: Yes, use multi-config support: `node shim.js config.work.js` or `./launch.sh config.work.js`. Each config gets its own deviceId, token, positions, and IPC socket. On macOS, use the config file selector in Preferences.
+
+**Q: Can I run multiple instances of the same config?**
+A: Yes, use the `--allow-duplicates` flag: `node shim.js --allow-duplicates` or `./launch.sh --allow-duplicates`. Without this flag, a dialog will warn you about the duplicate instance. With the flag, the dialog is skipped and each instance gets its own log file (e.g., `shim-config-12345.log`).
 
 **Q: Does SyncPlay work?**
 A: Yes, full SyncPlay support is included. Join a SyncPlay group from the Jellyfin web UI and the MPV client will follow along — pause, unpause, seek, and playlist changes are all synchronized.

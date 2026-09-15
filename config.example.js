@@ -26,6 +26,12 @@ module.exports = {
     // Multi-config support: create multiple config files (e.g., config.work.js, config.personal.js)
     // and run with: node shim.js config.work.js
     // Each config gets its own deviceId, token, positions, and IPC socket.
+    // Log files: shim-config.log (single instance), shim-config-<PID>.log (with --allow-duplicates)
+    //
+    // To run multiple instances of the same config:
+    //   node shim.js --allow-duplicates
+    //   ./launch.sh --allow-duplicates
+    // This shows a dialog warning about duplicates, and logs to separate files.
 
     // Start MPV in fullscreen (optional — default: false)
     // fullscreen: true,
