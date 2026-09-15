@@ -151,7 +151,6 @@ elif [ ! -t 0 ] && [ "$1" != "--terminal" ]; then
     echo "No terminal emulator found. Running silently. Logs: $SCRIPT_DIR/data/shim-${CONFIG_BASE}*.log"
     nohup "$NODE_BIN" "$SCRIPT_DIR/shim.js" "$CONFIG_FILE" "$@" > /dev/null 2>&1 &
     NODE_PID=$!
-    fi
     disown $NODE_PID
     exit 0
 else
