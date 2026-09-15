@@ -18,6 +18,16 @@ All notable changes to Jellyfin MPV Play are documented here.
 
 -->
 
+## v1.11.6
+
+### Bug Fixes
+- **Fixed reportPlaybackStop missing timeout** — Added 10-second timeout to prevent indefinite hangs when server is unreachable, which could permanently block stop reports
+- **Fixed isReportingStop immediate reset** — Removed premature `isReportingStop = false` in `loadNewQueue()` and `playMedia()` that defeated the deduplication guard
+- **Fixed eof-reached handler during queue loads** — Added `isNewQueueLoad` guard to prevent premature episode transitions when loading a new queue
+- **Fixed IPC connection failure recovery** — Kill MPV when maximum IPC connection attempts are reached, instead of leaving it running without control
+
+---
+
 ## v1.11.5
 
 ### New Features
