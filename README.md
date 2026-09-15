@@ -167,7 +167,7 @@ Run without a terminal window:
 ./launch.sh --headless
 ```
 
-Logs are written to `data/shim-<configname>.log` instead of the terminal.
+Logs are written to `data/shim-<configname>.log` instead of the terminal. With `--allow-duplicates`, each instance gets `shim-<configname>-<PID>.log`. If a duplicate is detected without the flag, a random suffix is used to avoid overwriting.
 
 To run as a systemd service (auto-start on login, auto-restart on crash):
 
