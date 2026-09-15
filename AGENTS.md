@@ -226,7 +226,7 @@ All functions live in `shim.js`. There are no classes — the entire app is proc
 
 | Function | Line | Description |
 |----------|------|-------------|
-| `handleOscAction(verb, arg)` | 2269 | Handles actions from OSC. Verbs: `skip`, `skip-back`, `skip-forward`, `next`, `prev`, `set-sub`, `set-audio`, `set-sub-by-id`, `set-audio-by-id`, `screenshot`, `fullscreen`, `play-pause`, `stop`, `set-volume`, `mute`, `set-speed`, `set-sub-delay`, `set-audio-delay` |
+| `handleOscAction(verb, arg)` | 2269 | Handles actions from OSC. Verbs: `skip-segment`, `next-item`, `prev-item`, `set-sub`, `set-audio`, `set-sub-size`, `set-sub-position`, `set-sub-color`, `toggle-favorite`, `screenshot`, `set-fullscreen`, `unwatched-quit`, `syncplay-refresh`, `syncplay-join`, `syncplay-new`, `syncplay-disable`, `syncplay-toggle-pause` |
 | `pushOscState(hasMedia)` | 2361 | Pushes state blob to OSC (queue, favorites, tracks, subtitle styling) |
 | `pushOscSkipButton(label)` | 2459 | Pushes skip button label to OSC (or empty to hide) |
 | `toggleFavorite()` | 2523 | Toggles favorite via Jellyfin API and pushes updated state |
