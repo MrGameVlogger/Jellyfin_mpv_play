@@ -43,7 +43,7 @@ module.exports = {
     // Extra MPV flags (optional — array of strings passed to MPV)
     // mpvFlags: ['--hwdec=auto', '--vo=gpu-next'],
 
-    // Headless mode — suppress console output, log to data/shim.log (optional — default: false)
+    // Headless mode — suppress console output, log to data/shim-<configname>.log (optional — default: false)
     // Useful for running as a background service on Linux/Windows
     // headless: true,
 

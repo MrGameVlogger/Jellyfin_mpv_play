@@ -148,7 +148,7 @@ All bundles include their own Node.js runtime. Only [MPV Player](https://mpv.io/
        // fullscreen: true,       // Start MPV in fullscreen
        // autoClose: true,         // Close app when queue finishes
        // mpvFlags: [],            // Extra MPV flags
-       // headless: true,          // Suppress console output, log to data/shim.log
+       // headless: true,          // Suppress console output, log to data/shim-<configname>.log
    };
    ```
 
@@ -167,7 +167,7 @@ Run without a terminal window:
 ./launch.sh --headless
 ```
 
-Logs are written to `data/shim.log` instead of the terminal.
+Logs are written to `data/shim-<configname>.log` instead of the terminal.
 
 To run as a systemd service (auto-start on login, auto-restart on crash):
 
