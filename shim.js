@@ -2654,7 +2654,8 @@ function showDuplicateInstanceDialog(message) {
         
         if (process.platform === 'darwin') {
             // macOS: Use osascript for native dialog
-            const script = `display dialog "${message.replace(/"/g, '\\"')}" with title "Jellyfin MPV Play" buttons {"Stop", "Continue"} default button "Continue" with icon caution`;
+            const escapedMsg = message.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+            const script = `display dialog "${escapedMsg}" with title "Jellyfin MPV Play" buttons {"Stop", "Continue"} default button "Continue" with icon caution`;
             execFile('osascript', ['-e', script], (err, stdout) => {
                 if (err) {
                     // User clicked Stop or dialog failed
@@ -2712,7 +2713,8 @@ function showErrorDialog(title, message) {
     const fullMessage = `${title}\n\n${message}`;
     
     if (process.platform === 'darwin') {
-        const script = `display dialog "${fullMessage.replace(/"/g, '\\"')}" with title "Jellyfin MPV Play" buttons {"OK"} default button "OK" with icon stop`;
+        const escapedMsg = fullMessage.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+        const script = `display dialog "${escapedMsg}" with title "Jellyfin MPV Play" buttons {"OK"} default button "OK" with icon stop`;
         execFile('osascript', ['-e', script], () => {});
     } else if (process.platform === 'linux') {
         const escapedMsg = fullMessage.replace(/'/g, "'\\''");
