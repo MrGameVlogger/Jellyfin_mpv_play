@@ -94,7 +94,8 @@ if "%IS_HEADLESS%"=="false" (
 )
 
 if "%IS_HEADLESS%"=="true" (
-    echo Running headless. Logs: %SCRIPT_DIR%\data\shim.log
+    for %%i in ("%CONFIG_FILE%") do set "CONFIG_BASE=%%~ni"
+    echo Running headless. Logs: %SCRIPT_DIR%\data\shim-%CONFIG_BASE%.log
     start "" /B "%NODE_BIN%" "%SCRIPT_DIR%\shim.js" "%CONFIG_FILE%"
     exit /b 0
 )

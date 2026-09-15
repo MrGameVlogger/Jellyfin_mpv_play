@@ -135,7 +135,8 @@ if [ "$IS_HEADLESS" = true ]; then
     nohup "$NODE_BIN" "$SCRIPT_DIR/shim.js" "$CONFIG_FILE" > /dev/null 2>&1 &
     NODE_PID=$!
     disown $NODE_PID
-    echo "Running headless (PID: $NODE_PID). Logs: $SCRIPT_DIR/data/shim.log"
+    CONFIG_BASE=$(basename "$CONFIG_FILE" .js)
+    echo "Running headless (PID: $NODE_PID). Logs: $SCRIPT_DIR/data/shim-${CONFIG_BASE}.log"
     echo "Stop with: kill $NODE_PID"
     exit 0
 elif [ ! -t 0 ] && [ "$1" != "--terminal" ]; then
@@ -146,7 +147,8 @@ elif [ ! -t 0 ] && [ "$1" != "--terminal" ]; then
         fi
     done
     # No terminal found, fall back to running silently
-    echo "No terminal emulator found. Running silently. Logs: $SCRIPT_DIR/data/shim.log"
+    CONFIG_BASE=$(basename "$CONFIG_FILE" .js)
+    echo "No terminal emulator found. Running silently. Logs: $SCRIPT_DIR/data/shim-${CONFIG_BASE}.log"
     nohup "$NODE_BIN" "$SCRIPT_DIR/shim.js" "$CONFIG_FILE" > /dev/null 2>&1 &
     NODE_PID=$!
     disown $NODE_PID
