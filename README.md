@@ -558,7 +558,7 @@ A: Yes, if your Jellyfin server is accessible, but LAN is recommended.
 A: Yes, use multi-config support: `node shim.js config.work.js` or `./launch.sh config.work.js`. Each config gets its own deviceId, token, positions, and IPC socket. On macOS, use the config file selector in Preferences.
 
 **Q: Can I run multiple instances of the same config?**
-A: Yes, use the `--allow-duplicates` flag: `node shim.js --allow-duplicates` or `./launch.sh --allow-duplicates`. Without this flag, a dialog will warn you about the duplicate instance. With the flag, the dialog is skipped and each instance gets its own log file (e.g., `shim-config-12345.log`).
+A: Yes, use the `--allow-duplicates` flag: `node shim.js config.js --allow-duplicates` or `./launch.sh --allow-duplicates`. Without this flag, a dialog will warn you about the duplicate instance (headless mode only). With the flag, the dialog is skipped and each instance gets its own log file (e.g., `shim-config-12345.log` in headless mode).
 
 **Q: Does SyncPlay work?**
 A: Yes, full SyncPlay support is included. Join a SyncPlay group from the Jellyfin web UI and the MPV client will follow along — pause, unpause, seek, and playlist changes are all synchronized.

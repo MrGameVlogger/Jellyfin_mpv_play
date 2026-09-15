@@ -8,9 +8,11 @@ const path = require('path');
 
 // Which config to load. Lets you run one instance per Jellyfin account:
 //   node shim.js config.work.js
+//   node shim.js config.work.js --allow-duplicates
 //   JELLYFIN_MPV_CONFIG=config.work.js node shim.js
 // Defaults to config.js for the single-account case.
-const configFile = process.env.JELLYFIN_MPV_CONFIG || process.argv[2] || 'config.js';
+const args = process.argv.slice(2);
+const configFile = process.env.JELLYFIN_MPV_CONFIG || args.find(a => !a.startsWith('--')) || 'config.js';
 const configPath = path.isAbsolute(configFile) ? configFile : path.join(__dirname, configFile);
 if (!fs.existsSync(configPath)) {
     console.error(`❌ Config file not found: ${configPath}`);
@@ -2638,23 +2640,9 @@ function writeCrashLog(type, error) {
         fs.appendFileSync(crashFile, logEntry);
         console.error(`Crash log written to: ${crashFile}`);
 
-        // Show a dialog or open the crash log
+        // Show a dialog for the crash
         const dialogMessage = `Jellyfin MPV Play crashed: ${type}\n\n${message.substring(0, 500)}`;
-        const { execFile } = require('child_process');
-
-        if (process.platform === 'win32') {
-            // Try PowerShell message box, fall back to notepad
-            const psScript = `Add-Type -AssemblyName System.Windows.Forms; [System.Windows.Forms.MessageBox]::Show('${dialogMessage.replace(/'/g, "''")}', 'Jellyfin MPV Play - Crash', 'OK', 'Error')`;
-            execFile('powershell', ['-Command', psScript], (err) => {
-                if (err) execFile('notepad', [crashFile]);
-            });
-        } else if (process.platform === 'linux') {
-            // Try zenity, fall back to xdg-open
-            execFile('zenity', ['--error', '--title=Jellyfin MPV Play - Crash', `--text=${dialogMessage}`, '--width=400'], (err) => {
-                if (err) execFile('xdg-open', [crashFile]);
-            });
-        }
-        // macOS uses NSAlert (handled by Swift)
+        showErrorDialog('Jellyfin MPV Play - Crash', dialogMessage);
     } catch (e) {
         // If we can't write the crash log, just continue with shutdown
     }
@@ -2716,25 +2704,28 @@ function showDuplicateInstanceDialog(message) {
 
 function showHeadlessErrorDialog(title, message) {
     if (!CONFIG.headless) return; // Only show dialogs in headless mode
-    
+    showErrorDialog(title, message);
+}
+
+function showErrorDialog(title, message) {
     const { execFile } = require('child_process');
     const fullMessage = `${title}\n\n${message}`;
     
     if (process.platform === 'darwin') {
-        const script = `display dialog "${fullMessage.replace(/"/g, '\\"')}" with title "Jellyfin MPV Play - Error" buttons {"OK"} default button "OK" with icon stop`;
+        const script = `display dialog "${fullMessage.replace(/"/g, '\\"')}" with title "Jellyfin MPV Play" buttons {"OK"} default button "OK" with icon stop`;
         execFile('osascript', ['-e', script], () => {});
     } else if (process.platform === 'linux') {
         const escapedMsg = fullMessage.replace(/'/g, "'\\''");
-        execFile('zenity', ['--error', '--title=Jellyfin MPV Play - Error', `--text=${escapedMsg}`, '--width=400'], (err) => {
+        execFile('zenity', ['--error', '--title=Jellyfin MPV Play', `--text=${escapedMsg}`, '--width=400'], (err) => {
             if (err) {
                 // zenity not available, try kdialog
-                execFile('kdialog', ['--error', escapedMsg, '--title', 'Jellyfin MPV Play - Error'], () => {});
+                execFile('kdialog', ['--error', escapedMsg, '--title', 'Jellyfin MPV Play'], () => {});
             }
         });
     } else if (process.platform === 'win32') {
         const psScript = `
             Add-Type -AssemblyName System.Windows.Forms
-            [System.Windows.Forms.MessageBox]::Show('${fullMessage.replace(/'/g, "''")}', 'Jellyfin MPV Play - Error', 'OK', 'Error')
+            [System.Windows.Forms.MessageBox]::Show('${fullMessage.replace(/'/g, "''")}', 'Jellyfin MPV Play', 'OK', 'Error')
         `;
         execFile('powershell', ['-Command', psScript], () => {});
     }

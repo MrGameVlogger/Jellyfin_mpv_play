@@ -155,7 +155,7 @@ elif [ ! -t 0 ] && [ "$1" != "--terminal" ]; then
     disown $NODE_PID
     exit 0
 else
-    "$NODE_BIN" "$SCRIPT_DIR/shim.js" "$CONFIG_FILE" &
+    "$NODE_BIN" "$SCRIPT_DIR/shim.js" "$CONFIG_FILE" "$@" &
     NODE_PID=$!
     trap 'kill $NODE_PID 2>/dev/null' INT TERM
     wait $NODE_PID
