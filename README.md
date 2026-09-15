@@ -342,8 +342,8 @@ Set WshShell = Nothing
 | **Black screen / no video** | Check `~/.config/mpv/mpv.conf` for valid `vo` and `hwdec` settings |
 | **Episode navigation (`>`/`<`) not working** | Custom keybinds in `~/.config/mpv/input.conf` may override defaults |
 | **`serverUrl` format** | Use `http://host:port` — no trailing slash, no `ws://` prefix. The shim converts HTTP to WS automatically |
-| **Headless mode — where are logs?** | Check `data/shim.log`. On Linux with systemd: `journalctl --user -u jellyfin-mpv-play -f` |
-| **Multiple instances conflict** | Set different `ipcSocketPath` in each `config.js`, or use multi-config: `node shim.js config.work.js` |
+| **Headless mode — where are logs?** | Check `data/shim-<configname>.log`. On Linux with systemd: `journalctl --user -u jellyfin-mpv-play -f` |
+| **Multiple instances conflict** | Set different `ipcSocketPath` in each `config.js`, or use multi-config: `node shim.js config.work.js`. For same config: `node shim.js config.js --allow-duplicates` |
 | **WebSocket disconnects every ~30 min** | Likely a reverse proxy connection timeout (nginx, Apache, Caddy). The shim reconnects automatically within ~20 seconds. Playback is not affected. |
 | **Linux: "mpv is not installed"** | Install via `sudo apt install mpv` (or your distro's package manager) |
 | **Windows: "mpv is not installed"** | Download from [mpv.io](https://mpv.io/installation/) and add to your PATH |
@@ -400,7 +400,7 @@ See [CHANGELOG.md](CHANGELOG.md) for full release history.
 
 ### Recent Releases
 
-**v1.11.5** — Linux launcher fix, headless error dialogs, Copilot feedback fixes ([details](CHANGELOG.md#v1115))
+**v1.11.5** — Jellyfin 12 auth/API compatibility, duplicate instance handling, headless error dialogs ([details](CHANGELOG.md#v1115))
 
 **v1.11.4** — Fixed NextUp returning same episode (retry with delay for server cache) ([details](CHANGELOG.md#v1114))
 
