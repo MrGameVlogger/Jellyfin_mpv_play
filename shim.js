@@ -2640,6 +2640,60 @@ function writeCrashLog(type, error) {
     }
 }
 
+function showDuplicateInstanceDialog(message) {
+    return new Promise((resolve) => {
+        const { execFile } = require('child_process');
+        
+        if (process.platform === 'darwin') {
+            // macOS: Use osascript for native dialog
+            const script = `display dialog "${message.replace(/"/g, '\\"')}" with title "Jellyfin MPV Play" buttons {"Stop", "Continue"} default button "Continue" with icon caution`;
+            execFile('osascript', ['-e', script], (err, stdout) => {
+                if (err) {
+                    // User clicked Stop or dialog failed
+                    resolve(false);
+                } else {
+                    resolve(stdout.includes('Continue'));
+                }
+            });
+        } else if (process.platform === 'linux') {
+            // Linux: Try zenity, then kdialog, then fall back to terminal prompt
+            const escapedMsg = message.replace(/'/g, "'\\''");
+            execFile('zenity', ['--question', '--title=Jellyfin MPV Play', `--text=${escapedMsg}`, '--ok-label=Continue', '--cancel-label=Stop', '--width=400'], (err) => {
+                if (err) {
+                    // zenity not available or user clicked Stop
+                    if (err.code === 1 || err.killed) {
+                        resolve(false);
+                    } else {
+                        // Try kdialog
+                        execFile('kdialog', ['--yesno', escapedMsg, '--title', 'Jellyfin MPV Play'], (err2) => {
+                            if (err2) {
+                                resolve(false);
+                            } else {
+                                resolve(true);
+                            }
+                        });
+                    }
+                } else {
+                    resolve(true);
+                }
+            });
+        } else if (process.platform === 'win32') {
+            // Windows: Use PowerShell message box
+            const psScript = `
+                Add-Type -AssemblyName System.Windows.Forms
+                $result = [System.Windows.Forms.MessageBox]::Show('${message.replace(/'/g, "''")}', 'Jellyfin MPV Play', 'YesNo', 'Warning')
+                if ($result -eq 'Yes') { exit 0 } else { exit 1 }
+            `;
+            execFile('powershell', ['-Command', psScript], (err) => {
+                resolve(!err);
+            });
+        } else {
+            // Unknown platform, default to continue
+            resolve(true);
+        }
+    });
+}
+
 async function main() {
     log('info', 'main', '\n🚀 Starting Jellyfin MPV Shim...\n');
     
@@ -2649,6 +2703,7 @@ async function main() {
     }
 
     // Check for existing instance with same config
+    const allowDuplicates = process.argv.includes('--allow-duplicates');
     const configBase = path.basename(configFile, path.extname(configFile));
     const lockFile = path.join(dataDir, `${configBase}.lock`);
     try {
@@ -2657,10 +2712,17 @@ async function main() {
             // Check if the process is still running
             try {
                 process.kill(lockData.pid, 0); // Signal 0 checks if process exists
-                log('warn', 'main', `⚠️ Another instance is already running (PID: ${lockData.pid})`);
-                log('warn', 'main', `   Config: ${configFile}`);
-                log('warn', 'main', `   Started: ${lockData.started}`);
-                log('warn', 'main', '   Continuing anyway — multiple instances may cause conflicts');
+                if (allowDuplicates) {
+                    log('info', 'main', `ℹ️ Another instance is running (PID: ${lockData.pid}), --allow-duplicates specified`);
+                } else {
+                    const message = `Another instance is already running.\n\nConfig: ${configFile}\nPID: ${lockData.pid}\nStarted: ${lockData.started}\n\nWhat would you like to do?`;
+                    const shouldContinue = await showDuplicateInstanceDialog(message);
+                    if (!shouldContinue) {
+                        log('info', 'main', '❌ User chose to exit due to duplicate instance');
+                        process.exit(0);
+                    }
+                    log('info', 'main', 'ℹ️ User chose to continue with duplicate instance');
+                }
             } catch (e) {
                 // Process not running, stale lock file
                 fs.unlinkSync(lockFile);
