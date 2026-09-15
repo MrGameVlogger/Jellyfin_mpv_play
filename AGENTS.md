@@ -211,25 +211,25 @@ All functions live in `shim.js`. There are no classes — the entire app is proc
 | `reportPlaybackStart(itemId, positionTicks)` | 2163 | Reports start to `/Sessions/Playing` |
 | `reportPlaybackProgress(itemId, positionTicks)` | 2216 | Reports progress to `/Sessions/Playing/Progress` |
 | `reportPlaybackStop(itemId, positionTicks)` | 2239 | Reports stop to `/Sessions/Playing/Stopped` |
-| `startProgressReporting(itemId)` | 1740 | 10s interval: saves local playback positions |
-| `markItemAsWatched(itemId)` | 1201 | Marks item as played, clears local position |
-| `savePlaybackPosition(itemId, positionTicks)` | 221 | Persists position to `data/playback_positions_{deviceId}.json` |
-| `loadPlaybackPositions()` | 209 | Reads saved positions from disk |
+| `startProgressReporting(itemId)` | 2195 | 10s interval: saves local playback positions |
+| `markItemAsWatched(itemId)` | 1571 | Marks item as played, clears local position |
+| `savePlaybackPosition(itemId, positionTicks)` | 280 | Persists position to `data/playback_positions_{deviceId}.json` |
+| `loadPlaybackPositions()` | 268 | Reads saved positions from disk |
 
 ### Shutdown
 
 | Function | Line | Description |
 |----------|------|-------------|
-| `shutdown(signal)` | 1813 | Graceful exit: saves positions, kills MPV, sends SessionsStop, closes WS |
+| `shutdown(signal)` | 2543 | Graceful exit: saves positions, kills MPV, sends SessionsStop, closes WS |
 
 ### jf-mpv-osc integration
 
 | Function | Line | Description |
 |----------|------|-------------|
-| `handleOscAction(verb, arg)` | 1953 | Handles actions from OSC. Verbs: `skip`, `skip-back`, `skip-forward`, `next`, `prev`, `set-sub`, `set-audio`, `set-sub-by-id`, `set-audio-by-id`, `screenshot`, `fullscreen`, `play-pause`, `stop`, `set-volume`, `mute`, `set-speed`, `set-sub-delay`, `set-audio-delay` |
-| `pushOscState(hasMedia)` | 2020 | Pushes state blob to OSC (queue, favorites, tracks, subtitle styling) |
-| `pushOscSkipButton(label)` | 2066 | Pushes skip button label to OSC (or empty to hide) |
-| `toggleFavorite()` | 2070 | Toggles favorite via Jellyfin API and pushes updated state |
+| `handleOscAction(verb, arg)` | 2269 | Handles actions from OSC. Verbs: `skip`, `skip-back`, `skip-forward`, `next`, `prev`, `set-sub`, `set-audio`, `set-sub-by-id`, `set-audio-by-id`, `screenshot`, `fullscreen`, `play-pause`, `stop`, `set-volume`, `mute`, `set-speed`, `set-sub-delay`, `set-audio-delay` |
+| `pushOscState(hasMedia)` | 2361 | Pushes state blob to OSC (queue, favorites, tracks, subtitle styling) |
+| `pushOscSkipButton(label)` | 2459 | Pushes skip button label to OSC (or empty to hide) |
+| `toggleFavorite()` | 2523 | Toggles favorite via Jellyfin API and pushes updated state |
 
 ### Utility functions
 
