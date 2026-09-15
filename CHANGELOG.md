@@ -18,6 +18,30 @@ All notable changes to Jellyfin MPV Play are documented here.
 
 -->
 
+## v1.11.5
+
+### New Features
+- **Jellyfin 12 authentication compatibility** — Migrated from deprecated `X-Emby-Token` and `X-Emby-Authorization` headers to `Authorization: MediaBrowser Token=...` header. Works on Jellyfin 10/11/12.
+- **Jellyfin 12 API compatibility** — Replaced deprecated `api_key` query parameter with `ApiKey` for stream URLs and WebSocket connection
+- **Per-instance log files** — Log files now named by config: `shim-config.log`, `shim-config.work.log`
+- **Duplicate instance detection** — Lock file tracks running instances per config, warns if another instance is using the same config
+- **Duplicate instance dialog** — Native pop-up dialog when duplicate instance detected (macOS/Linux/Windows)
+- **`--allow-duplicates` flag** — Bypasses duplicate dialog for intentional multi-instance. With flag, logs use PID suffix: `shim-config-12345.log`
+- **Headless error dialogs** — Native dialog shown on authentication failure, uncaught exceptions, and fatal errors in headless mode
+
+### Bug Fixes
+- **Fixed Linux launcher syntax error** — Removed stray `fi` that broke the script when running without a terminal
+- **Fixed argument parsing** — Flags before config file now work (e.g., `node shim.js --allow-duplicates`)
+- **Fixed Linux foreground branch** — Now forwards flags via `"$@"` to shim
+- **Fixed macOS Test Connection** — Uses `Authorization` header instead of deprecated `X-Emby-Authorization`
+- **Randomized log names for duplicates** — When duplicate detected without `--allow-duplicates`, new instance gets random hex suffix to avoid overwriting existing log
+
+### Internal
+- **Consolidated error dialogs** — Single `showErrorDialog()` function used for crashes and headless errors
+- **Updated documentation** — README, config.example.js, CHANGELOG examples corrected
+
+---
+
 ## v1.11.4
 
 ### Bug Fixes

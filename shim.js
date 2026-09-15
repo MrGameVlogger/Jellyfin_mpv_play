@@ -53,7 +53,7 @@ if (CONFIG.headless) {
     const logDir = path.join(__dirname, 'data');
     if (!fs.existsSync(logDir)) fs.mkdirSync(logDir, { recursive: true });
     const configBase = path.basename(configFile, path.extname(configFile));
-    const allowDuplicates = process.argv.includes('--allow-duplicates');
+    const allowDuplicates = args.includes('--allow-duplicates');
     
     // Determine log file name
     let logFile;
@@ -2740,7 +2740,7 @@ async function main() {
     }
 
     // Check for existing instance with same config
-    const allowDuplicates = process.argv.includes('--allow-duplicates');
+    const allowDuplicates = args.includes('--allow-duplicates');
     const configBase = path.basename(configFile, path.extname(configFile));
     const lockFile = path.join(dataDir, `${configBase}.lock`);
     try {
