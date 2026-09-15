@@ -52,8 +52,24 @@ if (CONFIG.headless) {
     if (!fs.existsSync(logDir)) fs.mkdirSync(logDir, { recursive: true });
     const configBase = path.basename(configFile, path.extname(configFile));
     const allowDuplicates = process.argv.includes('--allow-duplicates');
-    const logSuffix = allowDuplicates ? `-${process.pid}` : '';
-    const logFile = path.join(logDir, `shim-${configBase}${logSuffix}.log`);
+    
+    // Determine log file name
+    let logFile;
+    if (allowDuplicates) {
+        // With --allow-duplicates, use PID to distinguish instances
+        logFile = path.join(logDir, `shim-${configBase}-${process.pid}.log`);
+    } else {
+        // Without flag, check if log file already exists (another instance running)
+        const baseLogFile = path.join(logDir, `shim-${configBase}.log`);
+        if (fs.existsSync(baseLogFile)) {
+            // Another instance may be running, add random suffix to avoid overwriting
+            const randomSuffix = crypto.randomBytes(4).toString('hex');
+            logFile = path.join(logDir, `shim-${configBase}-${randomSuffix}.log`);
+        } else {
+            logFile = baseLogFile;
+        }
+    }
+    
     const logStream = fs.createWriteStream(logFile, { flags: 'a' });
     const timestamp = () => new Date().toISOString();
     console.log = (...args) => {

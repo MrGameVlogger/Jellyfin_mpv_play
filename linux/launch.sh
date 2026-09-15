@@ -136,12 +136,7 @@ if [ "$IS_HEADLESS" = true ]; then
     NODE_PID=$!
     disown $NODE_PID
     CONFIG_BASE=$(basename "$CONFIG_FILE" .js)
-    if echo "$*" | grep -q "\-\-allow-duplicates"; then
-        LOG_SUFFIX="-${NODE_PID}"
-    else
-        LOG_SUFFIX=""
-    fi
-    echo "Running headless (PID: $NODE_PID). Logs: $SCRIPT_DIR/data/shim-${CONFIG_BASE}${LOG_SUFFIX}.log"
+    echo "Running headless (PID: $NODE_PID). Logs: $SCRIPT_DIR/data/shim-${CONFIG_BASE}*.log"
     echo "Stop with: kill $NODE_PID"
     exit 0
 elif [ ! -t 0 ] && [ "$1" != "--terminal" ]; then
@@ -153,14 +148,9 @@ elif [ ! -t 0 ] && [ "$1" != "--terminal" ]; then
     done
     # No terminal found, fall back to running silently
     CONFIG_BASE=$(basename "$CONFIG_FILE" .js)
-    if echo "$*" | grep -q "\-\-allow-duplicates"; then
-        nohup "$NODE_BIN" "$SCRIPT_DIR/shim.js" "$CONFIG_FILE" "$@" > /dev/null 2>&1 &
-        NODE_PID=$!
-        echo "No terminal emulator found. Running silently. Logs: $SCRIPT_DIR/data/shim-${CONFIG_BASE}-${NODE_PID}.log"
-    else
-        nohup "$NODE_BIN" "$SCRIPT_DIR/shim.js" "$CONFIG_FILE" > /dev/null 2>&1 &
-        NODE_PID=$!
-        echo "No terminal emulator found. Running silently. Logs: $SCRIPT_DIR/data/shim-${CONFIG_BASE}.log"
+    echo "No terminal emulator found. Running silently. Logs: $SCRIPT_DIR/data/shim-${CONFIG_BASE}*.log"
+    nohup "$NODE_BIN" "$SCRIPT_DIR/shim.js" "$CONFIG_FILE" "$@" > /dev/null 2>&1 &
+    NODE_PID=$!
     fi
     disown $NODE_PID
     exit 0
