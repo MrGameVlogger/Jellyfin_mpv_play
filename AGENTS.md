@@ -663,6 +663,19 @@ The macOS `.app` can also be built locally: `cd macapp && ./build.sh` (deploys t
 
 **Important**: `gh` may default to the upstream repo (JohnGlaus). Always use `-R MrGameVlogger/Jellyfin_mpv_play` with release commands, or run `gh repo set-default MrGameVlogger/Jellyfin_mpv_play` once.
 
+### When to build locally
+
+After making changes to `shim.js` (or any code), **always build and test locally before pushing**:
+
+```bash
+cd macapp && ./build.sh    # builds AND deploys to /Applications
+open "/Applications/Jellyfin MPV Play.app"
+```
+
+- **Do NOT use `CI=true` for local testing** — that's only for CI pipelines. Local builds should deploy to `/Applications` so you can actually run and test the app.
+- **Test the built app** — Launch it, connect to Jellyfin, play an episode, verify the fix works.
+- **`npm test` is not enough** — Tests check syntax and contracts, but don't verify runtime behavior. A local build + manual test catches what tests can't.
+
 **⚠️ Never delete releases to reorder them** — GitHub release assets (zip files, etc.) are permanently deleted when a release is deleted. If you need to reorder releases, use the GitHub API to update `published_at` dates instead. Always download assets before deleting a release.
 
 **⚠️ Don't be release-happy** — Batch related fixes into a single release. Do NOT release each individual fix as its own version. Investigate, test, and iterate BEFORE tagging. A release should be a coherent set of changes, not a trail of trial-and-error. If you make a fix that turns out to be wrong and needs reverting, that should happen in development — not as separate releases.
