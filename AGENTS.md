@@ -625,6 +625,7 @@ The macOS `.app` can also be built locally: `cd macapp && ./build.sh` (deploys t
 - **Merge strategy**: Squash merge (`--squash`) — one commit per PR
 - **PR workflow**: Create branch → commit → push → `gh pr create` → `gh pr merge --squash` → delete branch
 - **⚠️ NEVER push directly to `main`** — always create a branch and open a PR, even for docs or small fixes. The branch protection allows maintainer bypass but this should not be used.
+- **Make PRs frequently during development** — Each logical change (bug fix, feature, docs update) should be its own PR. Don't batch everything into one giant PR at release time. Small, focused PRs are easier to review and merge. When you finish a fix or feature, commit it and make a PR immediately before moving on to the next task.
 - **Dependabot**: Weekly npm dependency updates on Mondays
 - **Auto-labeler**: PRs auto-labeled by file paths (macos, shim, documentation, ci, dependencies, images, linux, windows)
 - **Signed commits and tags**: SSH signing configured in global git config — all commits and tags should be signed
