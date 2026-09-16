@@ -79,7 +79,7 @@ No lint or typecheck steps exist. Tests run via `npm test`.
 - **Episode transitions**: MPV's native playlist handles auto-advance. The `playlist-pos` property observer detects all playlist navigation (auto-advance, native keys, keybinds) and updates state. `loadNewQueue()` reuses the existing MPV for PlayNow commands. `playMedia()` spawns a fresh MPV (used for initial play and when IPC is down).
 - **Cross-season**: When queue is exhausted, queries `GET /Shows/NextUp` for next season's episodes.
 - **Full season queue**: Playing a single episode loads all episodes from that season into the playlist. When Jellyfin sends specials (season 0), uses NextUp API to find the next unwatched episode from the regular season.
-- **PlayNext/PlayLast**: Inserts items into both the queue and MPV's playlist at the correct position using `insert-at-index`.
+- **PlayNext/PlayLast**: Inserts items into both the queue and MPV's playlist at the correct position using `insert-at`.
 - **Auto-play**: Poll timer queries `time-pos` and `duration` via IPC every 1s. For the last item in the playlist, triggers `playNextEpisode()` when `pos >= dur - 1`. MPV handles all other transitions natively.
 - **DisplayMessage**: Shows OSD overlay in MPV, pauses playback for 10s, then resumes. Original pause state tracked globally (`displayMessageOriginalPause`) to handle concurrent messages.
 - **Subtitle sync**: Observes `sid` property. Changes from MPV are reported to Jellyfin via progress API. Changes from Jellyfin are flagged (`isSettingSubtitleFromJellyfin`) to prevent echo. 5s timeout clears the flag if no echo detected.
@@ -144,7 +144,7 @@ mpv's JSON IPC protocol uses different command names than the input.conf system.
 | `add` | Input | `["add", "name", value]` | Adds value to property (e.g. volume) |
 | `cycle` | Input | `["cycle", "name"]` | Cycles property (e.g. fullscreen) |
 | `seek` | Input | `["seek", seconds, "flag"]` | Flags: `absolute`, `relative`, `absolute+keyframes` |
-| `loadfile` | Input | `["loadfile", "url", "flag", index]` | Flags: `replace`, `append`, `insert-at`, `play` |
+| `loadfile` | Input | `["loadfile", "url", "flag", index]` | Flags: `replace`, `append`, `insert-at`. Add `+play` to force start (e.g. `append+play`). |
 | `playlist-play-index` | Input | `["playlist-play-index", index]` | Explicitly starts playback at index |
 | `playlist-next` | Input | `["playlist-next"]` | Go to next playlist entry |
 | `playlist-prev` | Input | `["playlist-prev"]` | Go to previous playlist entry |
@@ -159,7 +159,7 @@ mpv's JSON IPC protocol uses different command names than the input.conf system.
 
 We have no automated mpv tests. To verify IPC changes:
 
-1. **Check the log file** — After making a change, play an episode and check the log for:
+1. **Check the output** — Run `npm start` and watch the terminal. On macOS, if using the app, check `~/Library/Application Support/JellyfinMpvPlay/data/jellyfin-mpv-play-*.log`. On Linux/Windows, check `data/shim-<config>.log` if using headless mode. After making a change, play an episode and look for:
    - `📺 Episode detected` — confirms the right episode loaded
    - `📋 Playlist changed: queuePosition=N` — confirms playlist navigation
    - `▶️ Playback resumed` — confirms playback started
