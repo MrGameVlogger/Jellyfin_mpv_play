@@ -122,6 +122,54 @@ When WebSocket disconnects occur, check:
 - **Copilot review is useful** — GitHub Copilot found real issues: ForceKeepAlive data parsing (NaN from object format), noisyTypes inconsistency. Run `gh pr comment` or check PR reviews for Copilot feedback.
 - **Duplicate v1.10.10 tag** — PR #254 (bug audit) and PR #255 (SyncPlay) were both tagged v1.10.10. The tag ended up pointing to PR #255. Lesson: don't tag multiple PRs with the same version. v1.11.0 was released to properly version the SyncPlay feature.
 
+## mpv IPC command reference
+
+mpv's JSON IPC protocol uses different command names than the input.conf system. **Wrong names are silently ignored** — mpv won't error, it just won't do anything. Always verify command names against https://mpv.io/manual/master/#command-interface.
+
+### Common mistakes
+
+| Wrong | Correct | Why |
+|-------|---------|-----|
+| `add_property` | `add` | `add` is an input command. `set_property`/`get_property`/`observe_property` are IPC-specific, but `add` has no `_property` variant. |
+| `insert-at-index` | `insert-at` | The flag is `insert-at`, index is a separate third argument. `insert-at-index` was never valid — mpv silently fell back to `replace`. |
+| `set_property playlist-pos` | `playlist-play-index` | Setting `playlist-pos` only *may* start playback. `playlist-play-index` explicitly guarantees it. Use `playlist-play-index` when loading a new playlist from idle. |
+
+### Valid IPC commands used in shim.js
+
+| Command | Type | Syntax | Notes |
+|---------|------|--------|-------|
+| `set_property` | IPC-only | `["set_property", "name", value]` | Sets a property |
+| `get_property` | IPC-only | `["get_property", "name"]` | Gets a property value |
+| `observe_property` | IPC-only | `["observe_property", id, "name"]` | Subscribes to property changes |
+| `add` | Input | `["add", "name", value]` | Adds value to property (e.g. volume) |
+| `cycle` | Input | `["cycle", "name"]` | Cycles property (e.g. fullscreen) |
+| `seek` | Input | `["seek", seconds, "flag"]` | Flags: `absolute`, `relative`, `absolute+keyframes` |
+| `loadfile` | Input | `["loadfile", "url", "flag", index]` | Flags: `replace`, `append`, `insert-at`, `play` |
+| `playlist-play-index` | Input | `["playlist-play-index", index]` | Explicitly starts playback at index |
+| `playlist-next` | Input | `["playlist-next"]` | Go to next playlist entry |
+| `playlist-prev` | Input | `["playlist-prev"]` | Go to previous playlist entry |
+| `playlist-clear` | Input | `["playlist-clear"]` | Clear playlist (except current file) |
+| `show-text` | Input | `["show-text", "text", duration_ms]` | Show OSD message |
+| `keybind` | Input | `["keybind", "key", "command"]` | Bind a key |
+| `script-message` | Input | `["script-message", "name", ...args]` | Send message to scripts |
+| `screenshot` | Input | `["screenshot"]` | Take screenshot |
+| `quit` | Input | `["quit"]` | Exit mpv |
+
+### Verifying mpv changes
+
+We have no automated mpv tests. To verify IPC changes:
+
+1. **Check the log file** — After making a change, play an episode and check the log for:
+   - `📺 Episode detected` — confirms the right episode loaded
+   - `📋 Playlist changed: queuePosition=N` — confirms playlist navigation
+   - `▶️ Playback resumed` — confirms playback started
+   - No `⚠️ MPV Error` lines
+2. **Test queue scenarios** — Play episode 10 of a season (not episode 1), verify it starts at ep 10
+3. **Test PlayNext/PlayLast** — Queue items should insert at correct positions
+4. **Test volume controls** — VolumeUp/VolumeDown from Jellyfin dashboard should work
+5. **Test shuffle** — Shuffling while at position 0 should not stop playback
+6. **Check mpv docs** — Always verify command names at https://mpv.io/manual/master/#command-interface before using them
+
 ## Config options
 
 All options go in `config.js` (copy from `config.example.js`):
