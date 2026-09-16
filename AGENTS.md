@@ -575,15 +575,39 @@ Key architectural decisions:
    - **Do NOT use PlistBuddy** — it reorders keys and changes indentation
    - Update both `CFBundleVersion` and `CFBundleShortVersionString`
 3. Update `CHANGELOG.md` with release notes
-4. Commit, push to a branch, and merge via PR
-5. Create and push a version tag: `git tag -a vX.Y.Z -m "vX.Y.Z" && git push origin vX.Y.Z`
-6. The CI workflow (`.github/workflows/build.yml`) automatically:
+4. Update `README.md` "Recent Releases" section:
+   - Add the new version at the top of the list
+   - Keep only the latest 4 releases in "Recent Releases"
+   - **Move** the 5th release into the `<details><summary><b>Older releases</b></summary>` collapsible section
+   - **NEVER delete a release entry** — always move it to the collapsible section
+   - Place it at the top of the older releases list (before the previous older release)
+5. Commit, push to a branch, and merge via PR
+6. Create and push a version tag: `git tag -a vX.Y.Z -m "vX.Y.Z" && git push origin vX.Y.Z`
+7. The CI workflow (`.github/workflows/build.yml`) automatically:
    - Reads version from `package.json`
    - Generates release notes from CHANGELOG.md entries
    - Builds macOS `.app` bundle (runs on `macos-latest`)
    - Builds Linux bundle with bundled Node.js (runs on `ubuntu-latest`)
    - Builds Windows bundle with bundled Node.js (runs on `windows-latest`)
    - Creates a GitHub Release with auto-generated notes and all 3 platform artifacts
+
+### PR description gotchas
+
+When using `gh pr create --body`, the shell will interpret backticks, `$()`, and other special characters. Use one of these approaches:
+
+- **Single quotes** around the entire body: `--body 'description with \`backticks\` and $(stuff)'`
+- **Heredoc**: `--body "$(cat <<'EOF' ... EOF)"`
+- **No backticks in body** — use plain text instead of inline code formatting
+
+Example of what **NOT** to do (zsh will try to execute backtick contents):
+```
+gh pr create --body "Fixed `loadfile` command"  # BROKEN — zsh runs "loadfile" as a command
+```
+
+Example of correct approach:
+```
+gh pr create --body 'Fixed loadfile command'    # OK — plain text
+```
 
 `package.json` is the single source of truth for version. `shim.js` reads it at runtime. CI auto-syncs `Info.plist` into release artifacts, but **local builds require manual Info.plist updates**. The test `package.json version matches Info.plist version` will catch mismatches if Info.plist is included in the PR.
 
