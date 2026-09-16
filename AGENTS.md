@@ -659,8 +659,6 @@ gh pr create --body 'Fixed loadfile command'    # OK — plain text
 
 `package.json` is the single source of truth for version. `shim.js` reads it at runtime. CI auto-syncs `Info.plist` into release artifacts, but **local builds require manual Info.plist updates**. The test `package.json version matches Info.plist version` will catch mismatches if Info.plist is included in the PR.
 
-The macOS `.app` can also be built locally: `cd macapp && ./build.sh` (deploys to `/Applications`). Use `CI=true` to skip the deploy step.
-
 **Important**: `gh` may default to the upstream repo (JohnGlaus). Always use `-R MrGameVlogger/Jellyfin_mpv_play` with release commands, or run `gh repo set-default MrGameVlogger/Jellyfin_mpv_play` once.
 
 ### When to build locally
