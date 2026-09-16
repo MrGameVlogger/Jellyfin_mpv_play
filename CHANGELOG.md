@@ -18,6 +18,16 @@ All notable changes to Jellyfin MPV Play are documented here.
 
 -->
 
+## v1.11.7
+
+### Bug Fixes
+- **Fixed wrong episode playing on queue load** — When clicking an episode mid-season (e.g. episode 10), episode 1 would play instead due to a race condition between `loadfile ... replace` (which starts playing immediately) and `set_property playlist-pos`. Changed to `loadfile ... append` + `playlist-play-index` to load the playlist silently and explicitly start playback at the correct index.
+- **Fixed PlayNext/PlayLast insert-at-index** — The `loadfile` flag `insert-at-index` was invalid (mpv ignored it and fell back to `replace`). Fixed to `insert-at` per mpv documentation.
+- **Fixed VolumeUp/VolumeDown from Jellyfin dashboard** — The `add_property` command was invalid (mpv ignored it). Fixed to `add` per mpv documentation. Volume controls from the Jellyfin web UI now work.
+- **Fixed shuffle not restarting playback at position 0** — When shuffling and the current item was at index 0, playback would stop because the `set_property playlist-pos` call was guarded by `queuePosition > 0`. Now uses `playlist-play-index` unconditionally.
+
+---
+
 ## v1.11.6
 
 ### Bug Fixes
