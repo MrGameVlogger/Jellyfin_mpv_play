@@ -400,16 +400,18 @@ See [CHANGELOG.md](CHANGELOG.md) for full release history.
 
 ### Recent Releases
 
+**v1.11.7** — Fixed wrong episode playing on queue load, invalid mpv commands for insert-at and volume ([details](CHANGELOG.md#v1117))
+
 **v1.11.6** — Bug audit: stop report timeout, reporting deduplication, EOF queue guard, IPC recovery ([details](CHANGELOG.md#v1116))
 
 **v1.11.5** — Jellyfin 12 auth/API compatibility, duplicate instance handling, headless error dialogs ([details](CHANGELOG.md#v1115))
 
 **v1.11.4** — Fixed NextUp returning same episode (retry with delay for server cache) ([details](CHANGELOG.md#v1114))
 
-**v1.11.3** — NextUp race condition fix, API key redaction in MPV output, Swift weak-self fix ([details](CHANGELOG.md#v1113))
-
 <details>
 <summary><b>Older releases</b></summary>
+
+**v1.11.3** — NextUp race condition fix, API key redaction in MPV output, Swift weak-self fix ([details](CHANGELOG.md#v1113))
 
 **v1.11.2** — Multi-config support, SyncPlay endpoint fix, security improvements ([details](CHANGELOG.md#v1112))
 

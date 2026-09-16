@@ -593,7 +593,7 @@ async function handleMessage(msg) {
                 playQueue.splice(insertAt, 0, ...orderedItems);
                 for (let i = 0; i < orderedItems.length; i++) {
                     const url = `${CONFIG.serverUrl}/Videos/${orderedItems[i]}/stream?static=true&ApiKey=${accessToken}`;
-                    sendMpvCommand('loadfile', [url, 'insert-at-index', insertAt + i]);
+                    sendMpvCommand('loadfile', [url, 'insert-at', insertAt + i]);
                 }
                 log('info', 'queue', `➕ Added ${orderedItems.length} item(s) to queue after position ${queuePosition}`);
                 return;
@@ -755,9 +755,9 @@ async function handleMessage(msg) {
             const vol = parseInt(args.Volume, 10);
             if (!isNaN(vol)) sendMpvCommand('set_property', ['volume', vol]);
         } else if (command === 'VolumeUp') {
-            sendMpvCommand('add_property', ['volume', 5]);
+            sendMpvCommand('add', ['volume', 5]);
         } else if (command === 'VolumeDown') {
-            sendMpvCommand('add_property', ['volume', -5]);
+            sendMpvCommand('add', ['volume', -5]);
         } else if (command === 'Mute') {
             sendMpvCommand('set_property', ['mute', true]);
         } else if (command === 'Unmute') {
@@ -831,9 +831,7 @@ async function handleMessage(msg) {
                     const url = `${CONFIG.serverUrl}/Videos/${id}/stream?static=true&ApiKey=${accessToken}`;
                     sendMpvCommand('loadfile', [url, 'append']);
                 }
-                if (queuePosition > 0) {
-                    sendMpvCommand('set_property', ['playlist-pos', queuePosition]);
-                }
+                sendMpvCommand('playlist-play-index', [queuePosition]);
                 
                 log('info', 'queue', `🔀 Queue shuffled by server (${playQueue.length} items)`);
             }
@@ -1225,15 +1223,13 @@ async function loadNewQueue(itemId, startTicks) {
     sendMpvCommand('playlist-clear');
     for (let i = 0; i < playQueue.length; i++) {
         const url = `${CONFIG.serverUrl}/Videos/${playQueue[i]}/stream?static=true&ApiKey=${accessToken}`;
-        sendMpvCommand('loadfile', [url, i === 0 ? 'replace' : 'append']);
+        sendMpvCommand('loadfile', [url, 'append']);
     }
     queueLoadCounter = 1;
     log('info', 'queue', `📋 Loaded ${playQueue.length} items into MPV playlist.`);
 
-    // If the requested item isn't the first in the queue, seek MPV to the right playlist position
-    if (queuePosition > 0) {
-        sendMpvCommand('set_property', ['playlist-pos', queuePosition]);
-    }
+    // Explicitly start playback at the correct playlist index
+    sendMpvCommand('playlist-play-index', [queuePosition]);
 
     if (savedAudioIndex !== undefined) {
         sendMpvCommand('set_property', ['aid', savedAudioIndex]);
@@ -1466,13 +1462,11 @@ function connectToMpvIpc(gen) {
                     log('info', 'ipc', '📡 Loading playlist into MPV...');
                     for (let i = 0; i < playQueue.length; i++) {
                         const url = `${CONFIG.serverUrl}/Videos/${playQueue[i]}/stream?static=true&ApiKey=${accessToken}`;
-                        sendMpvCommand('loadfile', [url, i === 0 ? 'replace' : 'append']);
+                        sendMpvCommand('loadfile', [url, 'append']);
                     }
                     log('info', 'ipc', `    ✅ Loaded ${playQueue.length} items into playlist.`);
 
-                    if (queuePosition > 0) {
-                        sendMpvCommand('set_property', ['playlist-pos', queuePosition]);
-                    }
+                    sendMpvCommand('playlist-play-index', [queuePosition]);
 
                     if (pendingAudioStreamIndex !== undefined) {
                         sendMpvCommand('set_property', ['aid', pendingAudioStreamIndex]);
