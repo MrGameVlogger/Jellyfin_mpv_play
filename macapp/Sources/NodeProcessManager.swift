@@ -25,7 +25,7 @@ class NodeProcessManager {
     private var isPaused = false
     private var stdoutData = Data()
     private var stderrData = Data()
-    private var ipcSocketPath = "/tmp/mpv-ipc.sock"
+    private var ipcSocketPath = ConfigParser.defaultIpcSocketPath()
     private var isStoppingPlayback = false
     private var logFileHandle: FileHandle?
 

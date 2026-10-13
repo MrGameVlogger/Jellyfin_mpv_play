@@ -212,11 +212,7 @@ class SetupWindowController: NSWindowController, NSWindowDelegate {
         pathLabel.alignment = .right
         containerView.addSubview(pathLabel)
 
-        var sysinfo = utsname()
-        uname(&sysinfo)
-        let machine = String(bytes: Data(bytes: &sysinfo.machine, count: Int(_SYS_NAMELEN)), encoding: .utf8) ?? ""
-        let defaultMpvPath = machine.contains("arm64") ? "/opt/homebrew/bin/mpv" : "/usr/local/bin/mpv"
-
+        let defaultMpvPath = ConfigParser.defaultMpvPath()
         // Preserve user edits across back-navigation
         let savedMpvPath = mpvPathField?.stringValue ?? ""
         let savedDeviceName = deviceNameField?.stringValue ?? ""
@@ -237,7 +233,7 @@ class SetupWindowController: NSWindowController, NSWindowDelegate {
         containerView.addSubview(deviceNameLabel)
 
         deviceNameField = NSTextField(frame: NSRect(x: 190, y: 110, width: 250, height: 24))
-        deviceNameField.stringValue = savedDeviceName.isEmpty ? "Mac" : savedDeviceName
+        deviceNameField.stringValue = savedDeviceName.isEmpty ? "Jellyfin MPV Play" : savedDeviceName
         containerView.addSubview(deviceNameField)
 
         let deviceIdLabel = NSTextField(labelWithString: "Device ID:")
@@ -245,11 +241,14 @@ class SetupWindowController: NSWindowController, NSWindowDelegate {
         deviceIdLabel.alignment = .right
         containerView.addSubview(deviceIdLabel)
 
+        // Left empty by default: the shim generates a unique per-config id
+        // (a shared default would collide across machines/configs).
         deviceIdField = NSTextField(frame: NSRect(x: 190, y: 70, width: 250, height: 24))
-        deviceIdField.stringValue = savedDeviceId.isEmpty ? "mac-mpv" : savedDeviceId
+        deviceIdField.stringValue = savedDeviceId
+        deviceIdField.placeholderString = "auto-generated"
         containerView.addSubview(deviceIdField)
 
-        let helpLabel = NSTextField(labelWithString: "Device name appears in Jellyfin's device list. Device ID must be unique.")
+        let helpLabel = NSTextField(labelWithString: "Device name appears in Jellyfin's device list. Leave Device ID empty to auto-generate.")
         helpLabel.frame = NSRect(x: 190, y: 45, width: 300, height: 18)
         helpLabel.font = NSFont.systemFont(ofSize: 11)
         helpLabel.textColor = .tertiaryLabelColor
@@ -365,12 +364,16 @@ class SetupWindowController: NSWindowController, NSWindowDelegate {
         let server = serverField?.stringValue ?? ""
         let user = usernameField?.stringValue ?? ""
         let pass = passwordField?.stringValue ?? ""
-        let mpv = mpvPathField?.stringValue ?? "/opt/homebrew/bin/mpv"
-        let name = deviceNameField?.stringValue ?? "Mac"
-        let id = deviceIdField?.stringValue ?? "mac-mpv"
+        let mpv = mpvPathField?.stringValue ?? ConfigParser.defaultMpvPath()
+        let name = deviceNameField?.stringValue ?? "Jellyfin MPV Play"
+        // Empty deviceId is valid: shim.js generates a unique per-config id.
+        let id = deviceIdField?.stringValue ?? ""
 
-        var lines: [String] = [
-            "module.exports = {",
+        // Only the fields the wizard actually edits are managed here — everything
+        // else (mpvFlags arrays, ipcSocketPath, booleans, comments, user-added keys)
+        // passes through verbatim from the existing config.
+        let managedKeys = ["serverUrl", "username", "password", "mpvPath", "deviceName", "deviceId"]
+        let lines: [String] = [
             "    serverUrl: '\(ConfigParser.escapeConfigValue(server))',",
             "    username: '\(ConfigParser.escapeConfigValue(user))',",
             "    password: '\(ConfigParser.escapeConfigValue(pass))',",
@@ -379,29 +382,18 @@ class SetupWindowController: NSWindowController, NSWindowDelegate {
             "    deviceId: '\(ConfigParser.escapeConfigValue(id))',",
         ]
 
-        // Preserve existing config options that the setup wizard doesn't set
-        if let content = ConfigParser.loadConfigContent() {
-            let preserveKeys = ["ipcSocketPath", "mpvFlags", "fullscreen", "autoClose", "headless", "autoSkipIntros", "disableSkipIntro", "verbose"]
-            for key in preserveKeys {
-                let value = ConfigParser.extractValue(from: content, key: key)
-                if !value.isEmpty {
-                    if value == "true" || value == "false" {
-                        lines.append("    \(key): \(value),")
-                    } else {
-                        lines.append("    \(key): '\(ConfigParser.escapeConfigValue(value))',")
-                    }
-                }
-            }
-        }
+        // Read AND write the selected config file (not always config.js), and keep
+        // every line the wizard does not manage (mpvFlags arrays, comments, ...)
+        // exactly as-is instead of re-serializing them as strings.
+        let configFileName = ConfigParser.selectedConfigFileName()
+        let existing = ConfigParser.loadConfigContent()
+        let config = ConfigParser.buildConfig(managedKeys: managedKeys, managedLines: lines, preservingFrom: existing)
 
-        lines.append("};")
-
-        let configPath = ConfigParser.configPath()
+        let configPath = ConfigParser.configPath(fileName: configFileName)
 
         do {
             let configDir = (configPath as NSString).deletingLastPathComponent
             try FileManager.default.createDirectory(atPath: configDir, withIntermediateDirectories: true)
-            let config = lines.joined(separator: "\n")
             try config.write(toFile: configPath, atomically: true, encoding: .utf8)
             didComplete = true
             onComplete?()
