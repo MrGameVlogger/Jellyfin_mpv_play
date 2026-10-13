@@ -2821,9 +2821,11 @@ process.on('SIGINT', () => shutdown('SIGINT'));
 process.on('SIGTERM', () => shutdown('SIGTERM'));
 process.on('uncaughtException', (err) => {
     if (isBrokenPipe(err)) {
-        // Output pipe closed — not a crash and definitely not dialog-worthy.
-        // (Each further log line would otherwise throw again: dialog storm.)
-        shutdown('output-pipe-closed');
+        // Output pipe closed (parent torn down the pipes, `| head` exited, ...) —
+        // not a crash and definitely not dialog-worthy (each further log line
+        // would otherwise throw again: dialog storm). Keep running: playback must
+        // not die because the log consumer left. A parent that wants us gone
+        // sends SIGTERM, which is handled below.
         return;
     }
     log('error', 'main', '❌ Uncaught exception:', err);
@@ -2833,7 +2835,6 @@ process.on('uncaughtException', (err) => {
 });
 process.on('unhandledRejection', (reason) => {
     if (isBrokenPipe(reason)) {
-        shutdown('output-pipe-closed');
         return;
     }
     log('error', 'main', '❌ Unhandled rejection:', reason);
