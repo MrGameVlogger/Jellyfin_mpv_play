@@ -155,8 +155,8 @@ class SetupWindowController: NSWindowController, NSWindowDelegate {
         urlLabel.alignment = .right
         containerView.addSubview(urlLabel)
 
-        serverField = NSTextField(frame: NSRect(x: 190, y: 140, width: 250, height: 24)
-)
+        serverField = NSTextField(frame: NSRect(x: 190, y: 140, width: 250, height: 24))
+        serverField.setAccessibilityLabel("Server URL")
         serverField.placeholderString = "http://192.168.1.100:8096"
         containerView.addSubview(serverField)
 
@@ -181,6 +181,7 @@ class SetupWindowController: NSWindowController, NSWindowDelegate {
         containerView.addSubview(userLabel)
 
         usernameField = NSTextField(frame: NSRect(x: 190, y: 150, width: 250, height: 24))
+        usernameField.setAccessibilityLabel("Username")
         containerView.addSubview(usernameField)
 
         let passLabel = NSTextField(labelWithString: "Password:")
@@ -189,6 +190,7 @@ class SetupWindowController: NSWindowController, NSWindowDelegate {
         containerView.addSubview(passLabel)
 
         passwordField = NSSecureTextField(frame: NSRect(x: 190, y: 110, width: 250, height: 24))
+        passwordField.setAccessibilityLabel("Password")
         containerView.addSubview(passwordField)
 
         testButton = NSButton(title: "Test Connection", target: self, action: #selector(testConnection))
@@ -221,10 +223,11 @@ class SetupWindowController: NSWindowController, NSWindowDelegate {
         let savedDeviceId = deviceIdField?.stringValue ?? ""
 
         mpvPathField = NSTextField(frame: NSRect(x: 190, y: 150, width: 220, height: 24))
+        mpvPathField.setAccessibilityLabel("MPV Path")
         mpvPathField.stringValue = savedMpvPath.isEmpty ? defaultMpvPath : savedMpvPath
         containerView.addSubview(mpvPathField)
 
-        let browseButton = NSButton(title: "Browse...", target: self, action: #selector(browseMpv))
+        let browseButton = NSButton(title: "Choose\u{2026}", target: self, action: #selector(browseMpv))
         browseButton.frame = NSRect(x: 420, y: 150, width: 80, height: 24)
         browseButton.bezelStyle = .rounded
         containerView.addSubview(browseButton)
@@ -235,6 +238,7 @@ class SetupWindowController: NSWindowController, NSWindowDelegate {
         containerView.addSubview(deviceNameLabel)
 
         deviceNameField = NSTextField(frame: NSRect(x: 190, y: 110, width: 250, height: 24))
+        deviceNameField.setAccessibilityLabel("Device Name")
         deviceNameField.stringValue = savedDeviceName.isEmpty ? "Jellyfin MPV Play" : savedDeviceName
         containerView.addSubview(deviceNameField)
 
@@ -246,6 +250,7 @@ class SetupWindowController: NSWindowController, NSWindowDelegate {
         // Left empty by default: the shim generates a unique per-config id
         // (a shared default would collide across machines/configs).
         deviceIdField = NSTextField(frame: NSRect(x: 190, y: 70, width: 250, height: 24))
+        deviceIdField.setAccessibilityLabel("Device ID")
         deviceIdField.stringValue = savedDeviceId
         deviceIdField.placeholderString = "auto-generated"
         containerView.addSubview(deviceIdField)
@@ -414,6 +419,8 @@ class SetupWindowController: NSWindowController, NSWindowDelegate {
     }
 
     private func shakeField(_ field: NSTextField) {
+        NSAccessibility.post(element: field, notification: .announcementRequested,
+                             userInfo: [.announcement: "\(field.accessibilityLabel() ?? "Field") is required"])
         field.wantsLayer = true
         let position = field.layer?.position ?? NSPoint(x: field.frame.midX, y: field.frame.midY)
         let shake = CAKeyframeAnimation(keyPath: "position")

@@ -99,7 +99,8 @@ class AboutWindowController: NSWindowController {
         separator2.frame = NSRect(x: 40, y: 62, width: 340, height: 1)
         contentView.addSubview(separator2)
 
-        let copyright = NSTextField(labelWithString: "MIT License  •  © 2026")
+        let copyrightText = (Bundle.main.infoDictionary?["NSHumanReadableCopyright"] as? String) ?? "MIT License"
+        let copyright = NSTextField(labelWithString: copyrightText)
         copyright.frame = NSRect(x: 0, y: 35, width: 420, height: 18)
         copyright.alignment = .center
         copyright.font = NSFont.systemFont(ofSize: 11)

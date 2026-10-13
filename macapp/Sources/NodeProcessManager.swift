@@ -250,14 +250,26 @@ class NodeProcessManager {
 
     private func openLogFile() {
         let dataDir = ConfigParser.applicationSupportDir() + "/data"
-        try? FileManager.default.createDirectory(atPath: dataDir, withIntermediateDirectories: true)
+        do {
+            try FileManager.default.createDirectory(atPath: dataDir, withIntermediateDirectories: true)
+        } catch {
+            logHandler("ERROR: Cannot create log directory \(dataDir): \(error.localizedDescription)")
+            return
+        }
         let formatter = DateFormatter()
-        formatter.dateFormat = "yyyy-MM-dd'T'HH:mm:ss'Z'"
+        // No colons in the filename — Finder displays them as slashes
+        formatter.dateFormat = "yyyy-MM-dd_HHmmss'Z'"
         formatter.timeZone = TimeZone(identifier: "UTC")
         let filename = "jellyfin-mpv-play-\(formatter.string(from: Date())).log"
         let logPath = (dataDir as NSString).appendingPathComponent(filename)
-        FileManager.default.createFile(atPath: logPath, contents: nil)
+        if !FileManager.default.createFile(atPath: logPath, contents: nil) {
+            logHandler("ERROR: Cannot create log file \(logPath)")
+            return
+        }
         logFileHandle = FileHandle(forWritingAtPath: logPath)
+        if logFileHandle == nil {
+            logHandler("ERROR: Cannot open log file for writing: \(logPath)")
+        }
     }
 
     private func closeLogFile() {
@@ -267,7 +279,13 @@ class NodeProcessManager {
 
     private func writeToLogFile(_ line: String) {
         guard let data = (line + "\n").data(using: .utf8) else { return }
-        logFileHandle?.write(data)
+        do {
+            try logFileHandle?.write(contentsOf: data)
+        } catch {
+            // Disk full / I/O error — keep the app alive, just stop file logging
+            logHandler("WARN: log file write failed: \(error.localizedDescription)")
+            closeLogFile()
+        }
     }
 
     private func loadIpcSocketPath() {
@@ -457,20 +475,30 @@ class NodeProcessManager {
         try? FileManager.default.createDirectory(atPath: appSupport, withIntermediateDirectories: true)
         try? FileManager.default.createDirectory(atPath: dataDir, withIntermediateDirectories: true)
 
-        let shimDest = appSupport + "/shim.js"
-        let bundledShim = bundleResources + "/shim.js"
-        try? FileManager.default.removeItem(atPath: shimDest)
-        try? FileManager.default.copyItem(atPath: bundledShim, toPath: shimDest)
-
-        let pkgDest = appSupport + "/package.json"
-        let bundledPkg = bundleResources + "/package.json"
-        try? FileManager.default.removeItem(atPath: pkgDest)
-        try? FileManager.default.copyItem(atPath: bundledPkg, toPath: pkgDest)
+        // Copy bundle files over WITHOUT the old delete-then-copy pattern (a
+        // failed copy used to leave the working file gone). Stage + replace.
+        func stageReplace(_ bundled: String, to dest: String) {
+            let staged = dest + ".staging"
+            do {
+                try? FileManager.default.removeItem(atPath: staged)
+                try FileManager.default.copyItem(atPath: bundled, toPath: staged)
+                _ = try FileManager.default.replaceItemAt(URL(fileURLWithPath: dest),
+                                                          withItemAt: URL(fileURLWithPath: staged))
+            } catch {
+                logHandler("ERROR: Failed to install \((bundled as NSString).lastPathComponent): \(error.localizedDescription)")
+            }
+        }
+        stageReplace(bundleResources + "/shim.js", to: appSupport + "/shim.js")
+        stageReplace(bundleResources + "/package.json", to: appSupport + "/package.json")
 
         let configFile = appSupport + "/config.js"
         if !FileManager.default.fileExists(atPath: configFile) {
             let exampleConfig = bundleResources + "/config.example.js"
-            try? FileManager.default.copyItem(atPath: exampleConfig, toPath: configFile)
+            do {
+                try FileManager.default.copyItem(atPath: exampleConfig, toPath: configFile)
+            } catch {
+                logHandler("ERROR: Failed to create config.js: \(error.localizedDescription)")
+            }
         }
     }
 

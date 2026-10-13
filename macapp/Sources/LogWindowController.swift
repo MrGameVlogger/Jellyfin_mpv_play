@@ -25,20 +25,21 @@ class LogWindowController: NSWindowController {
     private func setupUI() {
         guard let contentView = window?.contentView else { return }
 
-        let clearButton = NSButton(title: "Clear", target: self, action: #selector(clearLog))
-        clearButton.frame = NSRect(x: 10, y: 10, width: 70, height: 28)
-        clearButton.bezelStyle = .rounded
-        contentView.addSubview(clearButton)
-
-        autoScrollButton = NSButton(title: "Auto-scroll: On", target: self, action: #selector(toggleAutoScroll))
-        autoScrollButton.frame = NSRect(x: 90, y: 10, width: 120, height: 28)
-        autoScrollButton.bezelStyle = .rounded
+        // HIG: binary setting is a checkbox; action buttons sit bottom-right
+        autoScrollButton = NSButton(checkboxWithTitle: "Auto-scroll", target: self, action: #selector(toggleAutoScroll))
+        autoScrollButton.frame = NSRect(x: 10, y: 14, width: 120, height: 24)
+        autoScrollButton.state = .on
         contentView.addSubview(autoScrollButton)
 
-        let exportButton = NSButton(title: "Export", target: self, action: #selector(exportLogs))
-        exportButton.frame = NSRect(x: 220, y: 10, width: 70, height: 28)
+        let exportButton = NSButton(title: "Export\u{2026}", target: self, action: #selector(exportLogs))
+        exportButton.frame = NSRect(x: 320, y: 10, width: 80, height: 28)
         exportButton.bezelStyle = .rounded
         contentView.addSubview(exportButton)
+
+        let clearButton = NSButton(title: "Clear", target: self, action: #selector(clearLog))
+        clearButton.frame = NSRect(x: 410, y: 10, width: 70, height: 28)
+        clearButton.bezelStyle = .rounded
+        contentView.addSubview(clearButton)
 
         scrollView = NSScrollView(frame: NSRect(x: 0, y: 44, width: contentView.bounds.width, height: contentView.bounds.height - 44))
         scrollView.autoresizingMask = [.width, .height]
@@ -109,8 +110,7 @@ class LogWindowController: NSWindowController {
     }
 
     @objc private func toggleAutoScroll() {
-        autoScroll.toggle()
-        autoScrollButton.title = autoScroll ? "Auto-scroll: On" : "Auto-scroll: Off"
+        autoScroll = autoScrollButton.state == .on
         if autoScroll {
             textView.scrollRangeToVisible(NSRange(location: (textView.string as NSString).length, length: 0))
         }
@@ -126,7 +126,9 @@ class LogWindowController: NSWindowController {
         let panel = NSSavePanel()
         panel.title = "Export Logs"
         let formatter = ISO8601DateFormatter()
-        panel.nameFieldStringValue = "jellyfin-mpv-play-\(formatter.string(from: Date())).log"
+        // Colons are awkward in filenames (Finder shows them as slashes)
+        let stamp = formatter.string(from: Date()).replacingOccurrences(of: ":", with: "-")
+        panel.nameFieldStringValue = "jellyfin-mpv-play-\(stamp).log"
         panel.allowedContentTypes = [.log]
         panel.begin { [weak self] response in
             if response == .OK, let url = panel.url {
