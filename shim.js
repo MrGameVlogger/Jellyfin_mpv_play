@@ -808,6 +808,14 @@ async function handleMessage(msg) {
         
         if (command === 'Stop') {
             if (currentItemId && !isReportingStop) {
+                // Mark watched HERE, not at mpv-process exit: killing mpv is a
+                // graceful shutdown that can take seconds, and the user expects
+                // the watched state immediately. The close handler keeps its own
+                // check as backstop (the markedWatched set prevents double posts).
+                const runtime = currentEpisodeInfo?.itemRuntime || 0;
+                if (!isUnwatchedQuit && runtime > 0 && currentPositionSeconds >= runtime * 0.9) {
+                    markItemAsWatched(currentItemId);
+                }
                 reportPlaybackStop(currentItemId, Math.round(currentPositionSeconds * 10000000));
             }
             killMpv();
