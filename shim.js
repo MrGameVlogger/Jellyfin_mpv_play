@@ -49,6 +49,12 @@ if (CONFIG.autoSkipIntros && CONFIG.disableSkipIntro) {
     CONFIG.autoSkipIntros = false;
 }
 
+// --headless on the command line (used by launch.sh / launch.bat to run detached)
+// forces the same log-to-file behavior as headless: true in the config.
+if (args.includes('--headless')) {
+    CONFIG.headless = true;
+}
+
 if (CONFIG.headless) {
     const logDir = path.join(__dirname, 'data');
     if (!fs.existsSync(logDir)) fs.mkdirSync(logDir, { recursive: true });
