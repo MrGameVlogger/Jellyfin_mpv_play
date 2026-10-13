@@ -703,7 +703,26 @@ async function handleMessage(msg) {
                         // StartIndex pointing at what the user clicked.
                         const startItemId = orderedItems[Math.min(Math.max(startIndex, 0), orderedItems.length - 1)];
                         const info = await getEpisodeInfo(startItemId, true);
-                        if (info && info.isSeries && info.episodes && info.episodes.length >= orderedItems.length) {
+                        if (info && info.isSeries && info.seasonNumber === 0 && (info.episodes?.length || 0) > 0
+                            && orderedItems.some(id => !info.episodes.some(ep => ep.Id === id))) {
+                            // Series/season-level request whose expansion put a special
+                            // first: the server expands folder children by SortName
+                            // (SessionManager.TranslateItemForPlayback), so a series id
+                            // can arrive as [special, ...regulars]. jellyfin-web resolves
+                            // such series plays client-side and starts at the next
+                            // unwatched REGULAR episode (season 1 for a new series) —
+                            // mirror that instead of starting on a special. A request
+                            // that is entirely within the specials season is an explicit
+                            // specials selection and is played as-is below.
+                            playQueue = [...orderedItems];
+                            const specialsIds = new Set(info.episodes.map(ep => ep.Id));
+                            const nextUpId = await queryNextUp(info.seriesId);
+                            let idx = nextUpId ? orderedItems.indexOf(nextUpId) : -1;
+                            if (idx < 0) idx = orderedItems.findIndex(id => !specialsIds.has(id));
+                            queuePosition = idx >= 0 ? idx : 0;
+                            targetId = playQueue[queuePosition];
+                            log('info', 'queue', `\u{1F4CB} Queue set: ${playQueue.length} items, starting at index ${queuePosition} (series play — starting past specials)`);
+                        } else if (info && info.isSeries && info.episodes && info.episodes.length >= orderedItems.length) {
                             // If the request already lists the whole season in a specific
                             // order, keep that order. jellyfin-web's Shuffle is transformed
                             // by the server into PlayNow with a shuffled id list — re-sorting
