@@ -1094,10 +1094,14 @@ async function fetchEpisodeInfo(itemId, silent = false) {
     }
 
     const playableTypes = ['Episode', 'Movie', 'Video', 'MusicVideo', 'Audio'];
+    const title = item.Name || 'Movie/Music';
+    // Non-episode items have no "Episode detected" line — this is the title
+    // contract the macOS app parses for movies/music (see AGENTS.md log contracts)
+    if (!silent) log('info', 'episode', `▶️ Starting episode: ${title}`);
     return {
         isSeries: false,
         playable: playableTypes.includes(item.Type),
-        title: item.Name || 'Movie/Music',
+        title: title,
         itemRuntime: item.RunTimeTicks ? item.RunTimeTicks / 10000000 : 0,
         userData: item.UserData || {}
     };

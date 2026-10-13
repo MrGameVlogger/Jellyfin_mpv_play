@@ -41,9 +41,8 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func applicationWillTerminate(_ notification: Notification) {
-        nodeProcessManager.stop()
-        // Give the stop handler time to clean up IPC socket and report stop to server
-        Thread.sleep(forTimeInterval: 1)
+        // Cleanup happens asynchronously in applicationShouldTerminate via
+        // .terminateLater — nothing to do here.
     }
 
     func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
@@ -59,7 +58,26 @@ class AppDelegate: NSObject, NSApplicationDelegate {
                 return .terminateCancel
             }
         }
-        return .terminateNow
+        // Terminate asynchronously: stop() needs to report playback stop to the
+        // server and clean up the IPC socket. (The old Thread.sleep here blocked
+        // the main thread, which prevented stop()s own callbacks from running.)
+        nodeProcessManager.stop { [weak self] in
+            DispatchQueue.main.async {
+                self?.finishTerminate()
+            }
+        }
+        // Safety net in case the child process hangs past the SIGKILL fallback
+        DispatchQueue.main.asyncAfter(deadline: .now() + 5) { [weak self] in
+            self?.finishTerminate()
+        }
+        return .terminateLater
+    }
+
+    private var terminateReplied = false
+    private func finishTerminate() {
+        guard !terminateReplied else { return }
+        terminateReplied = true
+        NSApp.reply(toApplicationShouldTerminate: true)
     }
 
     private func needsSetup() -> Bool {

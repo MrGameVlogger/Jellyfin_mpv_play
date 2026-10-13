@@ -28,6 +28,8 @@ class NodeProcessManager {
     private var ipcSocketPath = ConfigParser.defaultIpcSocketPath()
     private var isStoppingPlayback = false
     private var logFileHandle: FileHandle?
+    private var pendingRestart: DispatchWorkItem?
+    private var lastErrorNotificationAt = Date.distantPast
 
     init(logHandler: @escaping (String) -> Void, statusHandler: @escaping (ConnectionStatus) -> Void, notificationHandler: @escaping (String, String) -> Void, nowPlayingHandler: ((String?) -> Void)? = nil) {
         self.logHandler = logHandler
@@ -37,6 +39,8 @@ class NodeProcessManager {
     }
 
     func start() {
+        pendingRestart?.cancel()
+        pendingRestart = nil
         closeLogFile()
         if let process = process, process.isRunning {
             process.terminationHandler = nil
@@ -85,14 +89,17 @@ class NodeProcessManager {
             DispatchQueue.main.async { [weak self] in
                 guard let self = self else { return }
                 self.stdoutData.append(data)
-                guard let str = String(data: self.stdoutData, encoding: .utf8) else { return }
-                self.stdoutData = Data()
-                let lines = str.components(separatedBy: .newlines)
-                let complete = lines.dropLast()
-                if let last = lines.last, !last.isEmpty {
-                    self.stdoutData = Data(last.utf8)
+                // Split at the last newline and decode only complete lines, lossily:
+                // one invalid byte can never stall the stream forever, and partial
+                // multibyte sequences stay buffered until their line completes.
+                guard let nl = self.stdoutData.lastIndex(of: UInt8(ascii: "\n")) else {
+                    if self.stdoutData.count > 1024 * 1024 { self.stdoutData.removeAll(keepingCapacity: true) }
+                    return
                 }
-                for line in complete where !line.isEmpty {
+                let completeData = self.stdoutData[...nl]
+                self.stdoutData = Data(self.stdoutData[self.stdoutData.index(after: nl)...])
+                let str = String(decoding: completeData, as: UTF8.self)
+                for line in str.components(separatedBy: .newlines) where !line.isEmpty {
                     self.processLogLine(line)
                 }
             }
@@ -104,14 +111,14 @@ class NodeProcessManager {
             DispatchQueue.main.async { [weak self] in
                 guard let self = self else { return }
                 self.stderrData.append(data)
-                guard let str = String(data: self.stderrData, encoding: .utf8) else { return }
-                self.stderrData = Data()
-                let lines = str.components(separatedBy: .newlines)
-                let complete = lines.dropLast()
-                if let last = lines.last, !last.isEmpty {
-                    self.stderrData = Data(last.utf8)
+                guard let nl = self.stderrData.lastIndex(of: UInt8(ascii: "\n")) else {
+                    if self.stderrData.count > 1024 * 1024 { self.stderrData.removeAll(keepingCapacity: true) }
+                    return
                 }
-                for line in complete where !line.isEmpty {
+                let completeData = self.stderrData[...nl]
+                self.stderrData = Data(self.stderrData[self.stderrData.index(after: nl)...])
+                let str = String(decoding: completeData, as: UTF8.self)
+                for line in str.components(separatedBy: .newlines) where !line.isEmpty {
                     self.logHandler("STDERR: \(line)")
                     self.processLogLine("STDERR: \(line)")
                 }
@@ -133,9 +140,15 @@ class NodeProcessManager {
                     self.restartCount += 1
                     let delay = min(pow(2.0, Double(self.restartCount)), 30.0)
                     self.logHandler("Process exited unexpectedly (code: \(exitCode)). Restarting in \(Int(delay))s... (attempt \(self.restartCount)/\(self.maxRestarts))")
-                    DispatchQueue.main.asyncAfter(deadline: .now() + delay) {
+                    // Cancellable: stop() must be able to prevent a restart that is
+                    // already scheduled (otherwise a node process spawns after quit).
+                    let work = DispatchWorkItem { [weak self] in
+                        guard let self = self, !self.isShuttingDown else { return }
+                        self.pendingRestart = nil
                         self.start()
                     }
+                    self.pendingRestart = work
+                    DispatchQueue.main.asyncAfter(deadline: .now() + delay, execute: work)
                 } else {
                     self.logHandler("Process terminated (exit code: \(exitCode))")
                     self.restartCount = 0
@@ -166,18 +179,26 @@ class NodeProcessManager {
         }
         isShuttingDown = true
         shutdownCompletion = completion
+        pendingRestart?.cancel()
+        pendingRestart = nil
         let ipcPath = ipcSocketPath
         if let process = process, process.isRunning {
             let proc = process
-            proc.terminationHandler = { [weak self] arg in
-                self?.cleanupPipes()
-                if FileManager.default.fileExists(atPath: ipcPath) {
-                    try? FileManager.default.removeItem(atPath: ipcPath)
-                }
+            proc.terminationHandler = { [weak self] _ in
+                // terminationHandler runs on an arbitrary thread — hop to main so
+                // the shared buffers/pipes/state are only touched on one queue.
                 DispatchQueue.main.async {
-                    self?.restartCount = 0
-                    self?.shutdownCompletion?()
-                    self?.shutdownCompletion = nil
+                    guard let self = self else { return }
+                    self.drainPipes()
+                    self.resetPlaybackState()
+                    self.statusHandler(.disconnected)
+                    self.cleanupPipes()
+                    if FileManager.default.fileExists(atPath: ipcPath) {
+                        try? FileManager.default.removeItem(atPath: ipcPath)
+                    }
+                    self.restartCount = 0
+                    self.shutdownCompletion?()
+                    self.shutdownCompletion = nil
                 }
             }
             proc.terminate()
@@ -191,9 +212,28 @@ class NodeProcessManager {
             if FileManager.default.fileExists(atPath: ipcPath) {
                 try? FileManager.default.removeItem(atPath: ipcPath)
             }
+            resetPlaybackState()
+            statusHandler(.disconnected)
             shutdownCompletion?()
             shutdownCompletion = nil
             cleanupPipes()
+        }
+    }
+
+    // Reads any final output the child wrote before exiting (e.g. the
+    // "Closing application" line) before the pipes are torn down.
+    private func drainPipes() {
+        for (pipe, isErr) in [(stdoutPipe, false), (stderrPipe, true)] {
+            guard let data = pipe?.fileHandleForReading.availableData, !data.isEmpty else { continue }
+            let str = String(decoding: data, as: UTF8.self)
+            for line in str.components(separatedBy: .newlines) where !line.isEmpty {
+                if isErr {
+                    logHandler("STDERR: \(line)")
+                    processLogLine("STDERR: \(line)")
+                } else {
+                    processLogLine(line)
+                }
+            }
         }
     }
 
@@ -327,6 +367,20 @@ class NodeProcessManager {
         logHandler(line)
         writeToLogFile(line)
 
+        // Error notification runs BEFORE the state-transition chain so lines like
+        // "MPV closed with error" still notify (the "MPV closed" branch below only
+        // resets state). Markers are case-insensitive: most shim errors use a plain
+        // "Error"/"warning" wording rather than the literal tokens ERROR/❌/FATAL.
+        let lower = line.lowercased()
+        if lower.contains("error") || lower.contains("fatal") || line.contains("❌") || line.contains("⚠️") {
+            let now = Date()
+            if now.timeIntervalSince(lastErrorNotificationAt) > 30 {
+                lastErrorNotificationAt = now
+                let message = line.count > 200 ? String(line.prefix(200)) + "…" : line
+                notificationHandler("Error", message)
+            }
+        }
+
         // Parse structured logs: [timestamp] [component] message
         if line.contains("WebSocket connection established") {
             statusHandler(.connected)
@@ -346,7 +400,7 @@ class NodeProcessManager {
                 isPlaying = true
                 statusHandler(.playing)
             }
-        } else if line.contains("Starting next episode") || line.contains("Starting previous episode") {
+        } else if line.contains("Starting next episode") || line.contains("Starting previous episode") || line.contains("Starting episode: ") {
             if let title = extractTitleFromNextEpisode(line) {
                 nowPlaying = title
                 nowPlayingHandler?(title)
@@ -365,8 +419,6 @@ class NodeProcessManager {
         } else if line.contains("Closing application") || line.contains("MPV closed") || line.contains("Process terminated") {
             isStoppingPlayback = false
             resetPlaybackState()
-        } else if line.contains("ERROR") || line.contains("❌") || line.contains("FATAL") {
-            notificationHandler("Error", line)
         }
     }
 
@@ -375,6 +427,10 @@ class NodeProcessManager {
             return String(line[range.upperBound...])
         }
         if let range = line.range(of: "Starting previous episode: ") {
+            return String(line[range.upperBound...])
+        }
+        // Movie/music/video items (the shim logs this for non-episode playback)
+        if let range = line.range(of: "Starting episode: ") {
             return String(line[range.upperBound...])
         }
         return nil
