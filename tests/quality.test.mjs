@@ -158,3 +158,48 @@ test('SupportedCommands uses exact Jellyfin enum names', () => {
     );
   }
 });
+
+test('regression guards for verified mpv and Jellyfin semantics', () => {
+  const shim = fs.readFileSync('shim.js', 'utf8');
+
+  // mpv playlist-clear keeps the currently played file — rebuilding with
+  // playlist-clear + playlist-play-index plays the wrong entry. Verified on
+  // mpv 0.41. Use loadfile replace + insert-at (loadNewQueue) or keep the
+  // current entry and insert around it (SetShuffleQueue).
+  assert(
+    !shim.includes("set_property', ['playlist-pos'"),
+    'set_property playlist-pos is not guaranteed to start playback — use playlist-play-index'
+  );
+
+  // mpv has no runtime shuffle property; --shuffle only applies at load time.
+  // Verified on mpv 0.41: playlist-shuffle / playlist-unshuffle do the work.
+  assert(
+    !shim.includes("set_property', ['shuffle'"),
+    'set_property shuffle is a no-op — use playlist-shuffle / playlist-unshuffle'
+  );
+
+  // axios serializes array params with PHP-style brackets which ASP.NET does
+  // not bind — Jellyfin then ignores the includeSegmentTypes filter. Verified
+  // against a live Jellyfin 12.2 server.
+  assert(
+    shim.includes('paramsSerializer: { indexes: null }'),
+    'MediaSegments query must use repeated keys (paramsSerializer indexes: null)'
+  );
+
+  // Jellyfin stream indices are global ff-indices; mpv aid/sid are per-type ids.
+  assert(
+    shim.includes('function jellyfinStreamIndexToMpvId') && shim.includes('function mpvTrackIdToJellyfinIndex'),
+    'stream index <-> mpv track id mapping helpers must exist'
+  );
+});
+
+test('macos app matches the shim log contracts', () => {
+  const shim = fs.readFileSync('shim.js', 'utf8');
+  const npm = fs.readFileSync('macapp/Sources/NodeProcessManager.swift', 'utf8');
+
+  // Every title contract the shim emits must have a matcher in the macapp
+  for (const marker of ['Episode detected: ', 'Starting next episode: ', 'Starting previous episode: ', 'Starting episode: ']) {
+    assert(shim.includes(marker), `shim.js missing title contract: "${marker}"`);
+    assert(npm.includes(marker), `NodeProcessManager missing matcher for: "${marker}"`);
+  }
+});

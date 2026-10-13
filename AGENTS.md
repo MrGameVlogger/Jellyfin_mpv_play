@@ -193,7 +193,9 @@ All options go in `config.js` (copy from `config.example.js`):
 
 `config.js` is gitignored. Missing file → `MODULE_NOT_FOUND` on start.
 
-**Multi-config support**: Create multiple config files (e.g., `config.work.js`, `config.personal.js`) and run with `node shim.js config.work.js`. Each config gets its own deviceId, token, positions, and IPC socket. On macOS, use the config file selector in Preferences.
+**Command-line flags** (after the optional config file name): `--headless` forces headless log-to-file behavior even without `headless: true` in the config; `--allow-duplicates` skips the duplicate-instance dialog and names the log `shim-<config>-<PID>.log`. Without it, duplicates are detected via `data/<config>.lock` and the log is always `data/shim-<config>.log`.
+
+**Multi-config support**: Create multiple config files (e.g., `config.work.js`, `config.personal.js`) and run with `node shim.js config.work.js`. Each config gets its own deviceId, token, positions, and IPC socket. On macOS, use the config file selector in Preferences. Auto-generated device IDs are stored per-config in `data/.device-id-<configname>` (leave `deviceId` empty to auto-generate).
 
 ## Key functions map
 
@@ -317,6 +319,7 @@ All state is module-level variables. No state machine or stores — just mutable
 | `isMpvPaused` | boolean | Current pause state |
 | `isMuted` | boolean | Current mute state |
 | `volumeLevel` | number | Current volume (0-100) |
+| `mpvTrackList` | array | mpv `track-list` snapshot (ff-index ↔ per-type id mapping, refreshed on `file-loaded`) |
 
 ### Coordination flags
 
@@ -324,7 +327,6 @@ All state is module-level variables. No state machine or stores — just mutable
 |----------|------|---------|
 | `isPlayingNext` | boolean | Prevents double-triggering episode transitions (30s timeout fallback) |
 | `isPlayingNextTimestamp` | number | Timestamp when `isPlayingNext` was set (for timeout) |
-| `isSeeking` | boolean | True during seek operations (prevents progress reports) |
 | `isNewQueueLoad` | boolean | True during `loadNewQueue()` to suppress file-loaded handlers |
 | `isReportingStop` | boolean | Prevents duplicate stop reports |
 | `isSettingSubtitleFromJellyfin` | boolean | Echo prevention: true when subtitle change came from Jellyfin (5s timeout) |
@@ -378,7 +380,6 @@ All state is module-level variables. No state machine or stores — just mutable
 |----------|------|---------|
 | `pendingStreamUrl` | string | URL to load when IPC connects |
 | `pendingStartSeconds` | number | Start position for pending stream |
-| `pendingTitle` | string | Title to display for pending stream |
 | `pendingAudioStreamIndex` | number | Audio stream to set after load |
 | `pendingSubtitleStreamIndex` | number | Subtitle stream to set after load |
 
@@ -393,7 +394,7 @@ All state is module-level variables. No state machine or stores — just mutable
 
 ### Adding a new PlaystateCommand
 
-1. Add the `case` to `handleMessage()` under the `"Playstate"` switch (line 522)
+1. Add the `case` to `handleMessage()` under the `"Playstate"` switch (search for `command === 'Stop'`)
 2. Implement the actual MPV command via `sendMpvCommand()`
 3. If it requires new state, add a module-level variable with a clear name
 4. Update `reportCapabilities()` to include the new command in `SupportedCommands`
@@ -401,7 +402,7 @@ All state is module-level variables. No state machine or stores — just mutable
 
 ### Adding a new GeneralCommand
 
-1. Add the `case` to `handleMessage()` under the `"GeneralCommand"` switch (line 558)
+1. Add the `case` to `handleMessage()` under the `"GeneralCommand"` switch (search for `command === 'SetAudioStreamIndex'`)
 2. Use the exact `GeneralCommandType` enum name from Jellyfin source — wrong names cause 400 errors
 3. If it requires new MPV IPC, use `sendMpvCommand()` or `queryProperty()`
 4. Update `reportCapabilities()` to include the new command
@@ -421,8 +422,8 @@ Use patterns like:
 
 ### Adding a new IPC property observer
 
-1. Add `observe_property` command in `connectToMpvIpc()` (around line 940)
-2. Add a `case` in `handleMpvEvent()` under `property-change` (line 1431)
+1. Add `observe_property` command in `connectToMpvIpc()` (search for `observe_property`)
+2. Add a `case` in `handleMpvEvent()` under `property-change`
 3. Update the corresponding state variable
 4. If the change should be reported to Jellyfin, include it in `reportPlaybackProgress()` fields
 
@@ -449,7 +450,7 @@ Use patterns like:
 
 ### Linux (`linux/`)
 
-- `launch.sh` detects headless config via `findstr`-equivalent (grep + sed), re-opens terminal if needed
+- `launch.sh` detects headless config via node (`require(config).headless`), re-opens terminal if needed
 - `--install-service` / `--uninstall-service` manages systemd user service
 - `jellyfin-mpv-play.desktop` has Terminal=false (launch.sh handles terminal detection)
 - `jellyfin-mpv-play.service` runs shim as systemd user service (Type=simple, Restart=on-failure)
@@ -457,7 +458,7 @@ Use patterns like:
 
 ### Windows (`windows/`)
 
-- `launch.bat` supports `--headless` flag (passed directly) and auto-detection from config.js via `findstr`
+- `launch.bat` supports `--headless` flag and auto-detection from config.js via node (`require(config).headless`) — never text matching, comments in the config can't false-positive
 - IPC socket path defaults to named pipe `\\.\pipe\mpv-ipc`
 - Line endings should be CRLF
 - Path quoting matters for special characters
@@ -539,17 +540,17 @@ Both `uncaughtException` and `unhandledRejection` handlers call `shutdown()` to 
 | `Episode detected: <title>` | Sets now-playing title, status → playing |
 | `Starting next episode: <title>` | Updates now-playing title |
 | `Starting previous episode: <title>` | Updates now-playing title |
-| `Starting episode: <title>` | Updates now-playing title |
+| `Starting episode: <title>` | Updates now-playing title (emitted for movies/music — non-episode items) |
 | `File loaded by MPV` | Status → playing (fallback) |
 | `Playback paused` | Pause state on |
 | `Playback resumed` | Pause state off |
 | `No more episodes` | Clears now-playing, status → connected |
-| `Closing application` / `MPV closed` / `Process terminated` | Clears now-playing, status → connected |
-| Lines containing `ERROR` / `❌` / `FATAL` | Error notification |
+| `Closing application` / `MPV closed` / `Process terminated` | Clears now-playing, status → connected (`Process terminated` is logged by the macapp itself, not the shim) |
+| Lines containing `error` (case-insensitive) / `fatal` / `❌` / `⚠️` | Error notification (throttled to one per 30s) |
 
-stderr is also routed through `processLogLine` (prefixed with `STDERR:`), so `❌` in stderr triggers error notifications.
+stderr is also routed through `processLogLine` (prefixed with `STDERR:`), so error markers in stderr trigger error notifications.
 
-Title format for `Episode detected`: `SeriesName - SxEp - EpisodeName` (parsed by `extractTitleFromEpisode()`). Next/prev episode logs use the same format.
+Title format for `Episode detected`: `SeriesName - SxEp - EpisodeName` (parsed by `extractTitleFromEpisode()`). Next/prev episode logs use the same format. `Starting episode:` carries the bare item title (movies/music).
 
 ## Gotchas
 
@@ -577,7 +578,7 @@ The shim handles three WebSocket message types: `Play`, `Playstate`, `GeneralCom
 
 **PlaystateCommand** — all 9 handled: Stop, Pause, Unpause, PlayPause, NextTrack, PreviousTrack, Seek, Rewind, FastForward.
 
-**GeneralCommand** — SetAudioStreamIndex, SetSubtitleStreamIndex, SetVolume, VolumeUp/Down, Mute/Unmute/ToggleMute, SetRepeatMode, SetPlaybackOrder, DisplayMessage, PlayNext, ToggleFullscreen, SetShuffleQueue, SetSubtitleDelay, SetAudioDelay.
+**GeneralCommand** — SetAudioStreamIndex, SetSubtitleStreamIndex, SetVolume, VolumeUp/Down, Mute/Unmute/ToggleMute, SetRepeatMode, SetPlaybackOrder, DisplayMessage, PlayNext, ToggleFullscreen, SetShuffleQueue. (SkipIntro, SetSubtitleDelay and SetAudioDelay are ALSO handled, but they are NOT part of Jellyfin's `GeneralCommandType` enum as of Jellyfin 12.2 — the server can never send them; the handlers are kept only for forward compatibility and are reachable via the S key / jf-mpv-osc.)
 
 **SyncPlay** — Full support:
 - SyncPlayCommand: Unpause, Pause, Stop, Seek, SetPlaylistOrder, SetRepeatMode, SetShuffleMode
@@ -589,7 +590,7 @@ The shim handles three WebSocket message types: `Play`, `Playstate`, `GeneralCom
 
 **Progress reports include**: ItemId, PositionTicks, IsPaused, IsMuted, VolumeLevel, PlayMethod, PlaySessionId, CanSeek, RepeatMode, PlaybackOrder, MediaSourceId.
 
-**SupportedCommands** must use exact `GeneralCommandType` enum names from Jellyfin source (`MediaBrowser.Model/Session/GeneralCommandType.cs`). Wrong names cause 400 errors.
+**SupportedCommands** must use exact `GeneralCommandType` enum names from Jellyfin source (`MediaBrowser.Model/Session/GeneralCommandType.cs`). Wrong names cause 400 errors. `tests/quality.test.mjs` validates every advertised name against the Jellyfin 12.2 enum. Note: `ClientCapabilitiesDto` has no `SupportsSync`/`SupportsRemoteControl`/`SupportsContentUploading` fields (Jellyfin discards them) — SyncPlay works purely via WebSocket messages.
 
 **Shutdown**: Sends `SessionsStop` message before closing WebSocket to prevent zombie sessions.
 

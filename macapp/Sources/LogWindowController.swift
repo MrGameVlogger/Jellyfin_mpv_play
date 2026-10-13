@@ -97,7 +97,7 @@ class LogWindowController: NSWindowController {
             return .systemYellow
         } else if line.contains("Connected") || line.contains("connection established") {
             return .systemGreen
-        } else if line.contains("Playing") || line.contains("Episode detected") || line.contains("file-loaded") {
+        } else if line.contains("Playing") || line.contains("Episode detected") || line.contains("File loaded by MPV") {
             return .systemOrange
         }
         return .labelColor
