@@ -111,10 +111,12 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             alert.messageText = "Quit while MPV is still playing?"
             alert.informativeText = "Playback will stop and MPV will close."
             alert.alertStyle = .warning
-            alert.addButton(withTitle: "Quit")
             alert.addButton(withTitle: "Cancel")
+            alert.addButton(withTitle: "Quit")
+            alert.buttons.first?.keyEquivalent = "\r"
+            alert.buttons.last?.keyEquivalent = "q"
             let response = alert.runModal()
-            if response == .alertSecondButtonReturn {
+            if response == .alertFirstButtonReturn {
                 return .terminateCancel
             }
         }

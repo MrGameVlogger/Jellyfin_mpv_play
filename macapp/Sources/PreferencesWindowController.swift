@@ -95,6 +95,7 @@ class PreferencesWindowController: NSWindowController {
 
         serverUrlField = NSTextField()
         serverUrlField.frame = NSRect(x: 130, y: yOffset, width: 410, height: 24)
+        serverUrlField.setAccessibilityLabel("Server URL")
         contentView.addSubview(serverUrlField)
         yOffset -= 36
 
@@ -106,6 +107,7 @@ class PreferencesWindowController: NSWindowController {
 
         usernameField = NSTextField()
         usernameField.frame = NSRect(x: 130, y: yOffset, width: 410, height: 24)
+        usernameField.setAccessibilityLabel("Username")
         contentView.addSubview(usernameField)
         yOffset -= 36
 
@@ -117,6 +119,7 @@ class PreferencesWindowController: NSWindowController {
 
         passwordField = NSSecureTextField()
         passwordField.frame = NSRect(x: 130, y: yOffset, width: 410, height: 24)
+        passwordField.setAccessibilityLabel("Password")
         contentView.addSubview(passwordField)
         yOffset -= 36
 
@@ -155,9 +158,11 @@ class PreferencesWindowController: NSWindowController {
 
         mpvPathField = NSTextField()
         mpvPathField.frame = NSRect(x: 130, y: yOffset, width: 320, height: 24)
+        mpvPathField.setAccessibilityLabel("MPV Path")
+        mpvPathField.toolTip = "Full path to the mpv binary (e.g. /opt/homebrew/bin/mpv)"
         contentView.addSubview(mpvPathField)
 
-        let browseButton = NSButton(title: "Browse...", target: self, action: #selector(browseMpvPath))
+        let browseButton = NSButton(title: "Choose\u{2026}", target: self, action: #selector(browseMpvPath))
         browseButton.frame = NSRect(x: 458, y: yOffset, width: 80, height: 24)
         browseButton.bezelStyle = .rounded
         contentView.addSubview(browseButton)
@@ -171,6 +176,7 @@ class PreferencesWindowController: NSWindowController {
 
         deviceNameField = NSTextField()
         deviceNameField.frame = NSRect(x: 130, y: yOffset, width: 410, height: 24)
+        deviceNameField.setAccessibilityLabel("Device Name")
         contentView.addSubview(deviceNameField)
         yOffset -= 36
 
@@ -182,6 +188,8 @@ class PreferencesWindowController: NSWindowController {
 
         deviceIdField = NSTextField()
         deviceIdField.frame = NSRect(x: 130, y: yOffset, width: 410, height: 24)
+        deviceIdField.setAccessibilityLabel("Device ID")
+        deviceIdField.toolTip = "Leave empty to auto-generate a unique ID per config"
         contentView.addSubview(deviceIdField)
         yOffset -= 36
 
@@ -193,6 +201,8 @@ class PreferencesWindowController: NSWindowController {
 
         ipcSocketPathField = NSTextField()
         ipcSocketPathField.frame = NSRect(x: 130, y: yOffset, width: 410, height: 24)
+        ipcSocketPathField.setAccessibilityLabel("IPC Socket")
+        ipcSocketPathField.toolTip = "MPV control socket path (max 100 characters)"
         ipcSocketPathField.placeholderString = ConfigParser.defaultIpcSocketPath()
         contentView.addSubview(ipcSocketPathField)
         yOffset -= 36
@@ -205,6 +215,8 @@ class PreferencesWindowController: NSWindowController {
 
         mpvFlagsField = NSTextField()
         mpvFlagsField.frame = NSRect(x: 130, y: yOffset, width: 410, height: 24)
+        mpvFlagsField.setAccessibilityLabel("MPV Flags")
+        mpvFlagsField.toolTip = "Comma-separated extra mpv arguments (e.g. --hwdec=auto, --vo=gpu-next)"
         mpvFlagsField.placeholderString = "--hwdec=auto, --vo=gpu-next"
         contentView.addSubview(mpvFlagsField)
         yOffset -= 30
@@ -354,6 +366,11 @@ class PreferencesWindowController: NSWindowController {
         headlessCheckbox.state = ConfigParser.extractValue(from: content, key: "headless") == "true" ? .on : .off
         autoSkipIntrosCheckbox.state = ConfigParser.extractValue(from: content, key: "autoSkipIntros") == "true" ? .on : .off
         disableSkipIntroCheckbox.state = ConfigParser.extractValue(from: content, key: "disableSkipIntro") == "true" ? .on : .off
+        // The two are mutually exclusive (shim disables autoSkipIntros if both are
+        // set) — reflect that instead of showing both checked
+        if autoSkipIntrosCheckbox.state == .on && disableSkipIntroCheckbox.state == .on {
+            disableSkipIntroCheckbox.state = .off
+        }
         verboseCheckbox.state = ConfigParser.extractValue(from: content, key: "verbose") == "true" ? .on : .off
     }
 
@@ -428,12 +445,18 @@ class PreferencesWindowController: NSWindowController {
         }
         let mpvFlags = mpvFlagsField.stringValue.trimmingCharacters(in: .whitespaces)
         if !mpvFlags.isEmpty {
-            // Parse comma or space-separated flags into a JS array
-            let flags = mpvFlags.components(separatedBy: CharacterSet(charactersIn: ", "))
+            // Split on commas first (flag values may contain spaces); fall back
+            // to whitespace splitting when the user typed space-separated flags.
+            var flags = mpvFlags.components(separatedBy: ",")
+                .map { $0.trimmingCharacters(in: .whitespaces) }
                 .filter { !$0.isEmpty }
+            if flags.count <= 1 {
+                flags = mpvFlags.components(separatedBy: .whitespaces).filter { !$0.isEmpty }
+            }
+            let rendered = flags
                 .map { "'\(ConfigParser.escapeConfigValue($0))'" }
                 .joined(separator: ", ")
-            lines.append("    mpvFlags: [\(flags)],")
+            lines.append("    mpvFlags: [\(rendered)],")
         }
 
         lines.append("    fullscreen: \(fullscreenCheckbox.state == .on ? "true" : "false"),")

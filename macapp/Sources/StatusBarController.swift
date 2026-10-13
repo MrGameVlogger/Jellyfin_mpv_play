@@ -196,7 +196,23 @@ class StatusBarController: NSObject, NSMenuDelegate {
     }
 
     func menuWillOpen(_ menu: NSMenu) {
-        loginItem.state = SMAppService.mainApp.status == .enabled ? .on : .off
+        updateLoginItemState()
+    }
+
+    // SMAppService has a third state: .requiresApproval (macOS 13 Login Items).
+    // Showing "off" there hides that the toggle is pending user approval.
+    private func updateLoginItemState() {
+        switch SMAppService.mainApp.status {
+        case .enabled:
+            loginItem.state = .on
+            loginItem.title = "Open at Login"
+        case .requiresApproval:
+            loginItem.state = .off
+            loginItem.title = "Open at Login — Waiting for Approval…"
+        default:
+            loginItem.state = .off
+            loginItem.title = "Open at Login"
+        }
     }
 
     @objc private func togglePause() {
@@ -267,10 +283,14 @@ class StatusBarController: NSObject, NSMenuDelegate {
             } else {
                 try SMAppService.mainApp.register()
             }
-            loginItem.state = SMAppService.mainApp.status == .enabled ? .on : .off
+            updateLoginItemState()
+            if SMAppService.mainApp.status == .requiresApproval {
+                // The user must approve in System Settings > General > Login Items
+                SMAppService.openSystemSettingsLoginItems()
+            }
         } catch {
             // Revert the checkbox state on error
-            loginItem.state = SMAppService.mainApp.status == .enabled ? .on : .off
+            updateLoginItemState()
             let alert = NSAlert()
             alert.messageText = "Failed to update login item"
             alert.informativeText = error.localizedDescription
