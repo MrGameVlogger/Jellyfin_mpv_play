@@ -824,14 +824,17 @@ async function handleMessage(msg) {
                     [playQueue[i], playQueue[j]] = [playQueue[j], playQueue[i]];
                 }
                 queuePosition = playQueue.indexOf(currentItemId);
-                
-                // Rebuild MPV playlist to match new order
+                if (queuePosition < 0) queuePosition = 0;
+
+                // Rebuild MPV playlist to match new order WITHOUT restarting playback:
+                // playlist-clear keeps the currently played file (now at index 0), and
+                // insert-at places every other entry at its exact shuffled index around it.
+                const shuffleItemUrl = (id) => `${CONFIG.serverUrl}/Videos/${id}/stream?static=true&ApiKey=${accessToken}`;
                 sendMpvCommand('playlist-clear');
-                for (const id of playQueue) {
-                    const url = `${CONFIG.serverUrl}/Videos/${id}/stream?static=true&ApiKey=${accessToken}`;
-                    sendMpvCommand('loadfile', [url, 'append']);
+                for (let i = 0; i < playQueue.length; i++) {
+                    if (i === queuePosition) continue;
+                    sendMpvCommand('loadfile', [shuffleItemUrl(playQueue[i]), 'insert-at', i]);
                 }
-                sendMpvCommand('playlist-play-index', [queuePosition]);
                 
                 log('info', 'queue', `🔀 Queue shuffled by server (${playQueue.length} items)`);
             }
@@ -1220,16 +1223,27 @@ async function loadNewQueue(itemId, startTicks) {
     pendingAudioStreamIndex = undefined;
     pendingSubtitleStreamIndex = undefined;
 
-    sendMpvCommand('playlist-clear');
+    // Rebuild the playlist with loadfile replace + insert-at. playlist-clear is NOT
+    // safe here: it keeps the currently played file, which shifts every index by one
+    // (playlist-play-index [queuePosition] would then play the wrong item, or restart
+    // the old one when queuePosition is 0). replace swaps the whole playlist and
+    // immediately plays the target; insert-at places the remaining entries at their
+    // exact indices so the mpv playlist matches playQueue order.
+    const queueItemUrl = (id) => `${CONFIG.serverUrl}/Videos/${id}/stream?static=true&ApiKey=${accessToken}`;
+    if (playQueue.length === 0) {
+        playQueue = [itemId];
+        queuePosition = 0;
+    } else {
+        const itemIndex = playQueue.indexOf(itemId);
+        queuePosition = itemIndex >= 0 ? itemIndex : Math.min(Math.max(queuePosition, 0), playQueue.length - 1);
+    }
+    sendMpvCommand('loadfile', [queueItemUrl(playQueue[queuePosition]), 'replace']);
     for (let i = 0; i < playQueue.length; i++) {
-        const url = `${CONFIG.serverUrl}/Videos/${playQueue[i]}/stream?static=true&ApiKey=${accessToken}`;
-        sendMpvCommand('loadfile', [url, 'append']);
+        if (i === queuePosition) continue;
+        sendMpvCommand('loadfile', [queueItemUrl(playQueue[i]), 'insert-at', i]);
     }
     queueLoadCounter = 1;
-    log('info', 'queue', `📋 Loaded ${playQueue.length} items into MPV playlist.`);
-
-    // Explicitly start playback at the correct playlist index
-    sendMpvCommand('playlist-play-index', [queuePosition]);
+    log('info', 'queue', `📋 Loaded ${playQueue.length} items into MPV playlist (playing index ${queuePosition}).`);
 
     if (savedAudioIndex !== undefined) {
         sendMpvCommand('set_property', ['aid', savedAudioIndex]);
@@ -1981,7 +1995,7 @@ async function playNextEpisode() {
         queuePosition = playQueue.length - 1;
         currentItemId = nextEp.Id;
         sendMpvCommand('loadfile', [url, 'append']);
-        sendMpvCommand('set_property', ['playlist-pos', queuePosition]);
+        sendMpvCommand('playlist-play-index', [queuePosition]);
         return;
     }
 
@@ -2023,7 +2037,7 @@ async function playNextEpisode() {
             queuePosition = playQueue.length - 1;
             currentItemId = nextUpId;
             sendMpvCommand('loadfile', [url, 'append']);
-            sendMpvCommand('set_property', ['playlist-pos', queuePosition]);
+            sendMpvCommand('playlist-play-index', [queuePosition]);
         } else {
             log('info', 'queue', 'ℹ️ No more episodes, ending playback.');
             playQueue = [];
