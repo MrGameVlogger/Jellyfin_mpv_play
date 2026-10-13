@@ -671,10 +671,23 @@ async function handleMessage(msg) {
                     try {
                         const info = await getEpisodeInfo(orderedItems[0], true);
                         if (info && info.isSeries && info.seasonNumber > 0 && info.episodes && info.episodes.length >= orderedItems.length) {
-                            playQueue = info.episodes.map(ep => ep.Id);
-                            queuePosition = info.currentIndex >= 0 ? info.currentIndex : 0;
+                            // If the request already lists the whole season in a specific
+                            // order, keep that order. jellyfin-web's Shuffle is transformed
+                            // by the server into PlayNow with a shuffled id list — re-sorting
+                            // to season order here would silently undo the shuffle.
+                            const seasonIds = new Set(info.episodes.map(ep => ep.Id));
+                            const isPermutation = orderedItems.length === info.episodes.length
+                                && new Set(orderedItems).size === orderedItems.length
+                                && orderedItems.every(id => seasonIds.has(id));
+                            if (isPermutation) {
+                                playQueue = [...orderedItems];
+                                queuePosition = Math.min(Math.max(startIndex, 0), playQueue.length - 1);
+                            } else {
+                                playQueue = info.episodes.map(ep => ep.Id);
+                                queuePosition = info.currentIndex >= 0 ? info.currentIndex : 0;
+                            }
                             targetId = playQueue[queuePosition];
-                            log('info', 'queue', `📋 Full season queue: ${playQueue.length} episodes, starting at ${queuePosition + 1} (${info.seriesName} S${info.seasonNumber})`);
+                            log('info', 'queue', `📋 Full season queue: ${playQueue.length} episodes, starting at ${queuePosition + 1} (${info.seriesName} S${info.seasonNumber})${isPermutation ? ' [requested order kept]' : ''}`);
                         } else if (info && info.isSeries && info.seasonNumber === 0) {
                             // First episode is from Specials — find next unwatched episode
                             const nextUpId = await queryNextUp(info.seriesId);
