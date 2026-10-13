@@ -1,19 +1,24 @@
 @echo off
-setlocal
+setlocal EnableDelayedExpansion
 
 set "SCRIPT_DIR=%~dp0"
 if "%SCRIPT_DIR:~-1%"=="\" set "SCRIPT_DIR=%SCRIPT_DIR:~0,-1%"
 set "CONFIG_FILE=%SCRIPT_DIR%\config.js"
 set "EXAMPLE_CONFIG=%SCRIPT_DIR%\config.example.js"
 
-:: Accept config file as first argument (e.g., launch.bat config.work.js)
-if not "%~1"=="" if not "%~1:~0,2%"=="--" (
-    if "%~1"=="%~dp1" (
-        set "CONFIG_FILE=%~1"
-    ) else (
-        set "CONFIG_FILE=%SCRIPT_DIR%\%~1"
+:: Accept config file as first argument (e.g., launch.bat config.work.js).
+:: A leading -- marks a launcher flag, not a config file. (Substring checks do
+:: not work on %~1 directly, hence the ARG1 copy + delayed expansion.)
+if not "%~1"=="" (
+    set "ARG1=%~1"
+    if not "!ARG1:~0,2!"=="--" (
+        if exist "%SCRIPT_DIR%\%~1" (
+            set "CONFIG_FILE=%SCRIPT_DIR%\%~1"
+        ) else (
+            set "CONFIG_FILE=%~1"
+        )
+        shift
     )
-    shift
 )
 
 if not exist "%CONFIG_FILE%" (
@@ -35,7 +40,6 @@ if not exist "%CONFIG_FILE%" (
     )
 )
 
-:: Resolve MPV path: prefer configured mpvPath, fall back to PATH
 set "NODE_BIN=%SCRIPT_DIR%\node\node.exe"
 if not exist "%NODE_BIN%" (
     echo ERROR: Bundled Node.js not found at "%NODE_BIN%" >&2
@@ -51,6 +55,7 @@ if not exist "%SCRIPT_DIR%\shim.js" (
     exit /b 1
 )
 
+:: Resolve MPV path: prefer configured mpvPath, fall back to PATH
 set "MPV_PATH="
 set "MPV_CONFIG="
 for /f "usebackq delims=" %%P in (`"%NODE_BIN%" -e "try { const c=require(process.argv[1]); process.stdout.write(c.mpvPath||''); } catch(e) { process.exit(2) }" "%CONFIG_FILE%" 2^>nul`) do set "MPV_CONFIG=%%P"
@@ -85,17 +90,22 @@ if not exist "%MPV_PATH%" (
 
 set "JELLYFIN_MPV_PATH=%MPV_PATH%"
 
-:: Check for headless mode
+:: Headless if: --headless flag as first arg, or headless:true in config.
+:: Read config with node (like launch.sh) so commented-out options can't match
+:: a findstr pattern.
 set "IS_HEADLESS=false"
 if "%~1"=="--headless" set "IS_HEADLESS=true"
 if "%IS_HEADLESS%"=="false" (
-    findstr /i /r "headless[^/]*true" "%CONFIG_FILE%" | findstr /i /v "^//" >nul 2>nul
+    "%NODE_BIN%" -e "const c=require(process.argv[1]); process.exit(c.headless?0:1);" "%CONFIG_FILE%" >nul 2>nul
     if not errorlevel 1 set "IS_HEADLESS=true"
 )
 
 if "%IS_HEADLESS%"=="true" (
     for %%i in ("%CONFIG_FILE%") do set "CONFIG_BASE=%%~ni"
-    echo Running headless. Logs: %SCRIPT_DIR%\data\shim-%CONFIG_BASE%*.log
+    echo Running headless. Logs: %SCRIPT_DIR%\data\shim-!CONFIG_BASE!*.log
+    :: %* still contains the original arguments (shift does not affect it) -
+    :: shim.js uses the first non-flag argument as the config, which is the
+    :: explicit one passed first below, so the duplicate is harmless.
     start "" /B "%NODE_BIN%" "%SCRIPT_DIR%\shim.js" "%CONFIG_FILE%" %*
     exit /b 0
 )
