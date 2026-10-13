@@ -6,6 +6,13 @@ const net = require('net');
 const fs = require('fs');
 const path = require('path');
 
+// A child process must tolerate its output pipes being closed (parent exiting,
+// macapp restarting the shim, pkill, ...). Writes to a dead stdout/stderr raise
+// EPIPE — without these handlers every log line became an uncaughtException.
+const isBrokenPipe = (err) => err && (err.code === 'EPIPE' || err.code === 'ERR_STREAM_DESTROYED');
+process.stdout.on('error', (err) => { if (!isBrokenPipe(err)) console.error('stdout error:', err.message); });
+process.stderr.on('error', (err) => { /* stderr is dead too — nothing to log to */ });
+
 // Which config to load. Lets you run one instance per Jellyfin account:
 //   node shim.js config.work.js
 //   node shim.js config.work.js --allow-duplicates
@@ -150,6 +157,27 @@ function mpvTrackIdToJellyfinIndex(mpvId, type) {
     return undefined;
 }
 
+// Extract the Jellyfin item id from an mpv playlist entry (stream URLs contain
+// /Videos/<itemId>/stream). Returns null when the entry does not look like one.
+function itemIdFromPlaylistEntry(entry) {
+    const m = /\/Videos\/([a-f0-9]+)\//i.exec(String(entry || ''));
+    return m ? m[1] : null;
+}
+
+// Rebuild playQueue from the mpv playlist so both lists agree on order after a
+// shuffle/reorder that the shim did not initiate itself.
+async function resyncQueueFromPlaylist() {
+    const count = await queryProperty('playlist-count');
+    if (typeof count !== 'number' || count <= 0) return;
+    const ids = [];
+    for (let i = 0; i < count; i++) {
+        const id = itemIdFromPlaylistEntry(await queryProperty(`playlist/${i}/filename`));
+        if (!id) return; // unknown entry — keep the existing queue
+        ids.push(id);
+    }
+    playQueue = ids;
+}
+
 const TOKEN_FILE = path.join(__dirname, 'data', `jellyfin_token_${CONFIG.deviceId}.json`);
 const POSITIONS_FILE = path.join(__dirname, 'data', `playback_positions_${CONFIG.deviceId}.json`);
 
@@ -185,6 +213,7 @@ let pendingSubtitleStreamIndex = undefined;
 let isSettingSubtitleFromJellyfin = false;
 let subtitleFlagTimeout = null;
 let currentSubtitleTrack = undefined;
+let currentAudioTrack = undefined;
 let mpvTrackList = [];
 let playbackGeneration = 0;
 let isMpvPaused = false;
@@ -848,6 +877,8 @@ async function handleMessage(msg) {
             // the current playlist (verified on mpv 0.41).
             if (order === 'Shuffle') sendMpvCommand('playlist-shuffle');
             else sendMpvCommand('playlist-unshuffle');
+            // playlist order just changed — keep playQueue in sync with it
+            resyncQueueFromPlaylist();
         } else if (command === 'DisplayMessage') {
             const header = args.Header || '';
             const text = args.Text || '';
@@ -948,6 +979,7 @@ async function handleMessage(msg) {
             case 'SetPlaylistOrder':
                 if (data.PlaybackOrder === 'Shuffle') sendMpvCommand('playlist-shuffle');
                 else sendMpvCommand('playlist-unshuffle');
+                resyncQueueFromPlaylist();
                 break;
             case 'SetRepeatMode':
                 if (data.RepeatMode === 'RepeatAll') sendMpvCommand('set_property', ['loop-playlist', 'inf']);
@@ -957,6 +989,7 @@ async function handleMessage(msg) {
             case 'SetShuffleMode':
                 if (data.ShuffleMode) sendMpvCommand('playlist-shuffle');
                 else sendMpvCommand('playlist-unshuffle');
+                resyncQueueFromPlaylist();
                 break;
             default:
                 log('info', 'syncplay', `Unknown SyncPlay command: ${command}`);
@@ -1512,12 +1545,17 @@ async function playMedia(itemId, startTicks) {
                 const positionTicks = Math.round(currentPositionSeconds * 10000000);
                 savePlaybackPosition(currentItemId, positionTicks);
             }
-            if (currentItemId && !isReportingStop) {
+            // Mark watched independently of the stop-report guard: the Stop command
+            // reports the stop first (isReportingStop=true) and then kills mpv —
+            // tying these together meant stopping near the end never marked watched.
+            if (currentItemId && !isUnwatchedQuit) {
                 const runtime = currentEpisodeInfo?.itemRuntime || 0;
                 const completionThreshold = 0.9;
-                if (!isUnwatchedQuit && runtime > 0 && currentPositionSeconds >= runtime * completionThreshold) {
+                if (runtime > 0 && currentPositionSeconds >= runtime * completionThreshold) {
                     markItemAsWatched(currentItemId);
                 }
+            }
+            if (currentItemId && !isReportingStop) {
                 reportPlaybackStop(currentItemId, Math.round(currentPositionSeconds * 10000000));
             }
             isUnwatchedQuit = false;
@@ -1531,6 +1569,7 @@ async function playMedia(itemId, startTicks) {
             isSettingSubtitleFromJellyfin = false;
             if (subtitleFlagTimeout) { clearTimeout(subtitleFlagTimeout); subtitleFlagTimeout = null; }
             currentSubtitleTrack = undefined;
+            currentAudioTrack = undefined;
             mpvTrackList = [];
             currentEpisodeInfo = null;
             isReportingStop = false;
@@ -1626,6 +1665,7 @@ function connectToMpvIpc(gen) {
             sendMpvCommand('observe_property', [6, 'seeking']);
             sendMpvCommand('observe_property', [7, 'playlist-pos']);
             sendMpvCommand('observe_property', [8, 'eof-reached']);
+            sendMpvCommand('observe_property', [9, 'aid']);
             
             sendMpvCommand('keybind', ['>', 'script-message jellyfin-next']);
             sendMpvCommand('keybind', ['<', 'script-message jellyfin-prev']);
@@ -1922,6 +1962,11 @@ function handleMpvEvent(event) {
         return;
     }
 
+    if (event.event === 'property-change' && event.name === 'aid') {
+        currentAudioTrack = event.data;
+        return;
+    }
+
     if (event.event === 'property-change' && event.name === 'sid') {
         currentSubtitleTrack = event.data;
         if (isSettingSubtitleFromJellyfin) {
@@ -1947,44 +1992,59 @@ function handleMpvEvent(event) {
         // Skip during new queue loads — file-loaded handler takes care of it
         if (isNewQueueLoad) return;
         if (playQueue.length > 0 && newPos >= 0 && newPos < playQueue.length && newPos !== queuePosition) {
-            const prevItemId = currentItemId;
-            const prevPos = currentPositionSeconds;
-            const prevRuntime = currentEpisodeInfo?.itemRuntime || 0;
-
-            if (prevItemId && prevItemId !== playQueue[newPos]) {
-                if (prevRuntime > 0 && prevPos >= prevRuntime * 0.9) {
-                    markItemAsWatched(prevItemId);
+            // Resolve the playing item from the PLAYLIST ENTRY, not playQueue[newPos]:
+            // playlist reorders (SetShuffleQueue, playlist-shuffle) shift indexes
+            // without changing the playing file, and the two lists may even be in
+            // different orders. Treating an index shift as navigation caused bogus
+            // "next episode" transitions and could clear the queue via NextUp.
+            queryProperty(`playlist/${newPos}/filename`).then(entry => {
+                const entryId = itemIdFromPlaylistEntry(entry) || playQueue[newPos];
+                if (entryId && currentItemId && entryId === currentItemId) {
+                    log('info', 'queue', `📋 Playlist reordered: queuePosition=${newPos} (same item)`);
+                    queuePosition = newPos;
+                    resyncQueueFromPlaylist();
+                    return;
                 }
-                reportPlaybackStop(prevItemId, Math.round(prevPos * 10000000));
-            }
-            stopProgressPoll();
 
-            queuePosition = newPos;
-            currentItemId = playQueue[newPos];
-            currentPositionSeconds = 0;
+                const prevItemId = currentItemId;
+                const prevPos = currentPositionSeconds;
+                const prevRuntime = currentEpisodeInfo?.itemRuntime || 0;
 
-            log('info', 'queue', `📋 Playlist changed: queuePosition=${queuePosition}, itemId=${currentItemId}`);
+                if (prevItemId && prevItemId !== entryId) {
+                    if (prevRuntime > 0 && prevPos >= prevRuntime * 0.9) {
+                        markItemAsWatched(prevItemId);
+                    }
+                    reportPlaybackStop(prevItemId, Math.round(prevPos * 10000000));
+                }
+                stopProgressPoll();
 
-            getEpisodeInfo(currentItemId).then(info => {
-                if (!info) log('warn', 'episode', `⚠️ Could not load item info for ${currentItemId} — continuing with generic title`);
-                currentEpisodeInfo = info;
-                const titleText = info && info.isSeries
-                    ? [info.seriesName, `${info.seasonNumber}x${info.episodeNumber}`, info.title].filter(Boolean).join(' - ')
-                    : ((info && info.title) || String(currentItemId));
-                log('info', 'queue', `▶️ Starting next episode: ${titleText}`);
-                sendMpvCommand('set_property', ['force-media-title', `Jellyfin - ${titleText}`]);
-                sendMpvCommand('set_property', ['title', `Jellyfin - ${titleText}`]);
-                playSessionId = crypto.randomUUID();
-                reportPlaybackStart(currentItemId, 0);
-                startProgressReporting(currentItemId);
+                queuePosition = newPos;
+                currentItemId = entryId;
+                currentPositionSeconds = 0;
+
+                log('info', 'queue', `📋 Playlist changed: queuePosition=${queuePosition}, itemId=${currentItemId}`);
+
+                getEpisodeInfo(currentItemId).then(info => {
+                    if (!info) log('warn', 'episode', `⚠️ Could not load item info for ${currentItemId} — continuing with generic title`);
+                    currentEpisodeInfo = info;
+                    const titleText = info && info.isSeries
+                        ? [info.seriesName, `${info.seasonNumber}x${info.episodeNumber}`, info.title].filter(Boolean).join(' - ')
+                        : ((info && info.title) || String(currentItemId));
+                    log('info', 'queue', `▶️ Starting next episode: ${titleText}`);
+                    sendMpvCommand('set_property', ['force-media-title', `Jellyfin - ${titleText}`]);
+                    sendMpvCommand('set_property', ['title', `Jellyfin - ${titleText}`]);
+                    playSessionId = crypto.randomUUID();
+                    reportPlaybackStart(currentItemId, 0);
+                    startProgressReporting(currentItemId);
                     getIntroSegments(currentItemId).catch(err => {
                         log('error', 'segments', '⚠️ Error getting intro segments:', err.message);
                     });
-                startProgressPoll();
-                pushOscState();
-            }).catch(err => {
-                log('error', 'episode', '⚠️ Error getting episode info:', err.message);
-                startProgressPoll();
+                    startProgressPoll();
+                    pushOscState();
+                }).catch(err => {
+                    log('error', 'episode', '⚠️ Error getting episode info:', err.message);
+                    startProgressPoll();
+                });
             });
         }
         return;
@@ -2367,7 +2427,13 @@ function reportPlaybackProgress(itemId, positionTicks) {
         PlaySessionId: playSessionId,
         CanSeek: true,
         RepeatMode: 'RepeatNone',
-        PlaybackOrder: 'Default'
+        PlaybackOrder: 'Default',
+        AudioStreamIndex: typeof currentAudioTrack === 'number'
+            ? mpvTrackIdToJellyfinIndex(currentAudioTrack, 'Audio')
+            : (currentAudioTrack === false ? -1 : undefined),
+        SubtitleStreamIndex: typeof currentSubtitleTrack === 'number'
+            ? mpvTrackIdToJellyfinIndex(currentSubtitleTrack, 'Subtitle')
+            : (currentSubtitleTrack === false || currentSubtitleTrack === 'no' ? -1 : undefined)
     };
 
     axios.post(`${CONFIG.serverUrl}/Sessions/Playing/Progress`, data, { headers, timeout: 10000 })
@@ -2766,18 +2832,29 @@ function shutdown(signal) {
 process.on('SIGINT', () => shutdown('SIGINT'));
 process.on('SIGTERM', () => shutdown('SIGTERM'));
 process.on('uncaughtException', (err) => {
+    if (isBrokenPipe(err)) {
+        // Output pipe closed — not a crash and definitely not dialog-worthy.
+        // (Each further log line would otherwise throw again: dialog storm.)
+        shutdown('output-pipe-closed');
+        return;
+    }
     log('error', 'main', '❌ Uncaught exception:', err);
     writeCrashLog('uncaughtException', err);
     showHeadlessErrorDialog('Uncaught Exception', `An unexpected error occurred:\n\n${err.message || err}`);
     shutdown('uncaughtException');
 });
 process.on('unhandledRejection', (reason) => {
+    if (isBrokenPipe(reason)) {
+        shutdown('output-pipe-closed');
+        return;
+    }
     log('error', 'main', '❌ Unhandled rejection:', reason);
     writeCrashLog('unhandledRejection', reason);
     showHeadlessErrorDialog('Unhandled Rejection', `An unexpected error occurred:\n\n${reason?.message || reason}`);
     shutdown('unhandledRejection');
 });
 
+let lastCrashDialogAt = 0;
 function writeCrashLog(type, error) {
     try {
         const dataDir = path.join(__dirname, 'data');
@@ -2789,7 +2866,11 @@ function writeCrashLog(type, error) {
         fs.appendFileSync(crashFile, logEntry);
         console.error(`Crash log written to: ${crashFile}`);
 
-        // Show a dialog for the crash
+        // Rate-limit the dialog: a repeating failure must not spawn hundreds of
+        // windows (observed with EPIPE dialog storms).
+        const now = Date.now();
+        if (now - lastCrashDialogAt < 30000) return;
+        lastCrashDialogAt = now;
         const dialogMessage = `Jellyfin MPV Play crashed: ${type}\n\n${message.substring(0, 500)}`;
         showErrorDialog('Jellyfin MPV Play - Crash', dialogMessage);
     } catch (e) {
