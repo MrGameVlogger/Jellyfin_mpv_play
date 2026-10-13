@@ -278,6 +278,20 @@ async function discoverItems() {
         }
     }
     check(items.episode, 'no NextUp episode with a multi-episode season found');
+
+    // a series whose episode list mixes specials and regular episodes — used to
+    // pin the "series play starts past specials, explicit special plays itself" rule
+    const allSeries = await get(`/Users/${authHeaders.userId}/Items`, { IncludeItemTypes: 'Series', Limit: 50 });
+    for (const s of allSeries.data.Items || []) {
+        const eps = await get(`/Shows/${s.Id}/Episodes`, { userId: authHeaders.userId, fields: 'ParentIndexNumber,UserData' });
+        const list = eps.data.Items || [];
+        const specials = list.filter(e => e.ParentIndexNumber === 0);
+        const regulars = list.filter(e => e.ParentIndexNumber > 0);
+        if (specials.length > 0 && regulars.length > 0) {
+            items.seriesWithSpecials = { id: s.Id, name: s.Name, specialId: specials[0].Id, regularIds: regulars.map(e => e.Id) };
+            break;
+        }
+    }
     return items;
 }
 
@@ -618,6 +632,26 @@ t(22, 'SyncPlay: create, leave, and join groups through the OSC wire path', asyn
     await mpvCmd('script-message', 'shim-jf-osc-action', 'syncplay-join', String(group.GroupId));
     await waitForSince(m, /Joined SyncPlay group/, 12000);
 });
+t(25, 'specials rule: series play starts past specials, explicit special plays itself', async ({ items }) => {
+    const fx = items.seriesWithSpecials;
+    if (!fx) { current.details.push('no series with specials in library - skipped'); return; }
+    // series-level play: the server expands a series id by SortName ("0x1 ..." first),
+    // so a special leads the list — playback must still start at a regular episode
+    // (season 1 for a new series), matching jellyfin-web's client-side resolution.
+    let m = markLog();
+    await playItem(fx.id);
+    await waitForSince(m, /Queue set: .*starting past specials/, 20000);
+    await connectIpcWhenReady();
+    await waitForMpvPath();
+    const started = itemIdOf(await mpvGet('path'));
+    check(fx.regularIds.includes(started), `series play must start at a regular episode (got ${started})`);
+    // explicit special selection: the special itself must play
+    m = markLog();
+    await playItem(fx.specialId);
+    await waitForSince(m, /Full season queue: /, 20000);
+    await waitForMpvPath(fx.specialId);
+});
+
 t(23, 'security: token never appears in shim logs', async () => {
     const r = await api.post('/Users/AuthenticateByName', { Username: cfg.username, Pw: cfg.password }, {
         headers: { 'Content-Type': 'application/json', Authorization: `MediaBrowser Client="x", Device="x", DeviceId="tokcheck", Version="1.0"` }
