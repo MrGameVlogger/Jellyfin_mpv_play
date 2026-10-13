@@ -189,7 +189,7 @@ class PreferencesWindowController: NSWindowController {
 
         ipcSocketPathField = NSTextField()
         ipcSocketPathField.frame = NSRect(x: 130, y: yOffset, width: 410, height: 24)
-        ipcSocketPathField.placeholderString = "/tmp/mpv-ipc.sock"
+        ipcSocketPathField.placeholderString = ConfigParser.defaultIpcSocketPath()
         contentView.addSubview(ipcSocketPathField)
         yOffset -= 36
 
@@ -287,7 +287,7 @@ class PreferencesWindowController: NSWindowController {
     }
 
     private func selectedConfigFileName() -> String {
-        return UserDefaults.standard.string(forKey: "selectedConfigFile") ?? "config.js"
+        return ConfigParser.selectedConfigFileName()
     }
 
     @objc private func configFileChanged() {
@@ -328,19 +328,18 @@ class PreferencesWindowController: NSWindowController {
         passwordField.stringValue = ConfigParser.extractValue(from: content, key: "password")
 
         var mpvPath = ConfigParser.extractValue(from: content, key: "mpvPath")
-        if mpvPath.isEmpty { mpvPath = "/opt/homebrew/bin/mpv" }
+        if mpvPath.isEmpty { mpvPath = ConfigParser.defaultMpvPath() }
         mpvPathField.stringValue = mpvPath
 
         var deviceName = ConfigParser.extractValue(from: content, key: "deviceName")
-        if deviceName.isEmpty { deviceName = "Mac" }
+        if deviceName.isEmpty { deviceName = "Jellyfin MPV Play" }
         deviceNameField.stringValue = deviceName
 
-        var deviceId = ConfigParser.extractValue(from: content, key: "deviceId")
-        if deviceId.isEmpty { deviceId = "mac-mpv" }
-        deviceIdField.stringValue = deviceId
+        // Empty deviceId is valid: shim.js then generates a unique per-config id.
+        deviceIdField.stringValue = ConfigParser.extractValue(from: content, key: "deviceId")
 
         var ipcPath = ConfigParser.extractValue(from: content, key: "ipcSocketPath")
-        if ipcPath.isEmpty { ipcPath = "/tmp/mpv-ipc.sock" }
+        if ipcPath.isEmpty { ipcPath = ConfigParser.defaultIpcSocketPath() }
         ipcSocketPathField.stringValue = ipcPath
 
         mpvFlagsField.stringValue = ConfigParser.extractValue(from: content, key: "mpvFlags")
@@ -406,8 +405,10 @@ class PreferencesWindowController: NSWindowController {
             return
         }
 
+        let managedKeys = ["serverUrl", "username", "password", "mpvPath", "deviceName", "deviceId",
+                           "ipcSocketPath", "mpvFlags", "fullscreen", "autoClose", "headless",
+                           "autoSkipIntros", "disableSkipIntro", "verbose"]
         var lines: [String] = [
-            "module.exports = {",
             "    serverUrl: '\(ConfigParser.escapeConfigValue(serverUrlField.stringValue))',",
             "    username: '\(ConfigParser.escapeConfigValue(usernameField.stringValue))',",
             "    password: '\(ConfigParser.escapeConfigValue(passwordField.stringValue))',",
@@ -425,7 +426,7 @@ class PreferencesWindowController: NSWindowController {
             // Parse comma or space-separated flags into a JS array
             let flags = mpvFlags.components(separatedBy: CharacterSet(charactersIn: ", "))
                 .filter { !$0.isEmpty }
-                .map { "'\($0)'" }
+                .map { "'\(ConfigParser.escapeConfigValue($0))'" }
                 .joined(separator: ", ")
             lines.append("    mpvFlags: [\(flags)],")
         }
@@ -436,10 +437,14 @@ class PreferencesWindowController: NSWindowController {
         lines.append("    autoSkipIntros: \(autoSkipIntrosCheckbox.state == .on ? "true" : "false"),")
         lines.append("    disableSkipIntro: \(disableSkipIntroCheckbox.state == .on ? "true" : "false"),")
         lines.append("    verbose: \(verboseCheckbox.state == .on ? "true" : "false"),")
-        lines.append("};")
 
-        let config = lines.joined(separator: "\n")
-        let configPath = ConfigParser.configPath(fileName: selectedConfigFileName())
+        // The panel owns all 14 keys. Everything else in the file (comments,
+        // user-added keys) is preserved verbatim; a managed key whose field is
+        // empty is omitted (e.g. clearing MPV Flags removes the option).
+        let configFileName = selectedConfigFileName()
+        let existing = try? String(contentsOfFile: ConfigParser.configPath(fileName: configFileName), encoding: .utf8)
+        let config = ConfigParser.buildConfig(managedKeys: managedKeys, managedLines: lines, preservingFrom: existing)
+        let configPath = ConfigParser.configPath(fileName: configFileName)
         do {
             try config.write(toFile: configPath, atomically: true, encoding: .utf8)
             onSave?()
