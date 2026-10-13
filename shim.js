@@ -508,12 +508,19 @@ function scheduleReconnect() {
 }
 
 function reportCapabilities() {
+    // Only fields that exist on Jellyfin's ClientCapabilitiesDto
+    // (MediaBrowser.Model/Dto/ClientCapabilitiesDto.cs). Extra fields such as
+    // SupportsSync / SupportsContentUploading / SupportsRemoteControl do not exist
+    // on Jellyfin's model and are silently discarded on deserialization.
+    // SupportedCommands values must be exact GeneralCommandType enum names —
+    // any other name makes the server reject the whole request with 400.
     const payload = {
         PlayableMediaTypes: ["Audio", "Video"],
         SupportedCommands: [
             "Play",
             "PlayState",
             "PlayNext",
+            "SetShuffleQueue",
             "SetAudioStreamIndex",
             "SetSubtitleStreamIndex",
             "SetRepeatMode",
@@ -528,10 +535,7 @@ function reportCapabilities() {
             "ToggleFullscreen"
         ],
         SupportsMediaControl: true,
-        SupportsPersistentIdentifier: true,
-        SupportsSync: false,
-        SupportsContentUploading: false,
-        SupportsRemoteControl: true
+        SupportsPersistentIdentifier: true
     };
 
     axios.post(`${CONFIG.serverUrl}/Sessions/Capabilities/Full`, payload, { 
@@ -810,8 +814,11 @@ async function handleMessage(msg) {
             else { sendMpvCommand('set_property', ['loop-playlist', 'no']); sendMpvCommand('set_property', ['loop-file', 'no']); }
         } else if (command === 'SetPlaybackOrder') {
             const order = args.PlaybackOrder;
-            if (order === 'Shuffle') sendMpvCommand('set_property', ['shuffle', true]);
-            else sendMpvCommand('set_property', ['shuffle', false]);
+            // mpv has no runtime "shuffle" property — --shuffle only shuffles at load
+            // time. playlist-shuffle / playlist-unshuffle are the commands that reorder
+            // the current playlist (verified on mpv 0.41).
+            if (order === 'Shuffle') sendMpvCommand('playlist-shuffle');
+            else sendMpvCommand('playlist-unshuffle');
         } else if (command === 'DisplayMessage') {
             const header = args.Header || '';
             const text = args.Text || '';
@@ -854,6 +861,8 @@ async function handleMessage(msg) {
         } else if (command === 'ToggleFullscreen') {
             sendMpvCommand('cycle', ['fullscreen']);
         } else if (command === 'SkipIntro') {
+            // Not a Jellyfin GeneralCommandType (verified against Jellyfin 12.2) —
+            // kept for forward compatibility. The S key and jf-mpv-osc paths work.
             skipIntro();
         } else if (command === 'SetShuffleQueue') {
             // Shuffle the current queue and rebuild MPV playlist
@@ -908,8 +917,8 @@ async function handleMessage(msg) {
                 }
                 break;
             case 'SetPlaylistOrder':
-                if (data.PlaybackOrder === 'Shuffle') sendMpvCommand('set_property', ['shuffle', true]);
-                else sendMpvCommand('set_property', ['shuffle', false]);
+                if (data.PlaybackOrder === 'Shuffle') sendMpvCommand('playlist-shuffle');
+                else sendMpvCommand('playlist-unshuffle');
                 break;
             case 'SetRepeatMode':
                 if (data.RepeatMode === 'RepeatAll') sendMpvCommand('set_property', ['loop-playlist', 'inf']);
@@ -917,7 +926,8 @@ async function handleMessage(msg) {
                 else { sendMpvCommand('set_property', ['loop-playlist', 'no']); sendMpvCommand('set_property', ['loop-file', 'no']); }
                 break;
             case 'SetShuffleMode':
-                sendMpvCommand('set_property', ['shuffle', data.ShuffleMode || false]);
+                if (data.ShuffleMode) sendMpvCommand('playlist-shuffle');
+                else sendMpvCommand('playlist-unshuffle');
                 break;
             default:
                 log('info', 'syncplay', `Unknown SyncPlay command: ${command}`);
