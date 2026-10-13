@@ -117,21 +117,19 @@ test('package.json version matches Info.plist version', () => {
 test('SupportedCommands uses exact Jellyfin enum names', () => {
   const shim = fs.readFileSync('shim.js', 'utf8');
 
-  // These must match Jellyfin's GeneralCommandType enum exactly
-  const supportedCommands = [
-    'SetAudioStreamIndex',
-    'SetSubtitleStreamIndex',
-    'SetVolume',
-    'VolumeUp',
-    'VolumeDown',
-    'Mute',
-    'Unmute',
-    'ToggleMute',
-    'SetRepeatMode',
-    'SetPlaybackOrder',
-    'DisplayMessage',
-    'PlayNext',
-    'ToggleFullscreen'
+  // Complete GeneralCommandType enum from Jellyfin 12.2 (/api-docs/openapi.json).
+  // Any other name makes POST /Sessions/Capabilities/Full fail with 400 and the
+  // server then never sends us commands.
+  const jellyfinGeneralCommandTypes = [
+    'MoveUp', 'MoveDown', 'MoveLeft', 'MoveRight', 'PageUp', 'PageDown',
+    'PreviousLetter', 'NextLetter', 'ToggleOsd', 'ToggleContextMenu', 'Select',
+    'Back', 'TakeScreenshot', 'SendKey', 'SendString', 'GoHome', 'GoToSettings',
+    'VolumeUp', 'VolumeDown', 'Mute', 'Unmute', 'ToggleMute', 'SetVolume',
+    'SetAudioStreamIndex', 'SetSubtitleStreamIndex', 'ToggleFullscreen',
+    'DisplayContent', 'GoToSearch', 'DisplayMessage', 'SetRepeatMode',
+    'ChannelUp', 'ChannelDown', 'Guide', 'ToggleStats', 'PlayMediaSource',
+    'PlayTrailers', 'SetShuffleQueue', 'PlayState', 'PlayNext', 'ToggleOsdMenu',
+    'Play', 'SetMaxStreamingBitrate', 'SetPlaybackOrder'
   ];
 
   // Find the SupportedCommands block (may span multiple lines)
@@ -140,9 +138,22 @@ test('SupportedCommands uses exact Jellyfin enum names', () => {
   const endIdx = shim.indexOf(']', startIdx);
   const block = shim.substring(startIdx, endIdx);
 
-  for (const cmd of supportedCommands) {
+  const advertised = [...block.matchAll(/['"]([A-Za-z]+)['"]/g)].map(m => m[1]);
+  assert(advertised.length > 0, 'no SupportedCommands parsed');
+
+  for (const cmd of advertised) {
     assert(
-      block.includes(`'${cmd}'`) || block.includes(`"${cmd}"`),
+      jellyfinGeneralCommandTypes.includes(cmd),
+      `SupportedCommands contains "${cmd}" which is not a Jellyfin GeneralCommandType — the server will reject the capabilities request with 400`
+    );
+  }
+
+  // Commands the shim implements — must be advertised or the server never sends them
+  for (const cmd of ['Play', 'PlayState', 'PlayNext', 'SetShuffleQueue', 'SetAudioStreamIndex',
+    'SetSubtitleStreamIndex', 'SetRepeatMode', 'SetPlaybackOrder', 'Mute', 'Unmute',
+    'ToggleMute', 'VolumeUp', 'VolumeDown', 'SetVolume', 'DisplayMessage', 'ToggleFullscreen']) {
+    assert(
+      advertised.includes(cmd),
       `SupportedCommands missing: "${cmd}"`
     );
   }
