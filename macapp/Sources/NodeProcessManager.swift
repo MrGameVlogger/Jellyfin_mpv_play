@@ -347,7 +347,12 @@ class NodeProcessManager {
         isStoppingPlayback = true
         resetPlaybackState()
         sendMpvCommand("{\"command\": [\"quit\"]}")
-        DispatchQueue.main.asyncAfter(deadline: .now() + 3) { [weak self] in
+        // isStoppingPlayback is cleared by the "MPV closed" / "No more episodes"
+        // log branches and by process termination. This timer is only a fallback:
+        // mpv's graceful shutdown routinely exceeds 3s on network streams, and
+        // clearing the gate early let stale log lines resurrect a phantom
+        // "playing" state after the user pressed Stop.
+        DispatchQueue.main.asyncAfter(deadline: .now() + 15) { [weak self] in
             self?.isStoppingPlayback = false
         }
     }
@@ -401,6 +406,7 @@ class NodeProcessManager {
                 statusHandler(.playing)
             }
         } else if line.contains("Starting next episode") || line.contains("Starting previous episode") || line.contains("Starting episode: ") {
+            if isStoppingPlayback { return }
             if let title = extractTitleFromNextEpisode(line) {
                 nowPlaying = title
                 nowPlayingHandler?(title)
