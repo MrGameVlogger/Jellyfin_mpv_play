@@ -35,7 +35,7 @@ This compiles the Swift sources, bundles Node.js 22 LTS, and deploys to `/Applic
 
 ```
 Jellyfin_mpv_play/
-├── shim.js                  # Main Node.js application (~2300 lines)
+├── shim.js                  # Main Node.js application (the entire shim)
 ├── config.example.js        # Configuration template
 ├── package.json
 ├── macapp/
@@ -123,7 +123,7 @@ The native macOS menubar app (`macapp/`) spawns the Node.js shim and parses its 
 | `ConfigParser.swift` | Shared utility: config path, regex extraction, value escaping, Jellyfin auth test |
 | `NodeProcessManager.swift` | Spawns `node shim.js`, captures stdout/stderr, parses log lines, sends MPV IPC commands |
 | `StatusBarController.swift` | Menu bar icon (dynamic SF Symbols), dropdown menu, dispatches all actions |
-| `PreferencesWindowController.swift` | Reads/writes config.js, "Test Connection" button, restarts shim on save |
+| `PreferencesWindowController.swift` | Reads/writes config.js, "Test Connection" button, restarts shim on save (window title: Settings) |
 | `SetupWindowController.swift` | 5-step wizard on first launch: server, credentials, MPV path, device info |
 | `NotificationManager.swift` | UNUserNotificationCenter wrapper for connection/error banners |
 | `LogWindowController.swift` | Timestamped, color-coded log viewer with auto-scroll, export, copy |
