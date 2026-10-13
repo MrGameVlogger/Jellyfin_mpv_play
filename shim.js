@@ -111,6 +111,44 @@ function redact(value) {
         .replace(/(X-Emby-Token[":=\s]+)[^",\s]+/gi, '$1***');
 }
 
+// Jellyfin stream indices (MediaStream.Index) are global container stream indices —
+// the same numbering as mpv's track-list "ff-index". mpv's aid/sid properties however
+// take per-type track IDs (1-based within video/audio/sub). Passing a Jellyfin index
+// straight to aid/sid selects the wrong track or nothing at all (sid becomes false).
+// These two helpers translate between the two ID spaces. They prefer mpv's own
+// track-list (authoritative, populated on file-loaded) and fall back to the ordering
+// of Jellyfin's MediaStreams (mpv IDs are 1-based ordinals within each type) for the
+// window before the file has finished loading.
+const MPV_TYPE_OF = { Audio: 'audio', Subtitle: 'sub', Video: 'video' };
+
+function jellyfinStreamIndexToMpvId(streamIndex, type) {
+    if (typeof streamIndex !== 'number') return streamIndex;
+    const mpvType = MPV_TYPE_OF[type] || type;
+    const byList = mpvTrackList.find(t => t.type === mpvType && t['ff-index'] === streamIndex);
+    if (byList) return byList.id;
+    const streams = currentEpisodeInfo && currentEpisodeInfo.mediaStreams;
+    if (Array.isArray(streams)) {
+        const sameType = streams.filter(s => s.Type === type);
+        const ordinal = sameType.findIndex(s => s.Index === streamIndex);
+        if (ordinal >= 0) return ordinal + 1;
+    }
+    log('warn', 'mpv', `⚠️ Cannot map Jellyfin stream index ${streamIndex} (${type}) to an mpv track — passing value through`);
+    return streamIndex;
+}
+
+function mpvTrackIdToJellyfinIndex(mpvId, type) {
+    if (typeof mpvId !== 'number') return undefined;
+    const mpvType = MPV_TYPE_OF[type] || type;
+    const byList = mpvTrackList.find(t => t.type === mpvType && t.id === mpvId);
+    if (byList && typeof byList['ff-index'] === 'number') return byList['ff-index'];
+    const streams = currentEpisodeInfo && currentEpisodeInfo.mediaStreams;
+    if (Array.isArray(streams)) {
+        const sameType = streams.filter(s => s.Type === type);
+        if (mpvId >= 1 && mpvId <= sameType.length) return sameType[mpvId - 1].Index;
+    }
+    return undefined;
+}
+
 const TOKEN_FILE = path.join(__dirname, 'data', `jellyfin_token_${CONFIG.deviceId}.json`);
 const POSITIONS_FILE = path.join(__dirname, 'data', `playback_positions_${CONFIG.deviceId}.json`);
 
@@ -147,6 +185,7 @@ let pendingSubtitleStreamIndex = undefined;
 let isSettingSubtitleFromJellyfin = false;
 let subtitleFlagTimeout = null;
 let currentSubtitleTrack = undefined;
+let mpvTrackList = [];
 let playbackGeneration = 0;
 let isMpvPaused = false;
 let isMuted = false;
@@ -744,13 +783,13 @@ async function handleMessage(msg) {
         
         if (command === 'SetAudioStreamIndex') {
             const index = parseInt(args.Index, 10);
-            if (!isNaN(index)) sendMpvCommand('set_property', ['aid', index]);
+            if (!isNaN(index)) sendMpvCommand('set_property', ['aid', jellyfinStreamIndexToMpvId(index, 'Audio')]);
         } else if (command === 'SetSubtitleStreamIndex') {
             const index = parseInt(args.Index, 10);
             isSettingSubtitleFromJellyfin = true;
             if (subtitleFlagTimeout) clearTimeout(subtitleFlagTimeout);
             subtitleFlagTimeout = setTimeout(() => { isSettingSubtitleFromJellyfin = false; subtitleFlagTimeout = null; }, 5000);
-            sendMpvCommand('set_property', ['sid', isNaN(index) || index === -1 ? 'no' : index]);
+            sendMpvCommand('set_property', ['sid', isNaN(index) || index === -1 ? 'no' : jellyfinStreamIndexToMpvId(index, 'Subtitle')]);
         } else if (command === 'SetVolume') {
             const vol = parseInt(args.Volume, 10);
             if (!isNaN(vol)) sendMpvCommand('set_property', ['volume', vol]);
@@ -1273,13 +1312,13 @@ async function loadNewQueue(itemId, startTicks) {
     log('info', 'queue', `📋 Loaded ${playQueue.length} items into MPV playlist (playing index ${queuePosition}).`);
 
     if (savedAudioIndex !== undefined) {
-        sendMpvCommand('set_property', ['aid', savedAudioIndex]);
+        sendMpvCommand('set_property', ['aid', savedAudioIndex === -1 ? 'no' : jellyfinStreamIndexToMpvId(savedAudioIndex, 'Audio')]);
     }
     if (savedSubIndex !== undefined) {
         isSettingSubtitleFromJellyfin = true;
         if (subtitleFlagTimeout) clearTimeout(subtitleFlagTimeout);
         subtitleFlagTimeout = setTimeout(() => { isSettingSubtitleFromJellyfin = false; subtitleFlagTimeout = null; }, 5000);
-        sendMpvCommand('set_property', ['sid', savedSubIndex]);
+        sendMpvCommand('set_property', ['sid', savedSubIndex === 'no' || savedSubIndex === -1 ? 'no' : jellyfinStreamIndexToMpvId(savedSubIndex, 'Subtitle')]);
     }
 
     if (startTicks > 0) {
@@ -1449,6 +1488,7 @@ async function playMedia(itemId, startTicks) {
             isSettingSubtitleFromJellyfin = false;
             if (subtitleFlagTimeout) { clearTimeout(subtitleFlagTimeout); subtitleFlagTimeout = null; }
             currentSubtitleTrack = undefined;
+            mpvTrackList = [];
             currentEpisodeInfo = null;
             isReportingStop = false;
             isPlayingNext = false;
@@ -1518,14 +1558,14 @@ function connectToMpvIpc(gen) {
                     sendMpvCommand('playlist-play-index', [queuePosition]);
 
                     if (pendingAudioStreamIndex !== undefined) {
-                        sendMpvCommand('set_property', ['aid', pendingAudioStreamIndex]);
+                        sendMpvCommand('set_property', ['aid', pendingAudioStreamIndex === -1 ? 'no' : jellyfinStreamIndexToMpvId(pendingAudioStreamIndex, 'Audio')]);
                         pendingAudioStreamIndex = undefined;
                     }
                     if (pendingSubtitleStreamIndex !== undefined) {
                         isSettingSubtitleFromJellyfin = true;
                         if (subtitleFlagTimeout) clearTimeout(subtitleFlagTimeout);
                         subtitleFlagTimeout = setTimeout(() => { isSettingSubtitleFromJellyfin = false; subtitleFlagTimeout = null; }, 5000);
-                        sendMpvCommand('set_property', ['sid', pendingSubtitleStreamIndex]);
+                        sendMpvCommand('set_property', ['sid', pendingSubtitleStreamIndex === 'no' || pendingSubtitleStreamIndex === -1 ? 'no' : jellyfinStreamIndexToMpvId(pendingSubtitleStreamIndex, 'Subtitle')]);
                         pendingSubtitleStreamIndex = undefined;
                     }
                 }
@@ -1639,6 +1679,7 @@ function killMpv() {
     skippedSegmentIds = new Set();
     isInIntroSegment = false;
     nextUpShown = false;
+    mpvTrackList = [];
     if (skipIntroTimeout) { clearTimeout(skipIntroTimeout); skipIntroTimeout = null; }
     if (osdRestoreTimeout) { clearTimeout(osdRestoreTimeout); osdRestoreTimeout = null; }
     for (const [, q] of pendingQueries) { if (q.timer) clearTimeout(q.timer); q.resolve(null); }
@@ -1783,6 +1824,11 @@ function handleMpvEvent(event) {
         markedWatched.clear();
         skippedSegmentIds.clear();
         isInIntroSegment = false;
+
+        // Refresh the authoritative track map (ff-index <-> per-type mpv id)
+        queryProperty('track-list').then(tl => {
+            mpvTrackList = Array.isArray(tl) ? tl : [];
+        });
 
         if (pendingTitle) {
             sendMpvCommand('set_property', ['force-media-title', pendingTitle]);
@@ -2223,7 +2269,11 @@ function reportPlaybackStart(itemId, positionTicks) {
         RepeatMode: 'RepeatNone',
         PlaybackOrder: 'Default',
         AudioStreamIndex: pendingAudioStreamIndex,
-        SubtitleStreamIndex: pendingSubtitleStreamIndex !== undefined ? pendingSubtitleStreamIndex : (typeof currentSubtitleTrack === 'number' ? currentSubtitleTrack : undefined)
+        SubtitleStreamIndex: pendingSubtitleStreamIndex !== undefined
+            ? (pendingSubtitleStreamIndex === 'no' ? -1 : pendingSubtitleStreamIndex)
+            : (typeof currentSubtitleTrack === 'number'
+                ? mpvTrackIdToJellyfinIndex(currentSubtitleTrack, 'Subtitle')
+                : (currentSubtitleTrack === false || currentSubtitleTrack === 'no' ? -1 : undefined))
     };
 
     log('info', 'report', '📡 Reporting playback start...');
@@ -2328,13 +2378,14 @@ function handleOscAction(verb, arg) {
             break;
         case 'set-sub':
             if (arg !== undefined) {
-                const sid = arg === '-1' || arg === -1 ? 'no' : Number(arg);
+                // OSC track ids are Jellyfin stream indices (see pushOscState) — map to mpv sid
+                const sid = arg === '-1' || arg === -1 ? 'no' : jellyfinStreamIndexToMpvId(Number(arg), 'Subtitle');
                 sendMpvCommand('set_property', ['sid', sid]);
             }
             break;
         case 'set-audio':
             if (arg !== undefined) {
-                sendMpvCommand('set_property', ['aid', Number(arg)]);
+                sendMpvCommand('set_property', ['aid', jellyfinStreamIndexToMpvId(Number(arg), 'Audio')]);
             }
             break;
         case 'set-sub-size':
@@ -2429,8 +2480,16 @@ async function pushOscState(hasMedia = true) {
         queryProperty('sid').catch(() => null),
         queryProperty('aid').catch(() => null)
     ]);
+    // Query results are mpv per-type track ids (or false when disabled) — translate
+    // back to Jellyfin stream indices so the OSC track list ids/selected flags line up.
     const activeSub = currentSid !== null ? currentSid : currentSubtitleTrack;
     const activeAudio = currentAid !== null ? currentAid : null;
+    const activeSubJf = (activeSub === false || activeSub === 'no' || activeSub === -1)
+        ? -1
+        : (typeof activeSub === 'number' ? mpvTrackIdToJellyfinIndex(activeSub, 'Subtitle') : undefined);
+    const activeAudioJf = (activeAudio === false || activeAudio === 'no' || activeAudio === -1)
+        ? -1
+        : (typeof activeAudio === 'number' ? mpvTrackIdToJellyfinIndex(activeAudio, 'Audio') : undefined);
 
     if (currentEpisodeInfo?.mediaStreams) {
         const subtitles = currentEpisodeInfo.mediaStreams
@@ -2438,10 +2497,10 @@ async function pushOscState(hasMedia = true) {
             .map(s => ({
                 id: s.Index,
                 label: s.DisplayTitle || s.Title || s.Language || `Track ${s.Index}`,
-                selected: s.Index === activeSub
+                selected: s.Index === activeSubJf
             }));
         if (subtitles.length > 0) {
-            subtitles.unshift({ id: -1, label: 'Off', selected: activeSub === 'no' || activeSub === -1 || activeSub === 0 });
+            subtitles.unshift({ id: -1, label: 'Off', selected: activeSubJf === -1 });
             state.subtitles = subtitles;
         }
 
@@ -2450,7 +2509,7 @@ async function pushOscState(hasMedia = true) {
             .map(s => ({
                 id: s.Index,
                 label: s.DisplayTitle || s.Title || s.Language || `Track ${s.Index}`,
-                selected: s.Index === activeAudio
+                selected: s.Index === activeAudioJf
             }));
         if (audio.length > 0) {
             state.audio = audio;
