@@ -44,7 +44,7 @@ class StatusBarController: NSObject, NSMenuDelegate {
 
         menu.addItem(.separator())
 
-        pauseItem = NSMenuItem(title: "Pause", action: #selector(togglePause), keyEquivalent: "")
+        pauseItem = NSMenuItem(title: "Pause", action: #selector(togglePause), keyEquivalent: "p")
         pauseItem.target = self
         pauseItem.isEnabled = false
         menu.addItem(pauseItem)
@@ -54,7 +54,7 @@ class StatusBarController: NSObject, NSMenuDelegate {
         stopItem.isEnabled = false
         menu.addItem(stopItem)
 
-        copyNowPlayingItem = NSMenuItem(title: "Copy Now Playing", action: #selector(copyNowPlaying), keyEquivalent: "")
+        copyNowPlayingItem = NSMenuItem(title: "Copy Now Playing", action: #selector(copyNowPlaying), keyEquivalent: "c")
         copyNowPlayingItem.target = self
         copyNowPlayingItem.isEnabled = false
         menu.addItem(copyNowPlayingItem)
@@ -69,15 +69,15 @@ class StatusBarController: NSObject, NSMenuDelegate {
         copyLogItem.target = self
         menu.addItem(copyLogItem)
 
-        let preferencesItem = NSMenuItem(title: "Settings\u{2026}", action: #selector(showPreferences), keyEquivalent: "")
+        let preferencesItem = NSMenuItem(title: "Settings\u{2026}", action: #selector(showPreferences), keyEquivalent: ",")
         preferencesItem.target = self
         menu.addItem(preferencesItem)
 
-        let aboutItem = NSMenuItem(title: "About Jellyfin MPV Play", action: #selector(showAbout), keyEquivalent: "")
+        let aboutItem = NSMenuItem(title: "About Jellyfin MPV Play", action: #selector(showAbout), keyEquivalent: "i")
         aboutItem.target = self
         menu.addItem(aboutItem)
 
-        let helpItem = NSMenuItem(title: "Help", action: #selector(showHelp), keyEquivalent: "")
+        let helpItem = NSMenuItem(title: "Help", action: #selector(showHelp), keyEquivalent: "/")
         helpItem.target = self
         menu.addItem(helpItem)
 
@@ -106,7 +106,7 @@ class StatusBarController: NSObject, NSMenuDelegate {
 
         menu.addItem(.separator())
 
-        let quitItem = NSMenuItem(title: "Quit Jellyfin MPV Play", action: #selector(quit), keyEquivalent: "")
+        let quitItem = NSMenuItem(title: "Quit Jellyfin MPV Play", action: #selector(quit), keyEquivalent: "q")
         quitItem.target = self
         menu.addItem(quitItem)
 
@@ -117,6 +117,11 @@ class StatusBarController: NSObject, NSMenuDelegate {
         nodeProcessManager.nowPlayingHandler = { [weak self] title in
             DispatchQueue.main.async {
                 guard let self = self else { return }
+                if title != self.nowPlaying {
+                    // A different item started: drop any stale paused state
+                    // (same behavior as the original updateNowPlaying).
+                    self.isPausedState = false
+                }
                 self.nowPlaying = title
                 if title == nil { self.isPausedState = false }
                 self.render()
