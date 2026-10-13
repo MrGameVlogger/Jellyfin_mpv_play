@@ -2927,6 +2927,24 @@ async function main() {
             showHeadlessErrorDialog('Authentication Failed', 'Could not authenticate with Jellyfin server.\n\nCheck your config.js credentials and try again.');
             process.exit(1);
         }
+    } else {
+        // Validate the saved token up front. Jellyfin access tokens expire, and a
+        // stale one would otherwise only fail at WebSocket connect (403) followed
+        // by a reconnect backoff — a blind delay at every startup.
+        try {
+            await axios.get(`${CONFIG.serverUrl}/System/Info`, { headers: getAuthHeaders(), timeout: 5000 });
+        } catch (e) {
+            if (e.response && (e.response.status === 401 || e.response.status === 403)) {
+                log('info', 'auth', '🔐 Saved token rejected (expired) — re-authenticating');
+                const authenticated = await authenticateUser();
+                if (!authenticated) {
+                    log('error', 'main', '❌ Re-authentication failed. Check your CONFIG credentials.');
+                    showHeadlessErrorDialog('Authentication Failed', 'Saved login expired and re-authentication failed.\n\nCheck your config.js credentials and try again.');
+                    process.exit(1);
+                }
+            }
+            // Network errors fall through — connectWebSocket's reconnect flow handles them
+        }
     }
     
     await connectWebSocket();

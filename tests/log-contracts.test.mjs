@@ -8,6 +8,7 @@ test('log line contracts exist in shim.js', () => {
   const contracts = [
     'WebSocket connection established',
     'Episode detected:',
+    'Starting episode:',
     'Starting next episode:',
     'Starting previous episode:',
     'File loaded by MPV',
@@ -59,6 +60,7 @@ test('new log lines do not conflict with existing contracts', () => {
   const contractPatterns = [
     'WebSocket connection established',
     'Episode detected:',
+    'Starting episode:',
     'Starting next episode:',
     'Starting previous episode:',
     'File loaded by MPV',

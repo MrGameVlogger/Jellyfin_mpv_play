@@ -438,34 +438,7 @@ class NodeProcessManager {
 
     private func extractTitleFromEpisode(_ line: String) -> String? {
         if let range = line.range(of: "Episode detected: ") {
-            let title = String(line[range.upperBound...]).trimmingCharacters(in: .whitespaces)
-            return title.isEmpty ? nil : title
-        }
-        if let range = line.range(of: "--force-media-title=") {
-            let after = String(line[range.upperBound...])
-            if after.hasPrefix("\"") {
-                let withoutQuote = String(after.dropFirst())
-                if let endQuote = withoutQuote.range(of: "\"") {
-                    let title = String(withoutQuote[..<endQuote.lowerBound]).trimmingCharacters(in: .whitespaces)
-                    return title.isEmpty ? nil : title
-                }
-                let title = withoutQuote.trimmingCharacters(in: .whitespaces)
-                return title.isEmpty ? nil : title
-            } else if after.hasPrefix("'") {
-                let withoutQuote = String(after.dropFirst())
-                if let endQuote = withoutQuote.range(of: "'") {
-                    let title = String(withoutQuote[..<endQuote.lowerBound]).trimmingCharacters(in: .whitespaces)
-                    return title.isEmpty ? nil : title
-                }
-                let title = withoutQuote.trimmingCharacters(in: .whitespaces)
-                return title.isEmpty ? nil : title
-            }
-            if let end = after.range(of: " ") {
-                let title = String(after[..<end.lowerBound]).trimmingCharacters(in: .whitespaces)
-                return title.isEmpty ? nil : title
-            }
-            let title = after.trimmingCharacters(in: .whitespaces)
-            return title.isEmpty ? nil : title
+            return String(line[range.upperBound...]).trimmingCharacters(in: .whitespaces)
         }
         return nil
     }
