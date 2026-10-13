@@ -61,26 +61,21 @@ if (CONFIG.headless) {
         // With --allow-duplicates, use PID to distinguish instances
         logFile = path.join(logDir, `shim-${configBase}-${process.pid}.log`);
     } else {
-        // Without flag, check if log file already exists (another instance running)
-        const baseLogFile = path.join(logDir, `shim-${configBase}.log`);
-        if (fs.existsSync(baseLogFile)) {
-            // Another instance may be running, add random suffix to avoid overwriting
-            const randomSuffix = crypto.randomBytes(4).toString('hex');
-            logFile = path.join(logDir, `shim-${configBase}-${randomSuffix}.log`);
-        } else {
-            logFile = baseLogFile;
-        }
+        // Single-instance mode: always the documented name. The stream is opened in
+        // append mode, and real duplicate detection is the lock file in main().
+        logFile = path.join(logDir, `shim-${configBase}.log`);
     }
     
     const logStream = fs.createWriteStream(logFile, { flags: 'a' });
     const timestamp = () => new Date().toISOString();
+    const fmtArgs = (args) => args.map(a => (typeof a === 'object' && a !== null) ? JSON.stringify(a) : String(a)).join(' ');
     console.log = (...args) => {
-        const msg = `[${timestamp()}] ${args.join(' ')}\n`;
+        const msg = `[${timestamp()}] ${fmtArgs(args)}\n`;
         logStream.write(msg);
         process.stdout.write(msg);
     };
     console.error = (...args) => {
-        const msg = `[${timestamp()}] ERROR: ${args.join(' ')}\n`;
+        const msg = `[${timestamp()}] ERROR: ${fmtArgs(args)}\n`;
         logStream.write(msg);
         process.stderr.write(msg);
     };
@@ -179,7 +174,6 @@ let currentSyncPlayGroupName = null;
 
 let pendingStreamUrl = null;
 let pendingStartSeconds = 0;
-let pendingTitle = null;
 let pendingAudioStreamIndex = undefined;
 let pendingSubtitleStreamIndex = undefined;
 let isSettingSubtitleFromJellyfin = false;
@@ -203,7 +197,6 @@ let displayMessageOriginalPause = null;
 let displayMessageOriginalFontSize = null;
 let displayMessageOriginalAlignX = null;
 let displayMessageOriginalAlignY = null;
-let isSeeking = false;
 let isNewQueueLoad = false;
 let queueLoadCounter = 0;
 let isPlayingNextTimestamp = 0;
@@ -219,10 +212,24 @@ let skippedSegmentIds = new Set();
 let oscSeekTimeout = null;
 
 function generateOrLoadDeviceId() {
-    const idFile = path.join(__dirname, 'data', '.device-id');
+    // Per-config id file so multiple configs don't share one device id (which would
+    // make them share tokens and playback positions).
+    const configBase = path.basename(configFile, path.extname(configFile));
+    const idFile = path.join(__dirname, 'data', `.device-id-${configBase}`);
+    const legacyIdFile = path.join(__dirname, 'data', '.device-id');
     try {
         if (fs.existsSync(idFile)) {
             return fs.readFileSync(idFile, 'utf8').trim();
+        }
+        if (fs.existsSync(legacyIdFile)) {
+            // Adopt the old shared id ONCE (first config to run keeps its tokens
+            // valid), then remove it so other configs generate their own.
+            const id = fs.readFileSync(legacyIdFile, 'utf8').trim();
+            if (id) {
+                fs.writeFileSync(idFile, id, { mode: 0o600 });
+                try { fs.unlinkSync(legacyIdFile); } catch {}
+                return id;
+            }
         }
     } catch {}
     const id = `mpv-${crypto.randomBytes(8).toString('hex')}`;
@@ -450,6 +457,9 @@ async function connectWebSocket() {
 }
 
 function scheduleReconnect() {
+    if (isShuttingDown) {
+        return;
+    }
     if (reconnectInterval) {
         return;
     }
@@ -1493,7 +1503,7 @@ async function playMedia(itemId, startTicks) {
             for (const [, q] of pendingQueries) { if (q.timer) clearTimeout(q.timer); q.resolve(null); }
             pendingQueries.clear();
             if (progressInterval) { clearInterval(progressInterval); progressInterval = null; }
-            if (ipcClient) { ipcClient.destroy(); ipcClient = null; }
+            if (ipcClient) { ipcClient.removeAllListeners(); ipcClient.destroy(); ipcClient = null; }
             currentItemId = null;
             isSettingSubtitleFromJellyfin = false;
             if (subtitleFlagTimeout) { clearTimeout(subtitleFlagTimeout); subtitleFlagTimeout = null; }
@@ -1502,7 +1512,6 @@ async function playMedia(itemId, startTicks) {
             currentEpisodeInfo = null;
             isReportingStop = false;
             isPlayingNext = false;
-            isSeeking = false;
             isNewQueueLoad = false;
         });
     } catch (err) {
@@ -1517,7 +1526,11 @@ async function playMedia(itemId, startTicks) {
 
 function connectToMpvIpc(gen) {
     if (ipcClient) {
+        // Remove listeners BEFORE destroy so the old socket's close handler can't
+        // fire later and clobber a newer connection (stale-close race).
+        ipcClient.removeAllListeners();
         ipcClient.destroy();
+        ipcClient = null;
     }
 
     let connectionAttempts = 0;
@@ -1551,9 +1564,10 @@ function connectToMpvIpc(gen) {
             ipcClient.destroy();
         }
         ipcClient = net.connect(CONFIG.ipcSocketPath);
+        const sock = ipcClient;
         let buffer = '';
 
-        ipcClient.on('connect', () => {
+        sock.on('connect', () => {
             log('info', 'ipc', '✅ Connected to MPV IPC');
 
             setTimeout(() => {
@@ -1600,7 +1614,7 @@ function connectToMpvIpc(gen) {
             }
         });
 
-        ipcClient.on('data', (data) => {
+        sock.on('data', (data) => {
             buffer += data.toString();
             // Prevent unbounded buffer growth
             if (buffer.length > 1024 * 1024) { // 1MB limit
@@ -1636,7 +1650,7 @@ function connectToMpvIpc(gen) {
             });
         });
 
-        ipcClient.on('error', (err) => {
+        sock.on('error', (err) => {
             log('error', 'ipc', '⚠️ IPC error:', err.message);
             
             if (connectionAttempts < maxAttempts && mpvProcess && mpvProcess.exitCode === null) {
@@ -1650,8 +1664,12 @@ function connectToMpvIpc(gen) {
             }
         });
 
-        ipcClient.on('close', () => {
+        sock.on('close', () => {
             log('info', 'ipc', '🔌 Disconnected from MPV IPC');
+            // Only clean up global state if this socket is still the active one —
+            // a late close event from an old socket must not clobber a newer
+            // connection or its outstanding queries.
+            if (ipcClient !== sock) return;
             for (const [, q] of pendingQueries) { if (q.timer) clearTimeout(q.timer); q.resolve(null); }
             pendingQueries.clear();
             ipcClient = null;
@@ -1712,6 +1730,7 @@ function killMpv() {
         progressInterval = null;
     }
     if (ipcClient) {
+        ipcClient.removeAllListeners();
         ipcClient.destroy();
         ipcClient = null;
     }
@@ -1816,7 +1835,6 @@ function stopProgressPoll() {
 
 function handleMpvEvent(event) {
     if (event.event === 'file-loaded') {
-        isSeeking = false;
         if (queueLoadCounter > 0) {
             queueLoadCounter--;
             if (queueLoadCounter === 0) {
@@ -1839,12 +1857,6 @@ function handleMpvEvent(event) {
         queryProperty('track-list').then(tl => {
             mpvTrackList = Array.isArray(tl) ? tl : [];
         });
-
-        if (pendingTitle) {
-            sendMpvCommand('set_property', ['force-media-title', pendingTitle]);
-            sendMpvCommand('set_property', ['title', pendingTitle]);
-            pendingTitle = null;
-        }
 
         if (pendingStartSeconds > 0) {
             const seekTo = pendingStartSeconds;
@@ -2197,12 +2209,10 @@ async function playPreviousEpisode() {
 
     if (currentPositionSeconds > 30) {
         log('info', 'episode', '↩️ Restarting current episode (time > 30s)');
-        isSeeking = true;
         sendMpvCommand('seek', [0, 'absolute+keyframes']);
         currentPositionSeconds = 0;
         if (currentItemId) reportPlaybackProgress(currentItemId, 0);
         isPlayingNext = false;
-        setTimeout(() => { isSeeking = false; }, 1000);
         return;
     }
 
