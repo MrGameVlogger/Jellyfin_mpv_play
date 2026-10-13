@@ -18,6 +18,43 @@ All notable changes to Jellyfin MPV Play are documented here.
 
 -->
 
+## v1.12.0
+
+### Bug Fixes (playback — all verified live against mpv 0.41 and Jellyfin 12.2)
+- **Fixed wrong episode playing when starting a new show** — `playlist-clear` keeps the currently played file, which shifted every playlist index by one, so the queue could restart the old episode or play the neighbour. The queue now rebuilds with `loadfile replace` + `insert-at` and starts at exactly the requested item.
+- **Fixed subtitle/audio track selection picking the wrong track** — Jellyfin stream indices are global container indices while mpv's `aid`/`sid` take per-type track ids; selections landed on the wrong track or disabled subtitles entirely. Now mapped via mpv's `track-list` `ff-index`, and the session reports Jellyfin indices back correctly.
+- **Fixed Shuffle being silently undone** — jellyfin-web's Shuffle is transformed server-side into `PlayNow` with a shuffled id list, and the full-season expansion re-sorted it to season order. The requested order is now preserved (verified: 3/3 shuffled orders survive to the playlist).
+- **Fixed playlist reorders misread as navigation** — `SetShuffleQueue`/`playlist-shuffle` shift indexes without changing the playing file; the shim treated that as an episode transition (bogus "next episode" logs, stop reports, and an end-of-queue NextUp round-trip that could clear the queue mid-playback). The playing item is now resolved from the playlist entry itself.
+- **Fixed stopping near the end never marking items watched** — the 90% mark ran behind an in-flight stop report and only at mpv process exit (seconds later on network streams). It now runs at the Stop command, with the process-exit check kept as backstop.
+- **Fixed series plays starting on a special** — the server expands a series id by SortName ("0x1 ..." first), so playback began on a random special while jellyfin-web starts at season 1. Series/season-level requests now start at the NextUp episode (first regular episode for unwatched shows); explicit specials selections play the special, matching jellyfin-web's own resolution.
+- **Fixed transient API errors aborting playback** — item lookup failures looked identical to "not playable", so a network blip silently stopped playback ("Skipping non-playable item: undefined"). Lookups now distinguish the two, retry once, and show an OSD error.
+- **Fixed the intro/outro segment filter being ignored** — the request used PHP-style array params that ASP.NET does not bind, so every segment type came back and auto-skip could eat previews/recaps (observed live: a Preview segment was being offered for skip).
+- **Fixed SetPlaybackOrder/SetShuffleMode being no-ops** — `set_property shuffle` does not exist as a runtime property in mpv; now uses the `playlist-shuffle`/`playlist-unshuffle` commands.
+- **Fixed SetShuffleQueue never reaching the shim** — implemented but missing from `SupportedCommands`, so the server never sent it (also fixed the capabilities payload to match Jellyfin's ClientCapabilitiesDto exactly — three fields it sent do not exist in Jellyfin).
+- **Fixed track switches invisible in session state** — progress reports omitted audio/subtitle stream indices; dashboards never reflected track changes.
+- **Fixed crash-dialog storms (EPIPE)** — a closed output pipe (parent teardown, `| head`, app restart) raised an uncaughtException per log line, each spawning a dialog and crash-log entry. Broken-pipe errors are now recognized by code or message, never reach the crash path, and playback keeps running when the log consumer disappears.
+- **Windows: fixed `--headless` being treated as a config filename** (it literally created a file named `--headless`) and headless auto-detection matching commented-out `// headless: true` lines in the default config.
+
+### macOS App
+- **Apple HIG compliance pass** — installed the missing main menu (Cmd+W/Q/H/?, Settings…, window management), renamed Preferences to Settings (macOS 13+ naming), fixed dialog button order (default rightmost, Escape = Cancel), unified the Setup escape paths (close == Skip, neither starts the shim with empty credentials), and updated Help's keybind table to match reality.
+- **Movies and music now show Now Playing** — only episodes populated the title, leaving Pause/Stop disabled and the menu saying "Not playing" during movie playback (the documented `Starting episode` contract is now implemented end-to-end).
+- **Reliable error notifications** — most shim errors were invisible (case-sensitive matching missed "Error"/"⚠️"; "MPV closed with error" was swallowed by the state-reset branch). Now case-insensitive, checked before state transitions, and throttled to one per 30s.
+- **Config safety on save** — the Settings panel deleted `mpvFlags` on every save (it could not even parse arrays, and the writer rebuilt the whole file), along with comments and unrecognized keys. Saving now merges: the UI owns its 14 keys, everything else passes through verbatim. The setup wizard writes the *selected* config and preserves other keys as raw lines (it used to re-serialize `mpvFlags` into a string the shim ignores).
+- **Device identity** — the shared `mac-mpv` default device id (duplicate Jellyfin sessions across machines) is gone; empty means auto-generate per config.
+- **Process lifecycle** — Restart/Quit no longer leaves phantom "playing" state (stop() raced its own pipes and never reset state), the crash auto-restart can no longer spawn an orphan after quit (cancellable work item), quit is asynchronous instead of blocking the main thread, and the 3-second stop-guard window is closed.
+- **Robustness & accessibility** — invalid UTF-8 can no longer stall the log pipeline; log-file and bundle-copy failures degrade gracefully instead of silently breaking installs (failed copies used to delete the working shim.js first); over-long IPC socket paths fail loudly instead of silently truncating; VoiceOver labels and announcements on all form fields; SMAppService .requiresApproval surfaced; notifications degrade gracefully outside a bundle; paused state visible in menu/tooltip/icon.
+
+### New Features
+- **Startup token preflight** — expired Jellyfin tokens now refresh immediately at startup instead of a blind ~7s WebSocket-reject/reconnect gap.
+- **Live E2E suite** (`npm run test:e2e`) — 25 automated tests against a real Jellyfin server and real mpv: play flows, all Playstate/GeneralCommands, track mapping, queue semantics, shuffle, transitions, skip-intro, OSC wire path, SyncPlay, watched state, autoClose, token hygiene, shutdown. Isolated per-run session; runs headless. This suite found six of the bugs fixed above.
+
+### Internal
+- **Design principle documented** — emulate jellyfin-web: its `playbackManager` is the behavioral reference (it resolves queues client-side and sends explicit ItemIds + StartIndex); the only intentional deviation is the full-season queue's earlier-episode back-navigation.
+- Regression tests now validate every advertised command against Jellyfin's `GeneralCommandType` enum and every log contract against both sides (shim + macapp); mpv command-semantics guards (`playlist-play-index`, `playlist-shuffle`, segment param binding, track mapping) are pinned in tests.
+- Multi-config device ids, IPC socket defaults and config parsing aligned with shim.js on all three platforms.
+
+---
+
 ## v1.11.7
 
 ### Bug Fixes
