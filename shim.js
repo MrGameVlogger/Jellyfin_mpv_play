@@ -1747,7 +1747,7 @@ async function markItemAsWatched(itemId) {
     try {
         const headers = getAuthHeaders();
         await axios.post(`${CONFIG.serverUrl}/Users/${userId}/PlayedItems/${itemId}`, {}, { headers });
-        log('info', 'report', '✅ Item marked as watched in Jellyfin');
+        log('info', 'report', `✅ Item marked as watched in Jellyfin (${itemId})`);
 
         const positions = loadPlaybackPositions();
         if (positions[itemId]) {

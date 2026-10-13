@@ -271,7 +271,7 @@ class SetupWindowController: NSWindowController, NSWindowDelegate {
         let tips = [
             ("The app runs from your menu bar (top right)", "menubar.rectangle"),
             ("Open Jellyfin in your browser and use 'Play on' to start watching", "play.circle"),
-            ("Use Preferences to update settings later", "gearshape"),
+            ("Use Settings from the menu bar to update these later", "gearshape"),
             ("Check the Help menu for tips and troubleshooting", "questionmark.circle")
         ]
 
