@@ -92,7 +92,7 @@ All bundles include their own Node.js runtime. Only [MPV Player](https://mpv.io/
    - Confirm MPV path and device settings
    - Done!
 
-   > Config is saved to `~/Library/Application Support/JellyfinMpvPlay/config.js`. You can edit it manually or from the Preferences menu.
+   > Config is saved to `~/Library/Application Support/JellyfinMpvPlay/config.js`. You can edit it manually or from the Settings menu.
 
 ### Windows
 
@@ -336,7 +336,7 @@ Set WshShell = Nothing
 | **`Token expired, reauthenticating...`** | Normal during reconnection. If repeated, re-enter your credentials |
 | **`IPC error: connect ECONNREFUSED`** | MPV crashed or hasn't started — check `mpvPath`. The shim retries 10 times automatically |
 | **`Maximum IPC connection attempts reached`** | MPV won't start — test `mpv --idle=yes` manually. Check for invalid `mpvFlags` |
-| **`deviceId` equals `deviceName`** | Must be different strings per Jellyfin's device registration (e.g., `deviceName: 'Mac'`, `deviceId: 'mac-mpv'`) |
+| **`deviceId` equals `deviceName`** | Must be different strings per Jellyfin's device registration. Leave `deviceId` empty to auto-generate a unique one per config |
 | **Device doesn't appear in Jellyfin** | Verify `serverUrl`, username, password. Ensure same network |
 | **Playback doesn't resume** | Wait at least 10 seconds before closing MPV |
 | **Black screen / no video** | Check `~/.config/mpv/mpv.conf` for valid `vo` and `hwdec` settings |
@@ -376,7 +376,7 @@ Jellyfin_mpv_play/
 ├── node_modules/            # Dependencies (gitignored)
 ├── config.example.js        # Configuration template
 ├── config.js                # Your config — never commit! (gitignored)
-├── shim.js                  # Main Node.js application (~2300 lines)
+├── shim.js                  # Main Node.js application (the entire shim)
 ├── package.json
 └── README.md
 ```
@@ -561,7 +561,7 @@ A: Yes. Download the Linux bundle from [Releases](https://github.com/MrGameVlogg
 A: Yes, if your Jellyfin server is accessible, but LAN is recommended.
 
 **Q: Can I run multiple instances?**
-A: Yes, use multi-config support: `node shim.js config.work.js` or `./launch.sh config.work.js`. Each config gets its own deviceId, token, positions, and IPC socket. On macOS, use the config file selector in Preferences.
+A: Yes, use multi-config support: `node shim.js config.work.js` or `./launch.sh config.work.js`. Each config gets its own deviceId, token, positions, and IPC socket. On macOS, use the config file selector in Settings.
 
 **Q: Can I run multiple instances of the same config?**
 A: Yes, use the `--allow-duplicates` flag: `node shim.js config.js --allow-duplicates` or `./launch.sh --allow-duplicates`. Without this flag, a dialog will warn you about the duplicate instance (headless mode only). With the flag, the dialog is skipped and each instance gets its own log file (e.g., `shim-config-12345.log` in headless mode).
