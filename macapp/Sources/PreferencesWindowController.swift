@@ -29,7 +29,7 @@ class PreferencesWindowController: NSWindowController {
             backing: .buffered,
             defer: false
         )
-        window.title = "Preferences"
+        window.title = "Settings"
         window.center()
         window.isReleasedWhenClosed = false
         self.init(window: window)
@@ -40,7 +40,11 @@ class PreferencesWindowController: NSWindowController {
 
     override func showWindow(_ sender: Any?) {
         super.showWindow(sender)
-        window?.makeFirstResponder(nil)
+        // Reload on every show so Cancel is a true cancel: edits and config
+        // selection changes made since the last save are discarded.
+        populateConfigFiles()
+        loadConfig()
+        window?.makeFirstResponder(serverUrlField)
     }
 
     private func setupUI() {
@@ -263,20 +267,21 @@ class PreferencesWindowController: NSWindowController {
         yOffset -= 20
 
         // MARK: - General Section
-        launchAtLoginCheckbox = NSButton(checkboxWithTitle: "Launch at login", target: self, action: #selector(toggleLaunchAtLogin))
+        launchAtLoginCheckbox = NSButton(checkboxWithTitle: "Open at Login", target: self, action: #selector(toggleLaunchAtLogin))
         launchAtLoginCheckbox.frame = NSRect(x: 130, y: yOffset, width: 200, height: 22)
         launchAtLoginCheckbox.state = SMAppService.mainApp.status == .enabled ? .on : .off
         contentView.addSubview(launchAtLoginCheckbox)
 
-        // MARK: - Bottom buttons
+        // MARK: - Bottom buttons (HIG: default button rightmost, Escape = Cancel)
+        let cancelButton = NSButton(title: "Cancel", target: self, action: #selector(cancel))
+        cancelButton.frame = NSRect(x: 380, y: 20, width: 80, height: 32)
+        cancelButton.keyEquivalent = "\u{1b}"
+        contentView.addSubview(cancelButton)
+
         let saveButton = NSButton(title: "Save", target: self, action: #selector(saveConfig))
-        saveButton.frame = NSRect(x: 380, y: 20, width: 80, height: 32)
+        saveButton.frame = NSRect(x: 470, y: 20, width: 80, height: 32)
         saveButton.keyEquivalent = "\r"
         contentView.addSubview(saveButton)
-
-        let cancelButton = NSButton(title: "Cancel", target: self, action: #selector(cancel))
-        cancelButton.frame = NSRect(x: 470, y: 20, width: 80, height: 32)
-        contentView.addSubview(cancelButton)
     }
 
     private func sectionLabel(_ text: String) -> NSTextField {

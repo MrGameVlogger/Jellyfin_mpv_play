@@ -15,6 +15,7 @@ class StatusBarController: NSObject, NSMenuDelegate {
     private var copyNowPlayingItem: NSMenuItem!
     private var loginItem: NSMenuItem!
     private var isPausedState = false
+    private var connectionState: ConnectionStatus = .disconnected
 
     init(nodeProcessManager: NodeProcessManager, logWindowController: LogWindowController) {
         self.nodeProcessManager = nodeProcessManager
@@ -43,7 +44,7 @@ class StatusBarController: NSObject, NSMenuDelegate {
 
         menu.addItem(.separator())
 
-        pauseItem = NSMenuItem(title: "Pause", action: #selector(togglePause), keyEquivalent: "p")
+        pauseItem = NSMenuItem(title: "Pause", action: #selector(togglePause), keyEquivalent: "")
         pauseItem.target = self
         pauseItem.isEnabled = false
         menu.addItem(pauseItem)
@@ -53,7 +54,7 @@ class StatusBarController: NSObject, NSMenuDelegate {
         stopItem.isEnabled = false
         menu.addItem(stopItem)
 
-        copyNowPlayingItem = NSMenuItem(title: "Copy Now Playing", action: #selector(copyNowPlaying), keyEquivalent: "c")
+        copyNowPlayingItem = NSMenuItem(title: "Copy Now Playing", action: #selector(copyNowPlaying), keyEquivalent: "")
         copyNowPlayingItem.target = self
         copyNowPlayingItem.isEnabled = false
         menu.addItem(copyNowPlayingItem)
@@ -68,15 +69,15 @@ class StatusBarController: NSObject, NSMenuDelegate {
         copyLogItem.target = self
         menu.addItem(copyLogItem)
 
-        let preferencesItem = NSMenuItem(title: "Preferences", action: #selector(showPreferences), keyEquivalent: ",")
+        let preferencesItem = NSMenuItem(title: "Settings\u{2026}", action: #selector(showPreferences), keyEquivalent: "")
         preferencesItem.target = self
         menu.addItem(preferencesItem)
 
-        let aboutItem = NSMenuItem(title: "About", action: #selector(showAbout), keyEquivalent: "i")
+        let aboutItem = NSMenuItem(title: "About Jellyfin MPV Play", action: #selector(showAbout), keyEquivalent: "")
         aboutItem.target = self
         menu.addItem(aboutItem)
 
-        let helpItem = NSMenuItem(title: "Help", action: #selector(showHelp), keyEquivalent: "/")
+        let helpItem = NSMenuItem(title: "Help", action: #selector(showHelp), keyEquivalent: "")
         helpItem.target = self
         menu.addItem(helpItem)
 
@@ -105,7 +106,7 @@ class StatusBarController: NSObject, NSMenuDelegate {
 
         menu.addItem(.separator())
 
-        let quitItem = NSMenuItem(title: "Quit", action: #selector(quit), keyEquivalent: "q")
+        let quitItem = NSMenuItem(title: "Quit Jellyfin MPV Play", action: #selector(quit), keyEquivalent: "")
         quitItem.target = self
         menu.addItem(quitItem)
 
@@ -114,48 +115,65 @@ class StatusBarController: NSObject, NSMenuDelegate {
 
     private func setupNowPlayingObserver() {
         nodeProcessManager.nowPlayingHandler = { [weak self] title in
-            self?.updateNowPlaying(title)
+            DispatchQueue.main.async {
+                guard let self = self else { return }
+                self.nowPlaying = title
+                if title == nil { self.isPausedState = false }
+                self.render()
+            }
         }
         nodeProcessManager.pauseStateHandler = { [weak self] isPaused in
             DispatchQueue.main.async {
                 self?.isPausedState = isPaused
-                self?.pauseItem.title = isPaused ? "Resume" : "Pause"
+                self?.render()
             }
         }
     }
 
-    private func updateNowPlaying(_ title: String?) {
-        if let title = title {
-            nowPlayingItem.title = "\u{25B6} \(title)"
-            pauseItem.isEnabled = true
-            stopItem.isEnabled = true
-            copyNowPlayingItem.isEnabled = true
-            // Reset pause state for new playback
-            isPausedState = false
-            pauseItem.title = "Pause"
-            setStatusIcon("play.circle.fill", color: .systemOrange, tooltip: "Jellyfin MPV Play — \(title)")
-        } else {
+    // Single render path: icon, tooltip and menu rows all derive from the same
+    // state, so they can never disagree (previously updateStatus(.playing)
+    // overwrote the title tooltip with a generic "Playing").
+    private func render() {
+        let title = nowPlaying
+        pauseItem.title = isPausedState ? "Resume" : "Pause"
+        let playing = title != nil
+        pauseItem.isEnabled = playing
+        stopItem.isEnabled = playing
+        copyNowPlayingItem.isEnabled = playing
+
+        switch (connectionState, title) {
+        case (_, .some(let title)):
+            nowPlayingItem.title = isPausedState ? "Paused — \(title)" : title
+            if isPausedState {
+                setStatusIcon("pause.circle.fill", color: .systemOrange,
+                              tooltip: "Jellyfin MPV Play — Paused — \(title)")
+            } else {
+                setStatusIcon("play.circle.fill", color: .systemOrange,
+                              tooltip: "Jellyfin MPV Play — \(title)")
+            }
+        case (.connected, nil):
             nowPlayingItem.title = "Not playing"
-            pauseItem.isEnabled = false
-            stopItem.isEnabled = false
-            copyNowPlayingItem.isEnabled = false
-            pauseItem.title = "Pause"
-            isPausedState = false
             setStatusIcon("checkmark.circle", color: .systemGreen, tooltip: "Jellyfin MPV Play — Connected")
+        case (.playing, nil):
+            nowPlayingItem.title = "Not playing"
+            setStatusIcon("play.circle.fill", color: .systemOrange, tooltip: "Jellyfin MPV Play — Playing")
+        case (.disconnected, nil):
+            nowPlayingItem.title = "Not playing"
+            setStatusIcon("circle", color: .systemGray, tooltip: "Jellyfin MPV Play — Disconnected")
         }
+    }
+
+    private var nowPlaying: String?
+
+    private func updateNowPlaying(_ title: String?) {
+        nowPlaying = title
+        if title == nil { isPausedState = false }
+        render()
     }
 
     func updateStatus(_ status: ConnectionStatus) {
-        switch status {
-        case .disconnected:
-            setStatusIcon("circle", color: .systemGray, tooltip: "Jellyfin MPV Play — Disconnected")
-        case .connected:
-            if nodeProcessManager.nowPlaying == nil {
-                setStatusIcon("checkmark.circle", color: .systemGreen, tooltip: "Jellyfin MPV Play — Connected")
-            }
-        case .playing:
-            setStatusIcon("play.circle.fill", color: .systemOrange, tooltip: "Jellyfin MPV Play — Playing")
-        }
+        connectionState = status
+        render()
     }
 
     private func setStatusIcon(_ symbolName: String, color: NSColor, tooltip: String) {
@@ -190,11 +208,10 @@ class StatusBarController: NSObject, NSMenuDelegate {
     @objc private func stopPlayback() {
         nodeProcessManager.stopPlayback()
         isPausedState = false
-        pauseItem.title = "Pause"
         updateNowPlaying(nil)
     }
 
-    @objc private func showLogs() {
+    @objc func showLogs() {
         showAndActivate(logWindowController)
     }
 
@@ -202,7 +219,7 @@ class StatusBarController: NSObject, NSMenuDelegate {
         logWindowController.copyFullLog()
     }
 
-    @objc private func showPreferences() {
+    @objc func showPreferences() {
         if preferencesWindowController == nil {
             preferencesWindowController = PreferencesWindowController()
             preferencesWindowController?.onSave = { [weak self] in
@@ -218,7 +235,7 @@ class StatusBarController: NSObject, NSMenuDelegate {
         }
     }
 
-    @objc private func showAbout() {
+    @objc func showAbout() {
         if aboutWindowController == nil {
             aboutWindowController = AboutWindowController()
         }
@@ -227,7 +244,7 @@ class StatusBarController: NSObject, NSMenuDelegate {
         }
     }
 
-    @objc private func showHelp() {
+    @objc func showHelp() {
         if helpWindowController == nil {
             helpWindowController = HelpWindowController()
         }
@@ -250,12 +267,10 @@ class StatusBarController: NSObject, NSMenuDelegate {
             } else {
                 try SMAppService.mainApp.register()
             }
-            menu.items.first { $0.title == "Open at Login" }?.state =
-                SMAppService.mainApp.status == .enabled ? .on : .off
+            loginItem.state = SMAppService.mainApp.status == .enabled ? .on : .off
         } catch {
             // Revert the checkbox state on error
-            menu.items.first { $0.title == "Open at Login" }?.state =
-                SMAppService.mainApp.status == .enabled ? .on : .off
+            loginItem.state = SMAppService.mainApp.status == .enabled ? .on : .off
             let alert = NSAlert()
             alert.messageText = "Failed to update login item"
             alert.informativeText = error.localizedDescription

@@ -70,22 +70,24 @@ class SetupWindowController: NSWindowController, NSWindowDelegate {
         containerView = NSView(frame: NSRect(x: 0, y: 80, width: 520, height: 190))
         contentView.addSubview(containerView)
 
+        skipButton = NSButton(title: "Skip Setup", target: self, action: #selector(skip))
+        skipButton.frame = NSRect(x: 215, y: 20, width: 90, height: 32)
+        skipButton.bezelStyle = .rounded
+        skipButton.keyEquivalent = "\u{1b}"
+        contentView.addSubview(skipButton)
+
         backButton = NSButton(title: "Back", target: self, action: #selector(goBack))
-        backButton.frame = NSRect(x: 215, y: 20, width: 80, height: 32)
+        backButton.frame = NSRect(x: 315, y: 20, width: 80, height: 32)
         backButton.bezelStyle = .rounded
         backButton.isHidden = true
         contentView.addSubview(backButton)
 
+        // HIG: the default action is rightmost
         nextButton = NSButton(title: "Continue", target: self, action: #selector(goNext))
-        nextButton.frame = NSRect(x: 305, y: 20, width: 100, height: 32)
+        nextButton.frame = NSRect(x: 405, y: 20, width: 100, height: 32)
         nextButton.bezelStyle = .rounded
         nextButton.keyEquivalent = "\r"
         contentView.addSubview(nextButton)
-
-        skipButton = NSButton(title: "Skip Setup", target: self, action: #selector(skip))
-        skipButton.frame = NSRect(x: 415, y: 20, width: 90, height: 32)
-        skipButton.bezelStyle = .rounded
-        contentView.addSubview(skipButton)
     }
 
     func windowWillClose(_ notification: Notification) {
@@ -317,7 +319,10 @@ class SetupWindowController: NSWindowController, NSWindowDelegate {
 
     @objc private func skip() {
         didComplete = true
-        onComplete?()
+        // Deliberately do NOT call onComplete (which starts the shim): the config
+        // is still the example with empty credentials, so starting it would just
+        // loop through auth failures. Settings covers every wizard field and its
+        // Save starts the shim. Closing the window behaves identically.
         window?.close()
     }
 

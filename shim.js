@@ -9,9 +9,14 @@ const path = require('path');
 // A child process must tolerate its output pipes being closed (parent exiting,
 // macapp restarting the shim, pkill, ...). Writes to a dead stdout/stderr raise
 // EPIPE — without these handlers every log line became an uncaughtException.
-const isBrokenPipe = (err) => err && (err.code === 'EPIPE' || err.code === 'ERR_STREAM_DESTROYED');
+const isBrokenPipe = (err) => {
+    if (!err) return false;
+    if (err.code === 'EPIPE' || err.code === 'ERR_STREAM_DESTROYED') return true;
+    const msg = String(err.message || '');
+    return msg.includes('EPIPE') || msg.includes('ERR_STREAM_DESTROYED');
+};
 process.stdout.on('error', (err) => { if (!isBrokenPipe(err)) console.error('stdout error:', err.message); });
-process.stderr.on('error', (err) => { /* stderr is dead too — nothing to log to */ });
+process.stderr.on('error', () => { /* stderr is dead too — nothing to log to */ });
 
 // Which config to load. Lets you run one instance per Jellyfin account:
 //   node shim.js config.work.js
@@ -102,10 +107,16 @@ function ts() {
 function log(level, component, ...args) {
     if (level === 'debug' && !CONFIG.verbose) return;
     const prefix = `[${ts()}] [${component}]`;
-    if (level === 'error') {
-        console.error(prefix, ...args);
-    } else {
-        console.log(prefix, ...args);
+    // Output pipes can fail synchronously once dead — logging must never throw
+    // (an exception here used to cascade into a crash-dialog storm).
+    try {
+        if (level === 'error') {
+            console.error(prefix, ...args);
+        } else {
+            console.log(prefix, ...args);
+        }
+    } catch (e) {
+        if (!isBrokenPipe(e)) { /* nothing left to log to */ }
     }
 }
 
@@ -2837,6 +2848,7 @@ process.on('unhandledRejection', (reason) => {
     if (isBrokenPipe(reason)) {
         return;
     }
+    if (isBrokenPipe(reason)) { return; }
     log('error', 'main', '❌ Unhandled rejection:', reason);
     writeCrashLog('unhandledRejection', reason);
     showHeadlessErrorDialog('Unhandled Rejection', `An unexpected error occurred:\n\n${reason?.message || reason}`);
@@ -2845,6 +2857,7 @@ process.on('unhandledRejection', (reason) => {
 
 let lastCrashDialogAt = 0;
 function writeCrashLog(type, error) {
+    if (isBrokenPipe(error)) { return; }
     try {
         const dataDir = path.join(__dirname, 'data');
         if (!fs.existsSync(dataDir)) fs.mkdirSync(dataDir, { recursive: true, mode: 0o700 });

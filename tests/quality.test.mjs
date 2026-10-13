@@ -20,12 +20,30 @@ test('no duplicate keyboard shortcuts in Swift files', () => {
       }
     }
 
+    // Same key with DIFFERENT modifier masks is legal (e.g. Hide ⌘H and
+    // Hide Others ⌘⌥H — the standard macOS pair). Only identical (key, mask)
+    // pairs are duplicates; a keyEquivalentModifierMask set within a few lines
+    // of the keyEquivalent distinguishes them.
+    const lines = content.split('\n');
+    const maskOf = (line) => {
+      // only a mask assigned to the same variable counts — otherwise a nearby
+      // mask (e.g. Hide Others ⌘⌥H next to Hide ⌘H) would be attributed twice
+      const varMatch = (lines[line] || '').match(/(?:let|var)\s+(\w+)\s*=/);
+      if (varMatch) {
+        for (let i = line + 1; i < Math.min(line + 3, lines.length); i++) {
+          const m = lines[i].match(/^\s*(\w+)\.keyEquivalentModifierMask\s*=\s*(.*)/);
+          if (m && m[1] === varMatch[1]) return m[2].trim();
+        }
+      }
+      return '.command'; // NSMenuItem default
+    };
     const seen = new Map();
     for (const { key, line } of keyEquivs) {
-      if (seen.has(key)) {
-        assert.fail(`Duplicate keyEquivalent "${key}" in ${file} (lines ${seen.get(key)} and ${line})`);
+      const id = key + '|' + maskOf(line - 1);
+      if (seen.has(id)) {
+        assert.fail(`Duplicate keyEquivalent "${key}" in ${file} (lines ${seen.get(id)} and ${line})`);
       }
-      seen.set(key, line);
+      seen.set(id, line);
     }
   }
 });
