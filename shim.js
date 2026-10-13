@@ -611,17 +611,17 @@ async function handleMessage(msg) {
                 if (orderedItems.length >= 1 && playCommand !== 'PlayShuffle') {
                     try {
                         const info = await getEpisodeInfo(orderedItems[0], true);
-                        if (info.isSeries && info.seasonNumber > 0 && info.episodes && info.episodes.length >= orderedItems.length) {
+                        if (info && info.isSeries && info.seasonNumber > 0 && info.episodes && info.episodes.length >= orderedItems.length) {
                             playQueue = info.episodes.map(ep => ep.Id);
                             queuePosition = info.currentIndex >= 0 ? info.currentIndex : 0;
                             targetId = playQueue[queuePosition];
                             log('info', 'queue', `📋 Full season queue: ${playQueue.length} episodes, starting at ${queuePosition + 1} (${info.seriesName} S${info.seasonNumber})`);
-                        } else if (info.isSeries && info.seasonNumber === 0) {
+                        } else if (info && info.isSeries && info.seasonNumber === 0) {
                             // First episode is from Specials — find next unwatched episode
                             const nextUpId = await queryNextUp(info.seriesId);
                             if (nextUpId) {
                                 const nextUpInfo = await getEpisodeInfo(nextUpId, true);
-                                if (nextUpInfo.isSeries && nextUpInfo.episodes && nextUpInfo.episodes.length > 0) {
+                                if (nextUpInfo && nextUpInfo.isSeries && nextUpInfo.episodes && nextUpInfo.episodes.length > 0) {
                                     playQueue = nextUpInfo.episodes.map(ep => ep.Id);
                                     queuePosition = nextUpInfo.currentIndex >= 0 ? nextUpInfo.currentIndex : 0;
                                     targetId = playQueue[queuePosition];
@@ -970,60 +970,72 @@ async function handleMessage(msg) {
 
 async function getEpisodeInfo(itemId, silent = false) {
     try {
-        const headers = getAuthHeaders();
-        
-        const response = await axios.get(`${CONFIG.serverUrl}/Users/${userId}/Items/${itemId}`, {
-            headers,
-            params: { fields: 'MediaStreams' }
-        });
-        const item = response.data;
-
-        if (item.Type === 'Episode') {
-            const seasonResponse = await axios.get(`${CONFIG.serverUrl}/Shows/${item.SeriesId}/Episodes`, {
-                headers,
-                params: {
-                    seasonId: item.SeasonId,
-                    userId: userId,
-                    fields: 'Path,IndexNumber,ParentIndexNumber,SeriesName,Name,UserData'
-                }
-            });
-
-            const episodes = [...seasonResponse.data.Items].sort((a, b) => a.IndexNumber - b.IndexNumber);
-            const currentIndex = episodes.findIndex(ep => ep.Id === itemId);
-            const epName = currentIndex >= 0 ? (episodes[currentIndex].Name || '') : (item.Name || '');
-            const epLogTitle = [item.SeriesName, `${item.ParentIndexNumber}x${item.IndexNumber}`, epName].filter(Boolean).join(' - ');
-            if (!silent) log('info', 'episode', `📺 Episode detected: ${epLogTitle}`);
-
-            return {
-                isSeries: true,
-                playable: true,
-                seriesId: item.SeriesId,
-                currentIndex,
-                episodes,
-                nextEpisode: currentIndex >= 0 && currentIndex < episodes.length - 1 ? episodes[currentIndex + 1] : null,
-                previousEpisode: currentIndex > 0 ? episodes[currentIndex - 1] : null,
-                seriesName: item.SeriesName,
-                seasonNumber: item.ParentIndexNumber,
-                episodeNumber: item.IndexNumber,
-                title: epName,
-                itemRuntime: item.RunTimeTicks ? item.RunTimeTicks / 10000000 : 0,
-                userData: item.UserData || {},
-                mediaStreams: item.MediaStreams || []
-            };
-        }
-
-        const playableTypes = ['Episode', 'Movie', 'Video', 'MusicVideo', 'Audio'];
-        return {
-            isSeries: false,
-            playable: playableTypes.includes(item.Type),
-            title: item.Name || 'Movie/Music',
-            itemRuntime: item.RunTimeTicks ? item.RunTimeTicks / 10000000 : 0,
-            userData: item.UserData || {}
-        };
+        return await fetchEpisodeInfo(itemId, silent);
     } catch (error) {
-        log('error', 'episode', '⚠️ Error getting episode info:', error.message);
-        return { isSeries: false, playable: false };
+        log('warn', 'episode', `⚠️ Error getting item info for ${itemId}:`, error.message, '— retrying once');
+        await new Promise(r => setTimeout(r, 500));
+        try {
+            return await fetchEpisodeInfo(itemId, silent);
+        } catch (error2) {
+            log('error', 'episode', `⚠️ Error getting item info for ${itemId}:`, error2.message);
+            // null means the lookup FAILED (e.g. network/server error) — callers must
+            // not confuse this with an item that is legitimately not playable.
+            return null;
+        }
     }
+}
+
+async function fetchEpisodeInfo(itemId, silent = false) {
+    const headers = getAuthHeaders();
+
+    const response = await axios.get(`${CONFIG.serverUrl}/Users/${userId}/Items/${itemId}`, {
+        headers,
+        params: { fields: 'MediaStreams' }
+    });
+    const item = response.data;
+
+    if (item.Type === 'Episode') {
+        const seasonResponse = await axios.get(`${CONFIG.serverUrl}/Shows/${item.SeriesId}/Episodes`, {
+            headers,
+            params: {
+                seasonId: item.SeasonId,
+                userId: userId,
+                fields: 'Path,IndexNumber,ParentIndexNumber,SeriesName,Name,UserData'
+            }
+        });
+
+        const episodes = [...seasonResponse.data.Items].sort((a, b) => a.IndexNumber - b.IndexNumber);
+        const currentIndex = episodes.findIndex(ep => ep.Id === itemId);
+        const epName = currentIndex >= 0 ? (episodes[currentIndex].Name || '') : (item.Name || '');
+        const epLogTitle = [item.SeriesName, `${item.ParentIndexNumber}x${item.IndexNumber}`, epName].filter(Boolean).join(' - ');
+        if (!silent) log('info', 'episode', `📺 Episode detected: ${epLogTitle}`);
+
+        return {
+            isSeries: true,
+            playable: true,
+            seriesId: item.SeriesId,
+            currentIndex,
+            episodes,
+            nextEpisode: currentIndex >= 0 && currentIndex < episodes.length - 1 ? episodes[currentIndex + 1] : null,
+            previousEpisode: currentIndex > 0 ? episodes[currentIndex - 1] : null,
+            seriesName: item.SeriesName,
+            seasonNumber: item.ParentIndexNumber,
+            episodeNumber: item.IndexNumber,
+            title: epName,
+            itemRuntime: item.RunTimeTicks ? item.RunTimeTicks / 10000000 : 0,
+            userData: item.UserData || {},
+            mediaStreams: item.MediaStreams || []
+        };
+    }
+
+    const playableTypes = ['Episode', 'Movie', 'Video', 'MusicVideo', 'Audio'];
+    return {
+        isSeries: false,
+        playable: playableTypes.includes(item.Type),
+        title: item.Name || 'Movie/Music',
+        itemRuntime: item.RunTimeTicks ? item.RunTimeTicks / 10000000 : 0,
+        userData: item.UserData || {}
+    };
 }
 
 async function getIntroSegments(itemId) {
@@ -1042,7 +1054,12 @@ async function getIntroSegments(itemId) {
         const headers = getAuthHeaders();
         const response = await axios.get(`${CONFIG.serverUrl}/MediaSegments/${itemId}`, {
             headers,
-            params: { includeSegmentTypes: ['Intro', 'Outro'] }
+            params: { includeSegmentTypes: ['Intro', 'Outro'] },
+            // Repeat the array keys (includeSegmentTypes=Intro&includeSegmentTypes=Outro).
+            // The axios default emits PHP-style includeSegmentTypes[]=... which ASP.NET
+            // does not bind — the server then returns ALL segment types (Preview, Recap,
+            // ...) and auto-skip would skip those too. Verified against Jellyfin 10.10.
+            paramsSerializer: { indexes: null }
         });
         if (response.data && response.data.Items) {
             introSegments = response.data.Items.map(seg => ({
@@ -1194,6 +1211,16 @@ async function loadNewQueue(itemId, startTicks) {
         return;
     }
 
+    if (!currentEpisodeInfo) {
+        log('error', 'queue', `⚠️ Could not load item info for ${itemId} — aborting playback (server error, item not "non-playable")`);
+        showErrorOsd('Failed to load item from server');
+        currentItemId = null;
+        currentEpisodeInfo = null;
+        isPlayingNext = false;
+        isNewQueueLoad = false;
+        return;
+    }
+
     if (!ipcClient || ipcClient.destroyed || !mpvProcess) {
         log('warn', 'queue', '⚠️ MPV/IPC no longer available after loading queue info, falling back to playMedia');
         playMedia(itemId, startTicks).catch(err => {
@@ -1285,6 +1312,14 @@ async function playMedia(itemId, startTicks) {
     await getIntroSegments(itemId);
 
     if (gen !== playbackGeneration) return;
+
+    if (!currentEpisodeInfo) {
+        log('error', 'mpv', `⚠️ Could not load item info for ${itemId} — aborting playback (server error, item not "non-playable")`);
+        showErrorOsd('Failed to load item from server');
+        currentItemId = null;
+        currentEpisodeInfo = null;
+        return;
+    }
 
     if (!currentEpisodeInfo.playable) {
         log('info', 'queue', `⏭️ Skipping non-playable item: ${currentEpisodeInfo.title} (type: ${currentEpisodeInfo.isSeries ? 'series' : 'other'})`);
@@ -1840,10 +1875,11 @@ function handleMpvEvent(event) {
             log('info', 'queue', `📋 Playlist changed: queuePosition=${queuePosition}, itemId=${currentItemId}`);
 
             getEpisodeInfo(currentItemId).then(info => {
+                if (!info) log('warn', 'episode', `⚠️ Could not load item info for ${currentItemId} — continuing with generic title`);
                 currentEpisodeInfo = info;
-                const titleText = info.isSeries
+                const titleText = info && info.isSeries
                     ? [info.seriesName, `${info.seasonNumber}x${info.episodeNumber}`, info.title].filter(Boolean).join(' - ')
-                    : (info.title || String(currentItemId));
+                    : ((info && info.title) || String(currentItemId));
                 log('info', 'queue', `▶️ Starting next episode: ${titleText}`);
                 sendMpvCommand('set_property', ['force-media-title', `Jellyfin - ${titleText}`]);
                 sendMpvCommand('set_property', ['title', `Jellyfin - ${titleText}`]);
@@ -1937,10 +1973,11 @@ async function playNextEpisode() {
             return;
         }
         getEpisodeInfo(currentItemId).then(info => {
+            if (!info) log('warn', 'episode', `⚠️ Could not load item info for ${currentItemId} — continuing with generic title`);
             currentEpisodeInfo = info;
-            const titleText = info.isSeries
+            const titleText = info && info.isSeries
                 ? [info.seriesName, `${info.seasonNumber}x${info.episodeNumber}`, info.title].filter(Boolean).join(' - ')
-                : (info.title || String(currentItemId));
+                : ((info && info.title) || String(currentItemId));
             log('info', 'queue', `▶️ Starting next episode: ${titleText}`);
             sendMpvCommand('set_property', ['force-media-title', `Jellyfin - ${titleText}`]);
             sendMpvCommand('set_property', ['title', `Jellyfin - ${titleText}`]);
@@ -2021,9 +2058,10 @@ async function playNextEpisode() {
         const nextUpId = await queryNextUp(currentEpisodeInfo.seriesId, prevItemId2);
         if (nextUpId) {
             const nextUpInfo = await getEpisodeInfo(nextUpId);
-            const nextUpTitle = nextUpInfo.isSeries
+            if (!nextUpInfo) log('warn', 'queue', `⚠️ Could not load item info for NextUp ${nextUpId} — continuing with generic title`);
+            const nextUpTitle = nextUpInfo && nextUpInfo.isSeries
                 ? [nextUpInfo.seriesName, `${nextUpInfo.seasonNumber}x${nextUpInfo.episodeNumber}`, nextUpInfo.title].filter(Boolean).join(' - ')
-                : (nextUpInfo.title || String(nextUpId));
+                : ((nextUpInfo && nextUpInfo.title) || String(nextUpId));
             log('info', 'queue', `▶️ Starting next episode: ${nextUpTitle}`);
             if (!ipcClient || ipcClient.destroyed || !mpvProcess) {
                 playMedia(nextUpId, 0).catch(err => {
@@ -2128,10 +2166,11 @@ async function playPreviousEpisode() {
         currentPositionSeconds = 0;
         log('info', 'queue', `⏮️ Previous in queue (${queuePosition + 1}/${playQueue.length})`);
         getEpisodeInfo(currentItemId).then(info => {
+            if (!info) log('warn', 'episode', `⚠️ Could not load item info for ${currentItemId} — continuing with generic title`);
             currentEpisodeInfo = info;
-            const titleText = info.isSeries
+            const titleText = info && info.isSeries
                 ? [info.seriesName, `${info.seasonNumber}x${info.episodeNumber}`, info.title].filter(Boolean).join(' - ')
-                : (info.title || String(currentItemId));
+                : ((info && info.title) || String(currentItemId));
             log('info', 'queue', `▶️ Starting previous episode: ${titleText}`);
             sendMpvCommand('set_property', ['force-media-title', `Jellyfin - ${titleText}`]);
             sendMpvCommand('set_property', ['title', `Jellyfin - ${titleText}`]);
