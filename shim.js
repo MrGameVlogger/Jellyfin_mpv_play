@@ -698,8 +698,12 @@ async function handleMessage(msg) {
                 // Skip expansion for PlayShuffle — user selected specific episodes to shuffle
                 if (orderedItems.length >= 1 && playCommand !== 'PlayShuffle') {
                     try {
-                        const info = await getEpisodeInfo(orderedItems[0], true);
-                        if (info && info.isSeries && info.seasonNumber > 0 && info.episodes && info.episodes.length >= orderedItems.length) {
+                        // Expand around the STARTED item (StartIndex), not the first
+                        // id in the list — jellyfin-web sends the resolved queue with
+                        // StartIndex pointing at what the user clicked.
+                        const startItemId = orderedItems[Math.min(Math.max(startIndex, 0), orderedItems.length - 1)];
+                        const info = await getEpisodeInfo(startItemId, true);
+                        if (info && info.isSeries && info.episodes && info.episodes.length >= orderedItems.length) {
                             // If the request already lists the whole season in a specific
                             // order, keep that order. jellyfin-web's Shuffle is transformed
                             // by the server into PlayNow with a shuffled id list — re-sorting
@@ -712,62 +716,19 @@ async function handleMessage(msg) {
                                 playQueue = [...orderedItems];
                                 queuePosition = Math.min(Math.max(startIndex, 0), playQueue.length - 1);
                             } else {
+                                // Specials (season 0) expand to the specials season like any
+                                // other season — the web client plays what was requested.
+                                // End-of-queue NextUp already continues into the regular
+                                // season afterwards, so no redirect is needed or wanted.
                                 playQueue = info.episodes.map(ep => ep.Id);
                                 queuePosition = info.currentIndex >= 0 ? info.currentIndex : 0;
                             }
                             targetId = playQueue[queuePosition];
-                            log('info', 'queue', `📋 Full season queue: ${playQueue.length} episodes, starting at ${queuePosition + 1} (${info.seriesName} S${info.seasonNumber})${isPermutation ? ' [requested order kept]' : ''}`);
-                        } else if (info && info.isSeries && info.seasonNumber === 0) {
-                            // First episode is from Specials — find next unwatched episode
-                            const nextUpId = await queryNextUp(info.seriesId);
-                            if (nextUpId) {
-                                const nextUpInfo = await getEpisodeInfo(nextUpId, true);
-                                if (nextUpInfo && nextUpInfo.isSeries && nextUpInfo.episodes && nextUpInfo.episodes.length > 0) {
-                                    playQueue = nextUpInfo.episodes.map(ep => ep.Id);
-                                    queuePosition = nextUpInfo.currentIndex >= 0 ? nextUpInfo.currentIndex : 0;
-                                    targetId = playQueue[queuePosition];
-                                    log('info', 'queue', `📋 Full season queue: ${playQueue.length} episodes, starting at ${queuePosition + 1} (${nextUpInfo.seriesName} S${nextUpInfo.seasonNumber})`);
-                                } else {
-                                    playQueue = [...orderedItems];
-                                    queuePosition = startIndex;
-                                    log('info', 'queue', `📋 Queue set: ${playQueue.length} items, starting at index ${queuePosition}`);
-                                }
-                            } else {
-                                // No next up — fall back to season 1
-                                const headers = getAuthHeaders();
-                                const seasonsResponse = await axios.get(`${CONFIG.serverUrl}/Shows/${info.seriesId}/Seasons`, { headers });
-                                const seasons = (seasonsResponse.data.Items || []).filter(s => s.IndexNumber > 0).sort((a, b) => a.IndexNumber - b.IndexNumber);
-                                if (seasons.length > 0) {
-                                    const season1 = seasons[0];
-                                    const epsResponse = await axios.get(`${CONFIG.serverUrl}/Shows/${info.seriesId}/Episodes`, {
-                                        headers,
-                                        params: {
-                                            seasonId: season1.Id,
-                                            userId: userId,
-                                            fields: 'Path,IndexNumber,ParentIndexNumber,SeriesName,Name,UserData'
-                                        }
-                                    });
-                                    const eps = [...epsResponse.data.Items].sort((a, b) => a.IndexNumber - b.IndexNumber);
-                                    if (eps.length > 0) {
-                                        playQueue = eps.map(ep => ep.Id);
-                                        queuePosition = 0;
-                                        targetId = playQueue[0];
-                                        log('info', 'queue', `📋 Full season queue: ${playQueue.length} episodes, starting at 1 (${info.seriesName} S${season1.IndexNumber})`);
-                                    } else {
-                                        playQueue = [...orderedItems];
-                                        queuePosition = startIndex;
-                                        log('info', 'queue', `📋 Queue set: ${playQueue.length} items, starting at index ${queuePosition}`);
-                                    }
-                                } else {
-                                    playQueue = [...orderedItems];
-                                    queuePosition = startIndex;
-                                    log('info', 'queue', `📋 Queue set: ${playQueue.length} items, starting at index ${queuePosition}`);
-                                }
-                            }
+                            log('info', 'queue', `\u{1F4CB} Full season queue: ${playQueue.length} episodes, starting at ${queuePosition + 1} (${info.seriesName} S${info.seasonNumber})${isPermutation ? ' [requested order kept]' : ''}`);
                         } else {
                             playQueue = [...orderedItems];
-                            queuePosition = startIndex;
-                            log('info', 'queue', `📋 Queue set: ${playQueue.length} items, starting at index ${queuePosition}`);
+                            queuePosition = Math.min(Math.max(startIndex, 0), playQueue.length - 1);
+                            log('info', 'queue', `\u{1F4CB} Queue set: ${playQueue.length} items, starting at index ${queuePosition}`);
                         }
                     } catch (e) {
                         playQueue = [...orderedItems];
