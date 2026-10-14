@@ -18,6 +18,25 @@ All notable changes to Jellyfin MPV Play are documented here.
 
 -->
 
+## v1.12.1
+
+### Bug Fixes
+- **Fixed macOS menu shortcuts missing** — The HIG pass removed the status menu key equivalents (⌘P Pause, ⌘. Stop, ⌘C Copy Now Playing, ⇧⌘C Copy Log, ⌘L Logs, ⌘, Settings, ⌘I About, ⌘R Restart, ⌘/ Help, ⌘Q Quit). All restored; the Help window's shortcut table is back too (and now also documents the previously missing Copy shortcuts and the S skip-intro key).
+- **Fixed wrong copyright year** — The About window claimed "© 2024-2026"; the project started in 2026. Now "Copyright © 2026 MrGameVlogger. MIT License." read from Info.plist.
+- **Fixed stale pause state on track change** — Pausing and then moving to the next item kept showing "Paused" on the fresh episode.
+- **DisplayMessage no longer pauses playback** — jellyfin-web shows the message as a toast/alert without touching playback; the shim paused for 10s. The message now appears on the OSD while playback continues, and the TimeoutMs argument is honored for its duration.
+- **Faster WebSocket reconnection** — Reconnect backoff now matches jellyfin-web's SDK (1s × 1.5, 30s cap; was 5s doubling). The recurring connection drops (root-caused to short server-side outages of the hosting path — 5-30s windows in which both HTTP and WS are unreachable) are now recovered within seconds of the outage ending.
+- **Planned connection refresh** — A watchdog cleanly refreshes the WebSocket before long-lived connections can be cut by connection-age limits in some network paths (verified: clean code-1000 close and ~0.4s reconnect vs the abrupt 1006 + backoff gap).
+
+### macOS App
+- **HIG pass C** — Intro skipping is now a 3-state radio group (Auto-skip / Show prompt / Off) instead of two mutually exclusive checkboxes; window-scoped error alerts are sheets instead of app-modal dialogs; the About window icon adapts when the system appearance changes (was stale after a dark-mode toggle); decorative images are hidden from VoiceOver; tool windows are not restorable.
+
+### Internal
+- **Live E2E suite expanded to 26 tests and hardened** — new test covers jellyfin-web's exact episode-click request shape (startItemId resolution + StartIndex); flakes traced to root causes and made deterministic (transitions must complete before the next command; session lookups wait out WebSocket blips; suite HTTP retries network failures). All fixes verified against jellyfin-web source and the live server.
+- **Design principle deviations documented** — AGENTS.md now records the two intentional deviations from jellyfin-web (full-season queue back-navigation; PreviousTrack 30s restart rule).
+
+---
+
 ## v1.12.0
 
 ### Bug Fixes (playback — all verified live against mpv 0.41 and Jellyfin 12.2)
