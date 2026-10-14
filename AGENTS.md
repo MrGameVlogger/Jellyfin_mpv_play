@@ -88,7 +88,7 @@ No lint or typecheck steps exist. Tests run via `npm test`.
 - **Playable types**: `Episode`, `Movie`, `Video`, `MusicVideo`, `Audio` — anything else is skipped.
 - **Watched threshold**: Item marked watched at 90% of runtime.
 - **EOF detection**: Observes `eof-reached` property (ID 8). Logs item ID, position, duration, queue index, and whether it's the last item. This is more reliable than the progress poll's position-based check for triggering auto-close.
-- **Reconnection**: Exponential backoff (5s → 10s → 20s → 30s cap) on WebSocket disconnect.
+- **Reconnection**: Exponential backoff (1s × 1.5, 30s cap — matches jellyfin-web's SDK policy) on WebSocket disconnect. Drops observed in production are short server-side outages (5-30s); early retries recover within them.
 - **jf-mpv-osc integration**: Optional integration with [jf-mpv-osc](https://github.com/iwalton3/jf-mpv-osc) for Jellyfin-styled MPV UI. Pushes state via `shim-jf-osc-state` (track lists, queue, favorites, subtitle styling, SyncPlay groups). Handles actions via `shim-jf-osc-action` (skip, next/prev, set-sub, set-audio, screenshot, fullscreen, syncplay-join, syncplay-new, syncplay-disable, syncplay-refresh, etc.). Also handles direct `shim-close` and `shim-jf-osc-ui-seek` messages. All integration is optional — messages are silently ignored if OSC isn't loaded. See README.md for full tier support table.
 
 ## WebSocket behavior (learned the hard way)

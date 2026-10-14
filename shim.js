@@ -546,8 +546,11 @@ function scheduleReconnect() {
     }
     
     reconnectAttempts++;
-    let delaySeconds = Math.min(30, 5 * Math.pow(2, reconnectAttempts - 1));
-    if (reconnectAttempts === 1) delaySeconds = 5;
+    // Match jellyfin-web's reconnect policy (jellyfin-sdk-typescript:
+    // RECONNECT_INITIAL_DELAY 1s, factor 1.5): the drops we see are short
+    // server-side outages (5-30s), so retrying early lands within the same
+    // outage window and the next attempt catches the recovery quickly.
+    const delaySeconds = Math.min(30, 1 * Math.pow(1.5, reconnectAttempts - 1));
     
     // Only show OSD after first retry fails (avoids flashing on brief network blips)
     if (reconnectAttempts > 1) {
