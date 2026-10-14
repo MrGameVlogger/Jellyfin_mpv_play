@@ -1991,11 +1991,16 @@ function handleMpvEvent(event) {
 
     if (event.event === 'property-change' && event.name === 'aid') {
         currentAudioTrack = event.data;
+        // The OSC renders track selection from shim-jf-osc-state — push fresh
+        // state on every change (OSC action, Jellyfin command, or mpv's own menu)
+        // or it keeps displaying the selection from load time.
+        pushOscState();
         return;
     }
 
     if (event.event === 'property-change' && event.name === 'sid') {
         currentSubtitleTrack = event.data;
+        pushOscState();
         if (isSettingSubtitleFromJellyfin) {
             isSettingSubtitleFromJellyfin = false;
             if (subtitleFlagTimeout) { clearTimeout(subtitleFlagTimeout); subtitleFlagTimeout = null; }
@@ -2529,6 +2534,7 @@ function handleOscAction(verb, arg) {
                 // arg is percentage string from sub_style options (e.g., "100" = normal)
                 const scale = Number(arg) / 100;
                 sendMpvCommand('set_property', ['sub-scale', scale || 1.0]);
+                pushOscState();
             }
             break;
         case 'set-sub-position':
@@ -2536,12 +2542,14 @@ function handleOscAction(verb, arg) {
                 // arg is position string from sub_style options ("top", "50", "100")
                 const pos = arg === 'top' ? 0 : Number(arg) || 100;
                 sendMpvCommand('set_property', ['sub-pos', pos]);
+                pushOscState();
             }
             break;
         case 'set-sub-color':
             if (arg !== undefined) {
                 // arg is hex color string from sub_style options (e.g., "#FFFFFF")
                 sendMpvCommand('set_property', ['sub-color', arg]);
+                pushOscState();
             }
             break;
         case 'toggle-favorite':
