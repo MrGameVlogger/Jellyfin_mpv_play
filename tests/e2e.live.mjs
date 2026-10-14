@@ -746,6 +746,39 @@ t(27, 'OSC state push reflects track changes made through the OSC', async ({ ite
     check(ipcEvents.length > 0, 'no shim-jf-osc-state push after a Jellyfin-side track change');
 });
 
+t(28, 'state feedback: queue changes, repeat reporting, mpv-key sub-style changes', async ({ items }) => {
+    // same bug class as test 27: state changes must reach the UIs
+    await playAndWait(items.episode.Id);
+    await sleep(500);
+
+    // (a) queue mutations push OSC state (has_prev/has_next live in the blob)
+    ipcEvents.length = 0;
+    await playItem(items.movie.Id, { playCommand: 'PlayNext' });
+    await sleep(2000);
+    check(ipcEvents.length > 0, 'no OSC state push after PlayNext (queue changed)');
+    const qstate = JSON.parse(ipcEvents[ipcEvents.length - 1].args[1]);
+    check(qstate.queue && qstate.queue.has_next === true, `queue.has_next should be true after PlayNext (got ${JSON.stringify(qstate.queue)})`);
+
+    // (b) RepeatMode reported to Jellyfin reflects the real state (web parity)
+    await generalCmd('SetRepeatMode', { RepeatMode: 'RepeatAll' });
+    await sleep(11500); // next 10s progress tick carries it
+    const ses = await findSession();
+    check(ses.PlayState && ses.PlayState.RepeatMode === 'RepeatAll',
+        `session should report RepeatAll (got ${ses.PlayState && ses.PlayState.RepeatMode})`);
+    await generalCmd('SetRepeatMode', { RepeatMode: 'RepeatNone' });
+
+    // (c) mpv's own keys (G/F/r/R change sub-scale/sub-pos directly) must push
+    //     OSC state too — jf-mpv-osc renders sub_style from the blob
+    ipcEvents.length = 0;
+    await mpvSet('sub-scale', 1.25);
+    await sleep(1500);
+    check(ipcEvents.length > 0, 'no OSC state push after an mpv-side sub-scale change');
+    const sstate = JSON.parse(ipcEvents[ipcEvents.length - 1].args[1]);
+    check(sstate.sub_style && sstate.sub_style.size && sstate.sub_style.size.current === '125%',
+        `sub_style.size.current should reflect 1.25 (got ${sstate.sub_style && sstate.sub_style.size && sstate.sub_style.size.current})`);
+    await mpvSet('sub-scale', 1.0);
+});
+
 t(23, 'security: token never appears in shim logs', async () => {
     const r = await api.post('/Users/AuthenticateByName', { Username: cfg.username, Pw: cfg.password }, {
         headers: { 'Content-Type': 'application/json', Authorization: `MediaBrowser Client="x", Device="x", DeviceId="tokcheck", Version="1.0"` }
