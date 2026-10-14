@@ -386,12 +386,15 @@ t(6, 'SetRepeatMode maps to mpv loop properties', async () => {
     check((await mpvGet('loop-playlist')) !== 'inf', 'RepeatNone did not clear loop-playlist');
 });
 
-t(7, 'DisplayMessage pauses for 10s then restores', async () => {
+t(7, 'DisplayMessage shows the message without pausing (web parity)', async () => {
+    // jellyfin-web shows DisplayMessage as a toast/alert and never touches
+    // playback (serverNotifications.js displayMessage)
     await playstate('Unpause'); await sleep(400);
-    await generalCmd('DisplayMessage', { Header: 'E2E', Text: 'hello from the suite' }); await sleep(1200);
-    eq(await mpvGet('pause'), true, 'DisplayMessage should pause playback');
-    await sleep(10500);
-    eq(await mpvGet('pause'), false, 'DisplayMessage should resume after 10s');
+    await generalCmd('DisplayMessage', { Header: 'E2E', Text: 'hello from the suite', TimeoutMs: '4000' }); await sleep(1200);
+    eq(await mpvGet('pause'), false, 'DisplayMessage must NOT pause playback (web parity)');
+    eq(await mpvGet('osd-font-size'), 60, 'the message OSD should be shown while the message is up');
+    await sleep(3500);
+    check((await mpvGet('osd-font-size')) !== 60, 'OSD settings should be restored after the message');
 });
 
 t(8, 'track mapping: Jellyfin stream indices select the right mpv tracks', async ({ items }) => {
