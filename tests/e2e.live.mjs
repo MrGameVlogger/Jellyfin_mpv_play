@@ -692,6 +692,23 @@ t(25, 'specials rule: series play starts past specials, explicit special plays i
     await waitForMpvPath(fx.specialId);
 });
 
+t(26, 'web-style episode click: startItemId-shaped list starts at the clicked item', async ({ items }) => {
+    // jellyfin-web resolves a single-episode click via getEpisodes(SeriesId,
+    // startItemId: clicked) and sends the resulting list with StartIndex at the
+    // clicked item (playbackmanager.js filterEpisodes). Emulate that exact shape.
+    const ep = items.episode;
+    const resolved = await get(`/Shows/${ep.SeriesId}/Episodes`, {
+        userId: authHeaders.userId, seasonId: ep.SeasonId, startItemId: ep.Id, fields: 'IndexNumber'
+    });
+    const list = (resolved.data.Items || []);
+    check(list.length > 0, 'server returned no items for the startItemId query');
+    const startIdx = Math.max(0, list.findIndex(e => e.Id === ep.Id));
+    const m = markLog();
+    await playItem(list.map(e => e.Id).join(','), { startIndex: startIdx });
+    await waitForSince(m, /Queue set: |Full season queue: /, 20000);
+    await connectIpcWhenReady();
+    await waitForMpvPath(ep.Id);
+});
 t(23, 'security: token never appears in shim logs', async () => {
     const r = await api.post('/Users/AuthenticateByName', { Username: cfg.username, Pw: cfg.password }, {
         headers: { 'Content-Type': 'application/json', Authorization: `MediaBrowser Client="x", Device="x", DeviceId="tokcheck", Version="1.0"` }
