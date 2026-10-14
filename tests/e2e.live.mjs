@@ -167,6 +167,7 @@ async function seekWhenReady(target, flags = 'absolute') {
 // ---------- mpv IPC (the suite's own socket) ----------
 let ipc = null, ipcBuf = '', ipcId = 1;
 const ipcPending = new Map();
+const ipcEvents = [];  // shim-jf-osc-state broadcasts, as jf-mpv-osc receives them
 function ipcConnect() {
     return new Promise((resolve, reject) => {
         ipc = net.connect(IPC_SOCK);
@@ -177,6 +178,9 @@ function ipcConnect() {
             for (const line of lines) {
                 if (!line.trim()) continue;
                 let r; try { r = JSON.parse(line); } catch { continue; }
+                if (r.event === 'client-message' && r.args && r.args[0] === 'shim-jf-osc-state') {
+                    ipcEvents.push(r);
+                }
                 if (r.request_id !== undefined && ipcPending.has(r.request_id)) {
                     const p = ipcPending.get(r.request_id);
                     ipcPending.delete(r.request_id);
@@ -709,6 +713,39 @@ t(26, 'web-style episode click: startItemId-shaped list starts at the clicked it
     await connectIpcWhenReady();
     await waitForMpvPath(ep.Id);
 });
+t(27, 'OSC state push reflects track changes made through the OSC', async ({ items }) => {
+    // jf-mpv-osc renders its track menus from shim-jf-osc-state broadcasts; after
+    // an OSC-initiated track change the shim must push fresh state or the UI
+    // keeps showing the selection from load time
+    const fx = items.multiTrack;
+    const subs = fx.subs, auds = fx.auds;
+    await playAndWait(fx.Id);
+    await sleep(600);
+    if (subs.length >= 2) {
+        ipcEvents.length = 0;
+        await mpvCmd('script-message', 'shim-jf-osc-action', 'set-sub', String(subs[1].Index));
+        await sleep(2000);
+        check(ipcEvents.length > 0, 'no shim-jf-osc-state push after a set-sub action');
+        const state = JSON.parse(ipcEvents[ipcEvents.length - 1].args[1]);
+        const sel = (state.subtitles || []).find(x => x.selected);
+        check(sel && sel.id === subs[1].Index, `OSC state shows sub ${sel ? sel.id : 'none'}, expected ${subs[1].Index}`);
+    }
+    if (auds.length >= 2) {
+        ipcEvents.length = 0;
+        await mpvCmd('script-message', 'shim-jf-osc-action', 'set-audio', String(auds[1].Index));
+        await sleep(2000);
+        check(ipcEvents.length > 0, 'no shim-jf-osc-state push after a set-audio action');
+        const state = JSON.parse(ipcEvents[ipcEvents.length - 1].args[1]);
+        const sel = (state.audio || []).find(x => x.selected);
+        check(sel && sel.id === auds[1].Index, `OSC state shows audio ${sel ? sel.id : 'none'}, expected ${auds[1].Index}`);
+    }
+    // and Jellyfin-side changes must reach the OSC too (same observers)
+    ipcEvents.length = 0;
+    await generalCmd('SetSubtitleStreamIndex', { Index: subs[0].Index });
+    await sleep(2000);
+    check(ipcEvents.length > 0, 'no shim-jf-osc-state push after a Jellyfin-side track change');
+});
+
 t(23, 'security: token never appears in shim logs', async () => {
     const r = await api.post('/Users/AuthenticateByName', { Username: cfg.username, Pw: cfg.password }, {
         headers: { 'Content-Type': 'application/json', Authorization: `MediaBrowser Client="x", Device="x", DeviceId="tokcheck", Version="1.0"` }
