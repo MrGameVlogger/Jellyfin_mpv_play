@@ -187,6 +187,7 @@ async function resyncQueueFromPlaylist() {
         ids.push(id);
     }
     playQueue = ids;
+    pushOscState();
 }
 
 const TOKEN_FILE = path.join(__dirname, 'data', `jellyfin_token_${CONFIG.deviceId}.json`);
@@ -236,6 +237,15 @@ let subtitleFlagTimeout = null;
 let currentSubtitleTrack = undefined;
 let currentAudioTrack = undefined;
 let mpvTrackList = [];
+// Jellyfin report fields derived from actual playback state (jellyfin-web
+// reports the real values — pbm.js:2203). Repeat mode mirrors mpv's loop
+// properties via observers; playback order has no mpv equivalent, so it is
+// tracked from the commands that change it.
+let currentRepeatMode = 'RepeatNone';
+let currentPlaybackOrder = 'Default';
+let currentLoopPlaylist = 'no';
+let currentLoopFile = 'no';
+let lastSubStylePushAt = 0;
 let playbackGeneration = 0;
 let isMpvPaused = false;
 let isMuted = false;
@@ -733,6 +743,7 @@ async function handleMessage(msg) {
                     sendMpvCommand('loadfile', [url, 'insert-at', insertAt + i]);
                 }
                 log('info', 'queue', `➕ Added ${orderedItems.length} item(s) to queue after position ${queuePosition}`);
+                pushOscState();
                 return;
             } else if (playCommand === 'PlayLast') {
                 playQueue.push(...orderedItems);
@@ -741,6 +752,7 @@ async function handleMessage(msg) {
                     sendMpvCommand('loadfile', [url, 'append']);
                 }
                 log('info', 'queue', `➕ Appended ${orderedItems.length} item(s) to queue (total: ${playQueue.length})`);
+                pushOscState();
                 return;
             } else {
                 // Expand to full season queue if items are episodes from the same season
@@ -912,6 +924,7 @@ async function handleMessage(msg) {
             // mpv has no runtime "shuffle" property — --shuffle only shuffles at load
             // time. playlist-shuffle / playlist-unshuffle are the commands that reorder
             // the current playlist (verified on mpv 0.41).
+            currentPlaybackOrder = order === 'Shuffle' ? 'Shuffle' : 'Default';
             if (order === 'Shuffle') sendMpvCommand('playlist-shuffle');
             else sendMpvCommand('playlist-unshuffle');
             // playlist order just changed — keep playQueue in sync with it
@@ -977,6 +990,7 @@ async function handleMessage(msg) {
                 }
                 
                 log('info', 'queue', `🔀 Queue shuffled by server (${playQueue.length} items)`);
+                pushOscState();
             }
         } else if (command === 'SetSubtitleDelay') {
             const delay = args.Delay || 0;
@@ -1009,6 +1023,7 @@ async function handleMessage(msg) {
                 }
                 break;
             case 'SetPlaylistOrder':
+                currentPlaybackOrder = data.PlaybackOrder === 'Shuffle' ? 'Shuffle' : 'Default';
                 if (data.PlaybackOrder === 'Shuffle') sendMpvCommand('playlist-shuffle');
                 else sendMpvCommand('playlist-unshuffle');
                 resyncQueueFromPlaylist();
@@ -1694,6 +1709,10 @@ function connectToMpvIpc(gen) {
             sendMpvCommand('observe_property', [7, 'playlist-pos']);
             sendMpvCommand('observe_property', [8, 'eof-reached']);
             sendMpvCommand('observe_property', [9, 'aid']);
+            sendMpvCommand('observe_property', [10, 'loop-playlist']);
+            sendMpvCommand('observe_property', [11, 'loop-file']);
+            sendMpvCommand('observe_property', [12, 'sub-scale']);
+            sendMpvCommand('observe_property', [13, 'sub-pos']);
             
             sendMpvCommand('keybind', ['>', 'script-message jellyfin-next']);
             sendMpvCommand('keybind', ['<', 'script-message jellyfin-prev']);
@@ -1995,6 +2014,28 @@ function handleMpvEvent(event) {
         // state on every change (OSC action, Jellyfin command, or mpv's own menu)
         // or it keeps displaying the selection from load time.
         pushOscState();
+        return;
+    }
+
+    if (event.event === 'property-change' && (event.name === 'loop-playlist' || event.name === 'loop-file')) {
+        // Keep the RepeatMode we report to Jellyfin truthful (mpv's own loop
+        // button / L key change these without going through SetRepeatMode)
+        if (event.name === 'loop-file') currentLoopFile = event.data;
+        else currentLoopPlaylist = event.data;
+        currentRepeatMode = (currentLoopFile === 'inf' || currentLoopFile === 'force') ? 'RepeatOne'
+            : ((currentLoopPlaylist === 'inf' || currentLoopPlaylist === 'force') ? 'RepeatAll' : 'RepeatNone');
+        return;
+    }
+
+    if (event.event === 'property-change' && (event.name === 'sub-scale' || event.name === 'sub-pos')) {
+        // jf-mpv-osc shows sub_style from the state blob; mpv's own G/F/r/R keys
+        // change these without an OSC action — push (throttled: these fire in
+        // bursts while a key is held)
+        const now = Date.now();
+        if (now - lastSubStylePushAt > 500) {
+            lastSubStylePushAt = now;
+            pushOscState();
+        }
         return;
     }
 
@@ -2401,8 +2442,8 @@ function reportPlaybackStart(itemId, positionTicks) {
         PlayMethod: 'DirectPlay',
         PlaySessionId: playSessionId,
         CanSeek: true,
-        RepeatMode: 'RepeatNone',
-        PlaybackOrder: 'Default',
+        RepeatMode: currentRepeatMode,
+        PlaybackOrder: currentPlaybackOrder,
         AudioStreamIndex: pendingAudioStreamIndex,
         SubtitleStreamIndex: pendingSubtitleStreamIndex !== undefined
             ? (pendingSubtitleStreamIndex === 'no' ? -1 : pendingSubtitleStreamIndex)
@@ -2458,8 +2499,8 @@ function reportPlaybackProgress(itemId, positionTicks) {
         PlayMethod: 'DirectPlay',
         PlaySessionId: playSessionId,
         CanSeek: true,
-        RepeatMode: 'RepeatNone',
-        PlaybackOrder: 'Default',
+        RepeatMode: currentRepeatMode,
+        PlaybackOrder: currentPlaybackOrder,
         AudioStreamIndex: typeof currentAudioTrack === 'number'
             ? mpvTrackIdToJellyfinIndex(currentAudioTrack, 'Audio')
             : (currentAudioTrack === false ? -1 : undefined),
