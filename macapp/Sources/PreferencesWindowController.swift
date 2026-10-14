@@ -14,8 +14,9 @@ class PreferencesWindowController: NSWindowController {
     private var fullscreenCheckbox: NSButton!
     private var autoCloseCheckbox: NSButton!
     private var headlessCheckbox: NSButton!
-    private var autoSkipIntrosCheckbox: NSButton!
-    private var disableSkipIntroCheckbox: NSButton!
+    private var skipAutoRadio: NSButton!
+    private var skipPromptRadio: NSButton!
+    private var skipDisableRadio: NSButton!
     private var verboseCheckbox: NSButton!
     private var testButton: NSButton!
     private var statusLabel: NSTextField!
@@ -32,6 +33,7 @@ class PreferencesWindowController: NSWindowController {
         window.title = "Settings"
         window.center()
         window.isReleasedWhenClosed = false
+        window.isRestorable = false
         self.init(window: window)
         setupUI()
         populateConfigFiles()
@@ -256,19 +258,28 @@ class PreferencesWindowController: NSWindowController {
         headlessCheckbox.frame = NSRect(x: leftX, y: yOffset, width: checkboxWidth, height: checkboxHeight)
         contentView.addSubview(headlessCheckbox)
 
-        autoSkipIntrosCheckbox = NSButton(checkboxWithTitle: "Auto-skip intros/outros", target: self, action: #selector(autoSkipIntrosChanged))
-        autoSkipIntrosCheckbox.frame = NSRect(x: rightX, y: yOffset, width: checkboxWidth, height: checkboxHeight)
-        contentView.addSubview(autoSkipIntrosCheckbox)
-        yOffset -= rowSpacing
-
-        // Row 3
-        disableSkipIntroCheckbox = NSButton(checkboxWithTitle: "Disable skip intro feature", target: self, action: #selector(disableSkipIntroChanged))
-        disableSkipIntroCheckbox.frame = NSRect(x: leftX, y: yOffset, width: checkboxWidth, height: checkboxHeight)
-        contentView.addSubview(disableSkipIntroCheckbox)
-
         verboseCheckbox = NSButton(checkboxWithTitle: "Verbose logging", target: nil, action: nil)
         verboseCheckbox.frame = NSRect(x: rightX, y: yOffset, width: checkboxWidth, height: checkboxHeight)
         contentView.addSubview(verboseCheckbox)
+        yOffset -= rowSpacing
+
+        // Row 3 — intro skipping is a 3-state choice (HIG: radio buttons)
+        let skipLabel = NSTextField(labelWithString: "Intro skipping:")
+        skipLabel.frame = NSRect(x: 20, y: yOffset, width: 100, height: 22)
+        skipLabel.alignment = .right
+        contentView.addSubview(skipLabel)
+
+        skipAutoRadio = NSButton(radioButtonWithTitle: "Auto-skip", target: nil, action: nil)
+        skipAutoRadio.frame = NSRect(x: leftX, y: yOffset, width: 110, height: 22)
+        contentView.addSubview(skipAutoRadio)
+
+        skipPromptRadio = NSButton(radioButtonWithTitle: "Show prompt", target: nil, action: nil)
+        skipPromptRadio.frame = NSRect(x: leftX + 115, y: yOffset, width: 120, height: 22)
+        contentView.addSubview(skipPromptRadio)
+
+        skipDisableRadio = NSButton(radioButtonWithTitle: "Off", target: nil, action: nil)
+        skipDisableRadio.frame = NSRect(x: leftX + 240, y: yOffset, width: 80, height: 22)
+        contentView.addSubview(skipDisableRadio)
         yOffset -= 20
 
         // Separator
@@ -364,13 +375,11 @@ class PreferencesWindowController: NSWindowController {
         fullscreenCheckbox.state = ConfigParser.extractValue(from: content, key: "fullscreen") == "true" ? .on : .off
         autoCloseCheckbox.state = ConfigParser.extractValue(from: content, key: "autoClose") == "true" ? .on : .off
         headlessCheckbox.state = ConfigParser.extractValue(from: content, key: "headless") == "true" ? .on : .off
-        autoSkipIntrosCheckbox.state = ConfigParser.extractValue(from: content, key: "autoSkipIntros") == "true" ? .on : .off
-        disableSkipIntroCheckbox.state = ConfigParser.extractValue(from: content, key: "disableSkipIntro") == "true" ? .on : .off
-        // The two are mutually exclusive (shim disables autoSkipIntros if both are
-        // set) — reflect that instead of showing both checked
-        if autoSkipIntrosCheckbox.state == .on && disableSkipIntroCheckbox.state == .on {
-            disableSkipIntroCheckbox.state = .off
-        }
+        let autoSkip = ConfigParser.extractValue(from: content, key: "autoSkipIntros") == "true"
+        let skipOff = ConfigParser.extractValue(from: content, key: "disableSkipIntro") == "true"
+        skipAutoRadio.state = autoSkip && !skipOff ? .on : .off
+        skipDisableRadio.state = skipOff ? .on : .off
+        skipPromptRadio.state = (!autoSkip && !skipOff) || (autoSkip && skipOff) ? .on : .off
         verboseCheckbox.state = ConfigParser.extractValue(from: content, key: "verbose") == "true" ? .on : .off
     }
 
@@ -423,7 +432,11 @@ class PreferencesWindowController: NSWindowController {
             alert.informativeText = "Server URL, Username, and Password are required."
             alert.alertStyle = .warning
             alert.addButton(withTitle: "OK")
-            alert.runModal()
+            if let window = window {
+                alert.beginSheetModal(for: window)
+            } else {
+                alert.runModal()
+            }
             return
         }
 
@@ -462,8 +475,8 @@ class PreferencesWindowController: NSWindowController {
         lines.append("    fullscreen: \(fullscreenCheckbox.state == .on ? "true" : "false"),")
         lines.append("    autoClose: \(autoCloseCheckbox.state == .on ? "true" : "false"),")
         lines.append("    headless: \(headlessCheckbox.state == .on ? "true" : "false"),")
-        lines.append("    autoSkipIntros: \(autoSkipIntrosCheckbox.state == .on ? "true" : "false"),")
-        lines.append("    disableSkipIntro: \(disableSkipIntroCheckbox.state == .on ? "true" : "false"),")
+        lines.append("    autoSkipIntros: \(skipAutoRadio.state == .on ? "true" : "false"),")
+        lines.append("    disableSkipIntro: \(skipDisableRadio.state == .on ? "true" : "false"),")
         lines.append("    verbose: \(verboseCheckbox.state == .on ? "true" : "false"),")
 
         // The panel owns all 14 keys. Everything else in the file (comments,
@@ -483,19 +496,11 @@ class PreferencesWindowController: NSWindowController {
             alert.informativeText = error.localizedDescription
             alert.alertStyle = .warning
             alert.addButton(withTitle: "OK")
-            alert.runModal()
-        }
-    }
-
-    @objc private func autoSkipIntrosChanged() {
-        if autoSkipIntrosCheckbox.state == .on {
-            disableSkipIntroCheckbox.state = .off
-        }
-    }
-
-    @objc private func disableSkipIntroChanged() {
-        if disableSkipIntroCheckbox.state == .on {
-            autoSkipIntrosCheckbox.state = .off
+            if let window = window {
+                alert.beginSheetModal(for: window)
+            } else {
+                alert.runModal()
+            }
         }
     }
 

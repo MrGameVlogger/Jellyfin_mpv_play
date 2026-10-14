@@ -44,6 +44,7 @@ class HelpWindowController: NSWindowController {
             if let icon = icon {
                 let img = NSImage(systemSymbolName: icon, accessibilityDescription: nil)
                 let imgView = NSImageView(image: img ?? NSImage())
+                imgView.setAccessibilityElement(false) // decorative
                 imgView.frame = NSRect(x: 24, y: y + 2, width: 18, height: 18)
                 imgView.contentTintColor = .systemOrange
                 containerView.addSubview(imgView)

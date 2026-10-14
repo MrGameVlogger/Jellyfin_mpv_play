@@ -42,6 +42,7 @@ class SetupWindowController: NSWindowController, NSWindowDelegate {
 
         let icon = NSImage(named: "AppIcon") ?? NSImage(systemSymbolName: "play.circle.fill", accessibilityDescription: nil)
         let iconView = NSImageView(image: icon ?? NSImage())
+        iconView.setAccessibilityElement(false) // decorative
         iconView.frame = NSRect(x: 230, y: 355, width: 60, height: 60)
         iconView.contentTintColor = .systemOrange
         contentView.addSubview(iconView)
@@ -134,6 +135,7 @@ class SetupWindowController: NSWindowController, NSWindowDelegate {
             let y = 145 - i * 36
             let img = NSImage(systemSymbolName: icon, accessibilityDescription: nil)
             let imgView = NSImageView(image: img ?? NSImage())
+            imgView.setAccessibilityElement(false) // decorative
             imgView.frame = NSRect(x: 100, y: y, width: 24, height: 24)
             imgView.contentTintColor = .systemOrange
             containerView.addSubview(imgView)
@@ -279,6 +281,7 @@ class SetupWindowController: NSWindowController, NSWindowDelegate {
             let y = 145 - i * 36
             let img = NSImage(systemSymbolName: icon, accessibilityDescription: nil)
             let imgView = NSImageView(image: img ?? NSImage())
+            imgView.setAccessibilityElement(false) // decorative
             imgView.frame = NSRect(x: 80, y: y, width: 24, height: 24)
             imgView.contentTintColor = .systemGreen
             containerView.addSubview(imgView)
@@ -414,7 +417,11 @@ class SetupWindowController: NSWindowController, NSWindowDelegate {
             alert.informativeText = error.localizedDescription
             alert.alertStyle = .warning
             alert.addButton(withTitle: "OK")
-            alert.runModal()
+            if let window = window {
+                alert.beginSheetModal(for: window)
+            } else {
+                alert.runModal()
+            }
         }
     }
 
