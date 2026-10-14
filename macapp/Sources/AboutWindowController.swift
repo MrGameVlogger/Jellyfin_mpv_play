@@ -1,6 +1,7 @@
 import Cocoa
 
 class AboutWindowController: NSWindowController {
+    private var iconView: NSImageView!
     convenience init() {
         let window = NSWindow(
             contentRect: NSRect(x: 0, y: 0, width: 420, height: 350),
@@ -15,17 +16,30 @@ class AboutWindowController: NSWindowController {
         setupUI()
     }
 
+    override func showWindow(_ sender: Any?) {
+        super.showWindow(sender)
+        updateIconForAppearance()
+        window?.makeKeyAndOrderFront(nil)
+    }
+
+    // Pick light/dark icon from the CURRENT appearance at every show — the
+    // window is cached (isReleasedWhenClosed = false), so an init-time choice
+    // would stay stale when the system appearance changes.
+    private func updateIconForAppearance() {
+        guard let imageView = iconView else { return }
+        let isDark = window?.effectiveAppearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
+        let iconFilename = isDark ? "icon-dark.svg" : "icon-light.svg"
+        let iconPath = ((Bundle.main.resourcePath ?? "") as NSString).appendingPathComponent(iconFilename)
+        imageView.image = NSImage(contentsOfFile: iconPath) ?? NSApp.applicationIconImage ?? NSImage(named: "AppIcon")
+    }
+
     private func setupUI() {
         guard let contentView = window?.contentView else { return }
 
-        let iconView = NSImageView(frame: NSRect(x: 180, y: 275, width: 60, height: 60))
+        iconView = NSImageView(frame: NSRect(x: 180, y: 275, width: 60, height: 60))
         iconView.imageScaling = .scaleProportionallyUpOrDown
-        let isDark = contentView.effectiveAppearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
-        let iconBundlePath = Bundle.main.resourcePath ?? ""
-        let iconFilename = isDark ? "icon-dark.svg" : "icon-light.svg"
-        let iconPath = (iconBundlePath as NSString).appendingPathComponent(iconFilename)
-        iconView.image = NSImage(contentsOfFile: iconPath) ?? NSApp.applicationIconImage ?? NSImage(named: "AppIcon")
         contentView.addSubview(iconView)
+        updateIconForAppearance()
 
         let title = NSTextField(labelWithString: "Jellyfin MPV Play")
         title.frame = NSRect(x: 0, y: 245, width: 420, height: 28)
