@@ -7,7 +7,9 @@
 //
 // The suite runs headless (vo=null/ao=null via mpvFlags) on an isolated session
 // (own deviceId + own IPC socket) so it never touches a production device or
-// pops up windows. Watched/favorite state that tests mutate is restored.
+// pops up windows. Everything the run mutates on the server (Played, resume
+// position, favorite, PlayCount, SyncPlay groups) and locally (tokens, logs,
+// locks) is snapshotted and restored/removed in teardown().
 import { spawn, execSync } from 'child_process';
 import net from 'net';
 import fs from 'fs';
@@ -101,6 +103,90 @@ async function generalCmd(name, args = {}) {
     return r;
 }
 
+// ---------- leave Jellyfin as we found it ----------
+const userDataSnapshots = new Map(); // itemId -> pre-run UserData subset
+const GUID_RE = /^[a-f0-9]{32}$/i;
+async function snapshotUserData(itemId) {
+    // only skip when a VALID snapshot exists — a walk-time "unreadable" record
+    // must get another chance for items that actually get played
+    if (!itemId || userDataSnapshots.get(itemId)) return;
+    let u = null;
+    for (let i = 0; i < 3 && !u; i++) {
+        const r = await get(`/Users/${authHeaders.userId}/Items/${itemId}`, { fields: 'UserData' });
+        if (r.status === 200 && r.data && r.data.UserData) u = r.data.UserData;
+        else await sleep(250 * (i + 1)); // bursts get throttled — pace and retry
+    }
+    if (!u) {
+        // unreadable (segment/media-source id / missing item / persistent error):
+        // record NOTHING so teardown can never write guessed zeros over real state
+        userDataSnapshots.set(itemId, null);
+        return;
+    }
+    userDataSnapshots.set(itemId, {
+        Played: !!u.Played,
+        PlaybackPositionTicks: u.PlaybackPositionTicks || 0,
+        IsFavorite: !!u.IsFavorite,
+        PlayCount: u.PlayCount || 0,
+        LastPlayedDate: u.LastPlayedDate || null
+    });
+}
+async function restoreUserData() {
+    let restored = 0, skipped = 0, bad = 0;
+    for (const [itemId, u] of userDataSnapshots) {
+        if (!u) { skipped++; continue; }
+        const body = { ItemId: itemId, UserId: authHeaders.userId, ...u };
+        const r = await post(`/Users/${authHeaders.userId}/Items/${itemId}/UserData`, body);
+        let a = null;
+        for (let i = 0; i < 3 && !a; i++) {
+            const after = await get(`/Users/${authHeaders.userId}/Items/${itemId}`, { fields: 'UserData' });
+            if (after.status === 200 && after.data && after.data.UserData) a = after.data.UserData;
+            else await sleep(400);
+        }
+        const ok = r.status < 400 && a && !!a.Played === u.Played
+            && (a.PlaybackPositionTicks || 0) === u.PlaybackPositionTicks
+            && !!a.IsFavorite === u.IsFavorite && (a.PlayCount || 0) === u.PlayCount;
+        if (ok) { restored++; continue; }
+        bad++;
+        console.log(` restore MISMATCH ${itemId} status=${r.status} sent=${JSON.stringify(u)} got=${JSON.stringify(a)}`);
+    }
+    console.log(` restored UserData: ${restored} ok, ${skipped} skipped (unreadable/non-item), ${bad} mismatched`);
+}
+async function teardown() {
+    try {
+        // leave any SyncPlay group BEFORE the sessions die: a dead member pins
+        // the group on the server indefinitely
+        if (shimProc) {
+            try { await mpvCmd('script-message', 'shim-jf-osc-action', 'syncplay-disable'); await sleep(400); } catch {}
+        }
+        try { await post('/SyncPlay/Leave'); } catch {}
+        await stopShim();
+        if (authHeaders && userDataSnapshots.size) await restoreUserData();
+        // end the runner session so it does not linger on the server
+        try { await post('/Sessions/Logout'); } catch {}
+        // local artifacts of THIS run only (concurrent runs stay untouched)
+        const configBase = path.basename(TMP_CONFIG, '.js');
+        for (const f of [
+            TMP_CONFIG,
+            path.join(ROOT, 'data', `jellyfin_token_${TEST_ID}.json`),
+            path.join(ROOT, 'data', `playback_positions_${TEST_ID}.json`),
+            path.join(ROOT, 'data', `shim-${configBase}.log`),
+            path.join(ROOT, 'data', `shim-${configBase}-${process.pid}.log`),
+            path.join(ROOT, 'data', `${configBase}.lock`),
+        ]) { try { fs.unlinkSync(f); } catch {} }
+        // stale artifacts of older runs (>24h) — never a live concurrent run's
+        const dayAgo = Date.now() - 24 * 3600 * 1000;
+        for (const f of fs.readdirSync(path.join(ROOT, 'data'))) {
+            if (!/e2e/i.test(f)) continue;
+            const fp = path.join(ROOT, 'data', f);
+            try { if (fs.statSync(fp).mtimeMs < dayAgo) fs.unlinkSync(fp); } catch {}
+        }
+        try { execSync(`pkill -f "mpv-e2e-live-${process.pid}" 2>/dev/null`); } catch {}
+        if (ipc) try { ipc.destroy(); } catch {}
+    } catch (e) {
+        console.log('teardown error:', e.message);
+    }
+}
+
 // ---------- shim process ----------
 let shimProc, shimOut = '';
 function startShim(configPath = TMP_CONFIG) {
@@ -141,6 +227,7 @@ async function waitForSince(mark, pattern, timeoutMs = 30000, label) {
 // MPV" contract line). Polling `path` alone is not enough: the path updates when
 // loading starts, and seeks sent during loading are dropped.
 async function playAndWait(itemId, opts) {
+    await snapshotUserData(itemId);
     const m = markLog();
     await playItem(itemId, opts);
     // Match the load for THIS play command only — a previous test's in-flight
@@ -242,7 +329,9 @@ async function connectIpcWhenReady(timeoutMs = 25000) {
 }
 
 // ---------- config fixture ----------
-function writeConfig({ autoClose = false, headless = true } = {}) {
+function writeConfig({ autoClose = false, headless = true, extraMpvFlags = [] } = {}) {
+    const flags = ['--vo=null', '--ao=null', '--force-window=no', ...extraMpvFlags]
+        .map(f => `'${f.replace(/'/g, "\\'")}'`).join(', ');
     fs.writeFileSync(TMP_CONFIG, `module.exports = {
     serverUrl: '${cfg.serverUrl}',
     username: '${cfg.username}',
@@ -251,7 +340,7 @@ function writeConfig({ autoClose = false, headless = true } = {}) {
     deviceName: '${TEST_NAME}',
     deviceId: '${TEST_ID}',
     ipcSocketPath: '${IPC_SOCK}',
-    mpvFlags: ['--vo=null', '--ao=null', '--force-window=no'],
+    mpvFlags: [${flags}],
     headless: ${headless},
     verbose: true,
     autoClose: ${autoClose},
@@ -693,6 +782,24 @@ t(22, 'SyncPlay: create, leave, and join groups through the OSC wire path', asyn
     const m = markLog();
     await mpvCmd('script-message', 'shim-jf-osc-action', 'syncplay-join', String(group.GroupId));
     await waitForSince(m, /Joined SyncPlay group/, 12000);
+    // leave it again — a dead member would pin this group on the server forever.
+    // Joining the idle group made the server sync us to stopped, and SyncPlay
+    // Stop runs killMpv() (by design: stop playback) — so mpv, and with it the
+    // OSC transport, is gone. Revive playback first (the real user path: start
+    // something, then leave the group from the OSC).
+    await playAndWait(items.movie.Id);
+    const m2 = markLog();
+    await mpvCmd('script-message', 'shim-jf-osc-action', 'syncplay-disable');
+    await waitForSince(m2, /Left SyncPlay group|Failed to leave SyncPlay/, 12000, 'shim syncplay leave');
+    const lv = await post('/SyncPlay/Leave');
+    check(lv.status < 400, `SyncPlay/Leave failed: ${lv.status}`);
+    let gone = false, after;
+    for (let i = 0; i < 15 && !gone; i++) {
+        await sleep(700);
+        after = await get('/SyncPlay/List');
+        gone = !(after.data || []).some(g => g.GroupId === group.GroupId);
+    }
+    check(gone, `test SyncPlay group still on server: ${JSON.stringify(after && after.data)}`);
 });
 t(25, 'specials rule: series play starts past specials, explicit special plays itself', async ({ items }) => {
     const fx = items.seriesWithSpecials;
@@ -704,8 +811,13 @@ t(25, 'specials rule: series play starts past specials, explicit special plays i
     await playItem(fx.id);
     await waitForSince(m, /Queue set: .*starting past specials/, 20000);
     await connectIpcWhenReady();
-    await waitForMpvPath();
-    const started = itemIdOf(await mpvGet('path'));
+    // poll until the loaded item is one of the regular episodes — a bare path
+    // check would be satisfied by a previous test's still-loaded file
+    let started = null;
+    for (let i = 0; i < 30 && !(started && fx.regularIds.includes(started)); i++) {
+        await sleep(400);
+        started = itemIdOf(await mpvGet('path'));
+    }
     check(fx.regularIds.includes(started), `series play must start at a regular episode (got ${started})`);
     // explicit special selection: the special itself must play
     m = markLog();
@@ -878,12 +990,71 @@ t(30, 'sub_style: plain-text subs report real defaults and accept color', async 
     eq(await mpvCmd('get_property', 'sub-color'), '#FFFFFF00', 'set-sub-color should set sub-color for plain text');
 });
 
+t(31, 'sub_style: mpv.conf settings honored/displayed; shim changes nothing on its own', async ({ items }) => {
+    // The shim must not touch subtitle settings until the user acts in the OSC,
+    // and when mpv.conf restyles subtitles (typical for SRT/subrip) those values
+    // must show up as the OSC's current settings.
+    await stopShim();
+    writeConfig({ extraMpvFlags: [
+        '--sub-color=0/1/0',
+        '--sub-scale=1.25',
+        '--sub-ass-style-overrides=PrimaryColour=&H00FF0000',
+    ] });
+    startShim();
+    await waitFor('WebSocket connection established', 30000);
+    try {
+        if (items.srtItem) {
+            await playAndWait(items.srtItem.Id);
+            await sleep(600);
+            ipcEvents.length = 0;
+            await mpvCmd('script-message', 'shim-jf-osc-action', 'syncplay-refresh');
+            await sleep(1500);
+            check(ipcEvents.length > 0, 'no state push');
+            const st = JSON.parse(ipcEvents[ipcEvents.length - 1].args[1]);
+            eq(st.sub_style.color.current, 'Green', 'mpv.conf sub-color displayed in OSC');
+            eq((st.sub_style.color.options.find(o => o.selected) || {}).id, '#00FF00', 'mpv.conf sub-color marked selected');
+            eq(st.sub_style.size.current, '125%', 'mpv.conf sub-scale displayed in OSC');
+        } else {
+            current.details.push('no plain-text item - display check skipped');
+        }
+        // nothing of ours was written, before or after a file load
+        eq(await mpvCmd('get_property', 'sub-scale'), 1.25, 'sub-scale changed without user action');
+        eq(await mpvCmd('get_property', 'sub-pos'), 100, 'sub-pos changed without user action');
+        eq(await mpvCmd('get_property', 'sub-color'), '#FF00FF00', 'sub-color changed without user action');
+        const ov = String(await mpvCmd('get_property', 'sub-ass-style-overrides'));
+        eq(ov, 'PrimaryColour=&H00FF0000', 'shim wrote ASS overrides of its own');
+
+        if (items.assItem) {
+            await playAndWait(items.assItem.Id);
+            await sleep(600);
+            ipcEvents.length = 0;
+            await mpvCmd('script-message', 'shim-jf-osc-action', 'syncplay-refresh');
+            await sleep(1500);
+            const st = JSON.parse(ipcEvents[ipcEvents.length - 1].args[1]);
+            // mpv.conf's PrimaryColour override IS the ASS colour — display it
+            eq(st.sub_style.color.current, '#0000FF', 'mpv.conf ASS colour displayed in OSC');
+            eq(st.sub_style.color.options.find(o => o.selected), undefined, 'custom mpv.conf colour must not select a preset');
+        }
+    } finally {
+        await stopShim();
+        writeConfig();
+        startShim();
+        await waitFor('WebSocket connection established', 30000);
+        await connectIpcWhenReady().catch(() => {});
+    }
+});
+
 t(23, 'security: token never appears in shim logs', async () => {
     const r = await api.post('/Users/AuthenticateByName', { Username: cfg.username, Pw: cfg.password }, {
         headers: { 'Content-Type': 'application/json', Authorization: `MediaBrowser Client="x", Device="x", DeviceId="tokcheck", Version="1.0"` }
     });
     check(!shimOut.includes(r.data.AccessToken), 'access token leaked into logs');
     check(!shimOut.includes(cfg.password), 'password leaked into logs');
+    // this throwaway session exists only for the check — do not leave it behind
+    await api.post('/Sessions/Logout', {}, {
+        headers: { Authorization: `MediaBrowser Token="${r.data.AccessToken}", Client="x", Device="x", DeviceId="tokcheck", Version="1.0"` },
+        validateStatus: () => true
+    });
 });
 
 t(24, 'shutdown: lock file cleaned, session stops', async () => {
@@ -901,6 +1072,19 @@ async function main() {
     const loginInfo = await login('e2e-runner');
     authHeaders = loginInfo;
     const items = await discoverItems();
+    // snapshot UserData for every fixture id (incl. auto-advanced episodes) so
+    // teardown can put Played/resume/favorite/PlayCount back exactly
+    const fixtureIds = new Set();
+    (function walk(v) {
+        if (typeof v === 'string') { if (GUID_RE.test(v)) fixtureIds.add(v); return; }
+        if (!v || typeof v !== 'object') return;
+        // MediaSegment entries have their own GUID ids that are NOT items
+        if (v.StartTicks !== undefined) return;
+        if (typeof v.Id === 'string') fixtureIds.add(v.Id);
+        if (Array.isArray(v)) v.forEach(walk);
+        else Object.values(v).forEach(walk);
+    })(items);
+    for (const id of fixtureIds) await snapshotUserData(id);
     console.log(`Discovered: movie="${items.movie.Name}", multiTrack="${items.multiTrack.Name}" (${items.multiTrack.subs.length} subs/${items.multiTrack.auds.length} aud), episode="${items.episode.Name}" S${items.episode.ParentIndexNumber}E${items.episode.IndexNumber} @index ${items.episode.seasonIndex}/${items.episode.seasonList.length}, segments: ${items.episode.segments.map(s => s.Type).join(',') || 'none'}\n`);
 
     startShim();
@@ -932,10 +1116,7 @@ async function main() {
             }
         }
     } finally {
-        await stopShim();
-        try { fs.unlinkSync(TMP_CONFIG); } catch {}
-        try { execSync('pkill -f "mpv-e2e-live-${process.pid}" 2>/dev/null'); } catch {}
-        if (ipc) try { ipc.destroy(); } catch {}
+        await teardown();
     }
 
     const pass = results.filter(r => r.pass).length;
@@ -946,4 +1127,5 @@ async function main() {
     process.exit(pass === results.length ? 0 : 1);
 }
 
-main().catch(e => { console.error('SUITE ERROR:', e); process.exit(1); });
+process.on('SIGINT', async () => { console.log('\nSIGINT - cleaning up'); await teardown(); process.exit(130); });
+main().catch(async (e) => { console.error('SUITE ERROR:', e); await teardown(); process.exit(1); });
