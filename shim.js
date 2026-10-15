@@ -246,17 +246,30 @@ let currentPlaybackOrder = 'Default';
 let currentLoopPlaylist = 'no';
 let currentLoopFile = 'no';
 let lastSubStylePushAt = 0;
-// ASS/SSA subtitles carry their own styling: sub-pos and sub-color are ignored
-// for them unless sub-ass-override is forced (which wrecks fansub styling).
-// The documented lever that DOES apply under mpv's default sub-ass-override=scale
-// is sub-ass-style-overrides. Keep our two settings composed into one list value,
-// since setting the option replaces the whole list.
-let assStyleOverrides = { alignment: null, primaryColour: null };
-function pushAssStyleOverrides() {
-    const parts = [];
-    if (assStyleOverrides.alignment) parts.push(assStyleOverrides.alignment);
-    if (assStyleOverrides.primaryColour) parts.push(assStyleOverrides.primaryColour);
-    sendMpvCommand('set_property', ['sub-ass-style-overrides', parts.join(',')]);
+// ASS/SSA subtitles carry their own styling. sub-pos DOES move them (mpv
+// default sub-ass-override=scale; the manual's "affects ASS as well" warning
+// is literal — verified by frame rendering), but sub-color does not: the
+// visible colour is the style's PrimaryColour. Recolour styled subs through
+// sub-ass-style-overrides, which applies under the default mode. Do NOT touch
+// Alignment here: forced alignment renders fansub styles destructively and
+// unpredictably (Alignment=8 rendered mid-screen in testing), while sub-pos
+// positions ASS exactly like plain text. The option is a string list whose set
+// replaces the whole value, so preserve any entries from the user's mpv.conf
+// and manage only our own PrimaryColour entry.
+function setAssPrimaryColourOverride(colorOrNull) {
+    return queryProperty('sub-ass-style-overrides')
+        .then(cur => (Array.isArray(cur) ? cur : []))
+        .catch(() => [])
+        .then(kept => {
+            const ours = kept.filter(e => !/^(?:[^.=]+\.)?PrimaryColour=/i.test(String(e)));
+            if (colorOrNull) {
+                // ASS colours are &HAABBGGRR with inverted alpha (00 = opaque)
+                const hex = normalizeSubColor(String(colorOrNull)).slice(1);
+                const bb = hex.slice(4, 6), gg = hex.slice(2, 4), rr = hex.slice(0, 2);
+                ours.push(`PrimaryColour=&H00${bb}${gg}${rr}`);
+            }
+            sendMpvCommand('set_property', ['sub-ass-style-overrides', ours.join(',')]);
+        });
 }
 
 // mpv returns sub-color as #AARRGGBB (and accepts r/g/b/a float forms) — the
@@ -2613,12 +2626,9 @@ function handleOscAction(verb, arg) {
         case 'set-sub-position':
             if (arg !== undefined) {
                 // arg is position string from sub_style options ("top", "50", "100")
+                // sub-pos moves both plain text and ASS subtitles (verified)
                 const pos = arg === 'top' ? 0 : Number(arg) || 100;
                 sendMpvCommand('set_property', ['sub-pos', pos]);
-                // ASS/SSA subs ignore sub-pos — move them via the style override
-                // (applies under mpv's default sub-ass-override=scale)
-                assStyleOverrides.alignment = arg === 'top' ? 'Alignment=8' : (String(arg) === '50' ? 'Alignment=5' : 'Alignment=2');
-                pushAssStyleOverrides();
                 pushOscState();
             }
             break;
@@ -2626,13 +2636,10 @@ function handleOscAction(verb, arg) {
             if (arg !== undefined) {
                 // arg is hex color string from sub_style options (e.g., "#FFFFFF")
                 sendMpvCommand('set_property', ['sub-color', arg]);
-                // ASS/SSA subs ignore sub-color — recolor dialogue via the style
-                // override (ASS colors are &HAABBGGRR with inverted alpha)
-                const hex = normalizeSubColor(String(arg)).slice(1);
-                const bb = hex.slice(4, 6), gg = hex.slice(2, 4), rr = hex.slice(0, 2);
-                assStyleOverrides.primaryColour = `PrimaryColour=&H00${bb}${gg}${rr}`;
-                pushAssStyleOverrides();
-                pushOscState();
+                // ASS/SSA subs ignore sub-color — recolour them via the style
+                // override; push state once the override has landed so the
+                // reported current colour reflects it
+                setAssPrimaryColourOverride(arg).then(() => pushOscState());
             }
             break;
         case 'toggle-favorite':
@@ -2744,15 +2751,35 @@ async function pushOscState(hasMedia = true) {
     }
 
     // Tier 4: Subtitle styling options — query current values from MPV
-    const [subScale, subPos, subColor] = await Promise.all([
+    const [subScale, subPos, subColor, subTracks, assOverrides] = await Promise.all([
         queryProperty('sub-scale').catch(() => null),
         queryProperty('sub-pos').catch(() => null),
-        queryProperty('sub-color').catch(() => null)
+        queryProperty('sub-color').catch(() => null),
+        queryProperty('track-list').catch(() => null),
+        queryProperty('sub-ass-style-overrides').catch(() => null)
     ]);
 
     const currentScale = typeof subScale === 'number' ? Math.round(subScale * 100) : 100;
     const currentPos = typeof subPos === 'number' ? subPos : 100;
-    const currentColor = normalizeSubColor(subColor);
+    // For ASS/SSA the visible colour is the subtitle style's PrimaryColour, not
+    // sub-color — reporting "White" there would be false. Only report a colour
+    // for styled subs when we (or the user's mpv.conf) forced one via
+    // sub-ass-style-overrides; otherwise say "Style" and select nothing.
+    const selectedSub = (Array.isArray(subTracks) ? subTracks : []).find(t => t && t.type === 'sub' && t.selected);
+    const isAssSub = /ass|ssa/i.test(String((selectedSub && selectedSub.codec) || ''));
+    const assColourOv = (Array.isArray(assOverrides) ? assOverrides : [])
+        .map(String).find(e => /^(?:[^.=]+\.)?PrimaryColour=/i.test(e));
+    let currentColor;
+    if (isAssSub && !assColourOv) {
+        currentColor = null;
+    } else if (isAssSub && assColourOv) {
+        // &H[AA]BBGGRR -> #RRGGBB
+        const m = /PrimaryColour=&H([0-9a-f]+)/i.exec(assColourOv);
+        const d = (m ? m[1] : '00ffffff').padStart(8, '0');
+        currentColor = ('#' + d.slice(6, 8) + d.slice(4, 6) + d.slice(2, 4)).toUpperCase();
+    } else {
+        currentColor = normalizeSubColor(subColor);
+    }
 
     state.sub_style = {
         size: { current: `${currentScale}%`, options: [
@@ -2767,7 +2794,7 @@ async function pushOscState(hasMedia = true) {
             { id: '50', label: 'Middle', selected: currentPos === 50 },
             { id: '100', label: 'Bottom', selected: currentPos === 100 }
         ]},
-        color: { current: currentColor === '#FFFFFF' ? 'White' : currentColor === '#FFFF00' ? 'Yellow' : currentColor === '#00FF00' ? 'Green' : currentColor === '#00FFFF' ? 'Cyan' : currentColor === '#FF0000' ? 'Red' : currentColor, options: [
+        color: { current: currentColor === null ? 'Style' : currentColor === '#FFFFFF' ? 'White' : currentColor === '#FFFF00' ? 'Yellow' : currentColor === '#00FF00' ? 'Green' : currentColor === '#00FFFF' ? 'Cyan' : currentColor === '#FF0000' ? 'Red' : currentColor, options: [
             { id: '#FFFFFF', label: 'White', selected: currentColor === '#FFFFFF' },
             { id: '#FFFF00', label: 'Yellow', selected: currentColor === '#FFFF00' },
             { id: '#00FF00', label: 'Green', selected: currentColor === '#00FF00' },
