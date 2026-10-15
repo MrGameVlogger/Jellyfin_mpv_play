@@ -1629,9 +1629,22 @@ async function playMedia(itemId, startTicks) {
                 log('error', 'mpv', '   - Insufficient permissions');
             }
             
-            if (currentItemId && currentPositionSeconds > 0) {
-                const positionTicks = Math.round(currentPositionSeconds * 10000000);
-                savePlaybackPosition(currentItemId, positionTicks);
+            if (currentItemId && isUnwatchedQuit) {
+                // "Quit and Mark Unwatched": leave no resume position anywhere —
+                // no local save, no server resume point (stop report at 0), and
+                // the item is reset to unwatched in Jellyfin.
+                markItemAsUnwatched(currentItemId);
+                if (!isReportingStop) {
+                    reportPlaybackStop(currentItemId, 0);
+                }
+            } else {
+                if (currentItemId && currentPositionSeconds > 0) {
+                    const positionTicks = Math.round(currentPositionSeconds * 10000000);
+                    savePlaybackPosition(currentItemId, positionTicks);
+                }
+                if (currentItemId && !isReportingStop) {
+                    reportPlaybackStop(currentItemId, Math.round(currentPositionSeconds * 10000000));
+                }
             }
             // Mark watched independently of the stop-report guard: the Stop command
             // reports the stop first (isReportingStop=true) and then kills mpv —
@@ -1642,9 +1655,6 @@ async function playMedia(itemId, startTicks) {
                 if (runtime > 0 && currentPositionSeconds >= runtime * completionThreshold) {
                     markItemAsWatched(currentItemId);
                 }
-            }
-            if (currentItemId && !isReportingStop) {
-                reportPlaybackStop(currentItemId, Math.round(currentPositionSeconds * 10000000));
             }
             isUnwatchedQuit = false;
             mpvProcess = null;
@@ -1832,6 +1842,28 @@ function connectToMpvIpc(gen) {
     }
 
     attemptConnection();
+}
+
+async function markItemAsUnwatched(itemId) {
+    // "Quit and Mark Unwatched" (OSC): reset the item to unwatched in Jellyfin
+    // and drop any local resume position so quitting leaves no trace.
+    try {
+        const headers = getAuthHeaders();
+        await axios.delete(`${CONFIG.serverUrl}/Users/${userId}/PlayedItems/${itemId}`, { headers });
+        log('info', 'report', `✅ Item marked as unwatched in Jellyfin (${itemId})`);
+    } catch (error) {
+        log('error', 'report', '⚠️ Error marking item as unwatched:', error.message);
+    }
+    try {
+        const positions = loadPlaybackPositions();
+        if (positions[itemId]) {
+            delete positions[itemId];
+            fs.writeFileSync(POSITIONS_FILE, JSON.stringify(positions, null, 2));
+            log('info', 'report', '🗑️ Local position cleared (marked unwatched)');
+        }
+    } catch (error) {
+        log('error', 'position', '⚠️ Error clearing position:', error.message);
+    }
 }
 
 async function markItemAsWatched(itemId) {
@@ -2926,7 +2958,9 @@ function shutdown(signal) {
     if (keepAliveInterval) { clearInterval(keepAliveInterval); keepAliveInterval = null; }
     if (progressInterval) { clearInterval(progressInterval); progressInterval = null; }
     
-    if (currentItemId && currentPositionSeconds > 0) {
+    if (currentItemId && isUnwatchedQuit) {
+        markItemAsUnwatched(currentItemId);
+    } else if (currentItemId && currentPositionSeconds > 0) {
         savePlaybackPosition(currentItemId, Math.round(currentPositionSeconds * 10000000));
     }
 
@@ -2960,7 +2994,7 @@ function shutdown(signal) {
         const headers = getAuthHeaders();
         const data = {
             ItemId: currentItemId,
-            PositionTicks: Math.round(currentPositionSeconds * 10000000),
+            PositionTicks: isUnwatchedQuit ? 0 : Math.round(currentPositionSeconds * 10000000),
             IsPaused: isMpvPaused,
             PlayMethod: 'DirectPlay',
             PlaySessionId: playSessionId

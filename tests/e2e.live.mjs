@@ -1044,6 +1044,35 @@ t(31, 'sub_style: mpv.conf settings honored/displayed; shim changes nothing on i
     }
 });
 
+t(32, 'unwatched-quit: saves no position anywhere, item reset to unwatched', async ({ items }) => {
+    // the OSC's "Quit and Mark Unwatched" must leave no resume point (local
+    // file or Jellyfin) and must reset the item to unwatched in Jellyfin
+    const fx = items.movie2 || items.movie;
+    await playAndWait(fx.Id);
+    const dur = await mpvGet('duration');
+    check(typeof dur === 'number' && dur > 10, `unexpected duration ${JSON.stringify(dur)}`);
+    await seekWhenReady(dur * 0.5);
+    await sleep(800);
+    // exactly the wire message jf-mpv-osc sends for that menu item
+    const m = markLog();
+    await mpvCmd('script-message', 'shim-jf-osc-action', 'unwatched-quit');
+    await waitForSince(m, /OSC unwatched quit/, 12000, 'unwatched quit handled');
+    await sleep(1500);
+    let ud = null;
+    for (let i = 0; i < 20; i++) {
+        const r = await get(`/Users/${authHeaders.userId}/Items/${fx.Id}`, { fields: 'UserData' });
+        ud = r.data && r.data.UserData;
+        if (ud && !ud.Played && !ud.PlaybackPositionTicks) break;
+        await sleep(700);
+    }
+    check(ud, 'no UserData readable after unwatched-quit');
+    check(!ud.Played, `item still marked played after unwatched-quit (got ${JSON.stringify(ud)})`);
+    check(!ud.PlaybackPositionTicks, `resume position still saved after unwatched-quit (got ${ud.PlaybackPositionTicks})`);
+    const posFile = path.join(ROOT, 'data', `playback_positions_${TEST_ID}.json`);
+    const saved = fs.existsSync(posFile) ? JSON.parse(fs.readFileSync(posFile, 'utf8')) : {};
+    check(!saved[fx.Id], `local position still saved for ${fx.Id}`);
+});
+
 t(23, 'security: token never appears in shim logs', async () => {
     const r = await api.post('/Users/AuthenticateByName', { Username: cfg.username, Pw: cfg.password }, {
         headers: { 'Content-Type': 'application/json', Authorization: `MediaBrowser Client="x", Device="x", DeviceId="tokcheck", Version="1.0"` }
