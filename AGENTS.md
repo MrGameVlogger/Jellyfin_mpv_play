@@ -206,88 +206,92 @@ All functions live in `shim.js`. There are no classes — the entire app is proc
 
 | Function | Line | Description |
 |----------|------|-------------|
-| `main()` | 2736 | Entry point: creates `data/`, loads token or authenticates, connects WebSocket |
-| `authenticateUser()` | 235 | POSTs to `/Users/AuthenticateByName`, saves token |
-| `loadToken()` | 198 | Reads JWT from `data/jellyfin_token_{deviceId}.json` |
-| `saveToken(authResponse)` | 223 | Persists JWT to disk |
-| `getAuthHeaders()` | 294 | Returns `Authorization: MediaBrowser Token=...` header |
-| `generateOrLoadDeviceId()` | 182 | Reads or generates device ID from `data/.device-id` |
+| `main()` | 3148 | Entry point: creates `data/`, loads token or authenticates, connects WebSocket |
+| `authenticateUser()` | 391 | POSTs to `/Users/AuthenticateByName`, saves token |
+| `loadToken()` | 354 | Reads JWT from `data/jellyfin_token_{deviceId}.json` |
+| `saveToken(authResponse)` | 379 | Persists JWT to disk |
+| `getAuthHeaders()` | 450 | Returns `Authorization: MediaBrowser Token=...` header |
+| `generateOrLoadDeviceId()` | 324 | Reads or generates the per-config device ID from `data/.device-id-{config}` (one-time adopter of the legacy `data/.device-id`) |
 
 ### WebSocket & Jellyfin communication
 
 | Function | Line | Description |
 |----------|------|-------------|
-| `connectWebSocket()` | 300 | Establishes WS connection, sets up message handler, starts keep-alive |
-| `scheduleReconnect()` | 413 | Exponential backoff reconnection (5s → 10s → 20s → 30s cap) |
-| `handleMessage(msg)` | 508 | Main WS message dispatcher — handles Play, Playstate, GeneralCommand |
-| `reportCapabilities()` | 471 | Registers session capabilities with Jellyfin |
-| `getEpisodeInfo(itemId, silent)` | 970 | Fetches item metadata + season episode list |
-| `queryNextUp(seriesId)` | 2052 | Queries `/Shows/NextUp` for next unwatched episode |
+| `connectWebSocket()` | 456 | Establishes WS connection, sets up message handler, starts keep-alive |
+| `scheduleReconnect()` | 595 | Reconnect backoff matching jellyfin-web's SDK (1s × 1.5, 30s cap) |
+| `handleMessage(msg)` | 700 | Main WS message dispatcher — handles Play, Playstate, GeneralCommand |
+| `reportCapabilities()` | 659 | Registers session capabilities with Jellyfin |
+| `getEpisodeInfo(itemId, silent)` | 1174 | Fetches item metadata + season episode list |
+| `queryNextUp(seriesId, excludeItemId)` | 2399 | Queries `/Shows/NextUp` for next unwatched episode |
 
 ### MPV control
 
 | Function | Line | Description |
 |----------|------|-------------|
-| `playMedia(itemId, startTicks)` | 1263 | Spawns fresh MPV process with IPC socket |
-| `loadNewQueue(itemId, startTicks)` | 1168 | Loads new queue into running MPV (clears playlist, reloads) |
-| `connectToMpvIpc(gen)` | 1423 | Connects to MPV Unix socket, observes properties, binds keys |
-| `killMpv()` | 1593 | Kills MPV, cleans up IPC, resolves pending queries |
-| `sendMpvCommand(command, args)` | 1633 | Sends JSON command to MPV via IPC |
-| `queryProperty(property, timeoutMs)` | 1653 | Queries MPV property (returns Promise) |
-| `startProgressPoll()` | 1676 | 1s interval: polls `time-pos`/`duration`, triggers next episode near end |
-| `stopProgressPoll()` | 1716 | Clears progress poll timer |
-| `handleMpvEvent(event)` | 1723 | Processes MPV IPC events (file-loaded, property changes, keybinds) |
+| `playMedia(itemId, startTicks)` | 1503 | Spawns fresh MPV process with IPC socket |
+| `loadNewQueue(itemId, startTicks)` | 1389 | Loads new queue into running MPV (clears playlist, reloads) |
+| `connectToMpvIpc(gen)` | 1687 | Connects to MPV Unix socket, observes properties, binds keys |
+| `killMpv()` | 1891 | Kills MPV, cleans up IPC, resolves pending queries |
+| `sendMpvCommand(command, args)` | 1932 | Sends JSON command to MPV via IPC |
+| `queryProperty(property, timeoutMs)` | 1952 | Queries MPV property (returns Promise) |
+| `startProgressPoll()` | 1975 | 1s interval: polls `time-pos`/`duration`, triggers next episode near end |
+| `stopProgressPoll()` | 2015 | Clears progress poll timer |
+| `handleMpvEvent(event)` | 2022 | Processes MPV IPC events (file-loaded, property changes, keybinds) |
 
 ### Queue & episode transitions
 
 | Function | Line | Description |
 |----------|------|-------------|
-| `playNextEpisode()` | 1896 | Advances to next episode (queue → season → NextUp → end) |
-| `playPreviousEpisode()` | 2081 | Goes to previous episode (restart if >30s, queue, or season prev) |
+| `playNextEpisode()` | 2241 | Advances to next episode (queue → season → NextUp → end) |
+| `playPreviousEpisode()` | 2428 | Goes to previous episode (restart if >30s, queue, or season prev) |
 
 ### Auto-skip & OSD
 
 | Function | Line | Description |
 |----------|------|-------------|
-| `getIntroSegments(itemId)` | 1028 | Fetches intro/outro segments from Jellyfin MediaSegments API |
-| `skipIntro()` | 1065 | Seeks to end of current intro/outro segment |
-| `checkIntroSegment(positionTicks)` | 1083 | Checks if position is inside an intro/outro segment |
-| `showSkipOsd(text)` | 1113 | Shows bottom-right OSD (skip prompts, next-up notification) |
-| `showErrorOsd(text)` | 1139 | Shows top-right OSD (connection/auth errors, rate limited) |
+| `getIntroSegments(itemId)` | 1248 | Fetches intro/outro segments from Jellyfin MediaSegments API |
+| `skipIntro()` | 1290 | Seeks to end of current intro/outro segment |
+| `checkIntroSegment(positionTicks)` | 1308 | Checks if position is inside an intro/outro segment |
+| `showSkipOsd(text)` | 1338 | Shows bottom-right OSD (skip prompts, next-up notification) |
+| `showErrorOsd(text)` | 1362 | Shows top-right OSD (connection/auth errors, rate limited) |
 
 ### Playback reporting
 
 | Function | Line | Description |
 |----------|------|-------------|
-| `reportPlaybackStart(itemId, positionTicks)` | 2163 | Reports start to `/Sessions/Playing` |
-| `reportPlaybackProgress(itemId, positionTicks)` | 2216 | Reports progress to `/Sessions/Playing/Progress` |
-| `reportPlaybackStop(itemId, positionTicks)` | 2239 | Reports stop to `/Sessions/Playing/Stopped` |
-| `startProgressReporting(itemId)` | 2195 | 10s interval: saves local playback positions |
-| `markItemAsWatched(itemId)` | 1571 | Marks item as played, clears local position |
-| `savePlaybackPosition(itemId, positionTicks)` | 280 | Persists position to `data/playback_positions_{deviceId}.json` |
-| `loadPlaybackPositions()` | 268 | Reads saved positions from disk |
+| `reportPlaybackStart(itemId, positionTicks)` | 2509 | Reports start to `/Sessions/Playing` |
+| `reportPlaybackProgress(itemId, positionTicks)` | 2566 | Reports progress to `/Sessions/Playing/Progress` |
+| `reportPlaybackStop(itemId, positionTicks)` | 2595 | Reports stop to `/Sessions/Playing/Stopped` |
+| `startProgressReporting(itemId)` | 2545 | 10s interval: saves local playback positions |
+| `markItemAsUnwatched(itemId)` | 1847 | Resets item to unwatched in Jellyfin (`DELETE /PlayedItems`), clears local position |
+| `markItemAsWatched(itemId)` | 1869 | Marks item as played, clears local position |
+| `savePlaybackPosition(itemId, positionTicks)` | 436 | Persists position to `data/playback_positions_{deviceId}.json` |
+| `loadPlaybackPositions()` | 424 | Reads saved positions from disk |
 
 ### Shutdown
 
 | Function | Line | Description |
 |----------|------|-------------|
-| `shutdown(signal)` | 2543 | Graceful exit: saves positions, kills MPV, sends SessionsStop, closes WS |
+| `shutdown(signal)` | 2935 | Graceful exit: saves positions (unless `isUnwatchedQuit`), kills MPV, sends SessionsStop, closes WS |
 
 ### jf-mpv-osc integration
 
 | Function | Line | Description |
 |----------|------|-------------|
-| `handleOscAction(verb, arg)` | 2269 | Handles actions from OSC. Verbs: `skip-segment`, `next-item`, `prev-item`, `set-sub`, `set-audio`, `set-sub-size`, `set-sub-position`, `set-sub-color`, `toggle-favorite`, `screenshot`, `set-fullscreen`, `unwatched-quit`, `syncplay-refresh`, `syncplay-join`, `syncplay-new`, `syncplay-disable`, `syncplay-toggle-pause` |
-| `pushOscState(hasMedia)` | 2361 | Pushes state blob to OSC (queue, favorites, tracks, subtitle styling) |
-| `pushOscSkipButton(label)` | 2459 | Pushes skip button label to OSC (or empty to hide) |
-| `toggleFavorite()` | 2523 | Toggles favorite via Jellyfin API and pushes updated state |
+| `handleOscAction(verb, arg)` | 2625 | Handles actions from OSC. Verbs: `skip-segment`, `next-item`, `prev-item`, `set-sub`, `set-audio`, `set-sub-size`, `set-sub-position`, `set-sub-color`, `toggle-favorite`, `screenshot`, `set-fullscreen`, `unwatched-quit`, `syncplay-refresh`, `syncplay-join`, `syncplay-new`, `syncplay-disable`, `syncplay-toggle-pause` |
+| `pushOscState(hasMedia)` | 2725 | Pushes state blob to OSC (queue, favorites, tracks, subtitle styling) |
+| `pushOscSkipButton(label)` | 2851 | Pushes skip button label to OSC (or empty to hide) |
+| `toggleFavorite()` | 2915 | Toggles favorite via Jellyfin API and pushes updated state |
+| `setAssPrimaryColourOverride(colorOrNull)` | 259 | Sets/clears the `PrimaryColour` entry in `sub-ass-style-overrides` (ASS colour edit), preserving any entries from the user's mpv.conf |
+
+Note on `unwatched-quit`: quits without saving a resume position anywhere (no local save, stop report at position 0) and resets the item to unwatched in Jellyfin. The `sub_style` state reports MPV's live values, so mpv.conf settings show through as current; for ASS/SSA tracks the colour reads `Style` until one is forced, since their colour comes from the subtitle style rather than `sub-color`.
 
 ### Utility functions
 
 | Function | Line | Description |
 |----------|------|-------------|
-| `extractTitleFromEpisode(title)` | — | Parses episode title into `SeriesName - SxEp - EpisodeName` format for log line contracts. Returns empty string if format doesn't match. |
-| `redact(value)` | — | Masks `api_key` and `X-Emby-Token` in log output for security. |
+| `normalizeSubColor(raw)` | 278 | Normalizes mpv's `#AARRGGBB` (or `r/g/b/a` float) colour form to `#RRGGBB` |
+| `redact(value)` | 124 | Masks `api_key` and `X-Emby-Token` in log output for security. |
 
 ## State management
 
@@ -330,6 +334,7 @@ All state is module-level variables. No state machine or stores — just mutable
 | `isPlayingNextTimestamp` | number | Timestamp when `isPlayingNext` was set (for timeout) |
 | `isNewQueueLoad` | boolean | True during `loadNewQueue()` to suppress file-loaded handlers |
 | `isReportingStop` | boolean | Prevents duplicate stop reports |
+| `isUnwatchedQuit` | boolean | Set by OSC `unwatched-quit`: suppress mark-watched and any resume save; item is reset to unwatched |
 | `isSettingSubtitleFromJellyfin` | boolean | Echo prevention: true when subtitle change came from Jellyfin (5s timeout) |
 | `pendingQueries` | Map | Tracks outstanding IPC queries (must resolve all before cleanup) |
 | `markedWatched` | Set | Prevents duplicate "mark as watched" API calls (cleared on new file) |
@@ -472,7 +477,7 @@ Use patterns like:
 
 ### WebSocket disconnect
 
-`scheduleReconnect()` implements exponential backoff: 5s → 10s → 20s → 30s (cap). Resets `reconnectAttempts` on successful connect. `isReconnecting` prevents duplicate reconnection attempts.
+`scheduleReconnect()` implements exponential backoff matching jellyfin-web's SDK: 1s × 1.5 (1s, 1.5s, 2.25s, …), 30s cap. Resets `reconnectAttempts` on successful connect. `isReconnecting` prevents duplicate reconnection attempts.
 
 ### MPV process crash
 
@@ -484,7 +489,7 @@ Use patterns like:
 
 ### Episode transition guard
 
-`isPlayingNext` flag prevents double-triggering. Has a 10s timeout fallback: if `isPlayingNextTimestamp` is older than 10s, the flag is cleared and the transition proceeds.
+`isPlayingNext` flag prevents double-triggering. Has a 30s timeout fallback: if `isPlayingNextTimestamp` is older than 30s, the flag is cleared and the transition proceeds.
 
 ### Duplicate API calls
 
@@ -551,7 +556,7 @@ Both `uncaughtException` and `unhandledRejection` handlers call `shutdown()` to 
 
 stderr is also routed through `processLogLine` (prefixed with `STDERR:`), so error markers in stderr trigger error notifications.
 
-Title format for `Episode detected`: `SeriesName - SxEp - EpisodeName` (parsed by `extractTitleFromEpisode()`). Next/prev episode logs use the same format. `Starting episode:` carries the bare item title (movies/music).
+Title format for `Episode detected`: `SeriesName - SxEp - EpisodeName` (assembled at the call site in `getEpisodeInfo()`). Next/prev episode logs use the same format. `Starting episode:` carries the bare item title (movies/music).
 
 ## Gotchas
 
@@ -562,7 +567,7 @@ Title format for `Episode detected`: `SeriesName - SxEp - EpisodeName` (parsed b
 - `processLogLine` mutates `isPlaying`, `isPaused`, `nowPlaying` — always runs on main thread (dispatched from GCD background thread in readability handler).
 - `isStoppingPlayback` flag prevents stale log lines from corrupting state after user clicks Stop. Cleared when MPV closes.
 - `pendingQueries` Map must resolve all promises before clearing — otherwise poll timer hangs forever.
-- `isPlayingNext` flag prevents double-triggering of episode transitions. Has a 10s timeout fallback in case `loadfile` silently fails.
+- `isPlayingNext` flag prevents double-triggering of episode transitions. Has a 30s timeout fallback in case `loadfile` silently fails.
 - `markedWatched` Set prevents duplicate "mark as watched" API calls. Cleared on each new file load.
 - MPV args are minimal. User's `~/.config/mpv/mpv.conf` handles vo, hwdec, ao, cache, etc.
 - `gh` CLI defaults to upstream repo (JohnGlaus), not the fork. Run `gh repo set-default MrGameVlogger/Jellyfin_mpv_play` or use `-R MrGameVlogger/Jellyfin_mpv_play` with release commands.
