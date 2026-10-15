@@ -8,10 +8,10 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/MrGameVlogger/Jellyfin_mpv_play/releases/latest"><img alt="Latest Release" src="https://img.shields.io/github/v/release/MrGameVlogger/Jellyfin_mpv_play?style=flat-square&label=latest%20release"></a>
-  <a href="https://github.com/MrGameVlogger/Jellyfin_mpv_play/blob/main/LICENSE"><img alt="License: MIT" src="https://img.shields.io/badge/license-MIT-green?style=flat-square"></a>
+  <a href="https://github.com/MrGameVlogger/jellyfin-mpv-play/releases/latest"><img alt="Latest Release" src="https://img.shields.io/github/v/release/MrGameVlogger/jellyfin-mpv-play?style=flat-square&label=latest%20release"></a>
+  <a href="https://github.com/MrGameVlogger/jellyfin-mpv-play/blob/main/LICENSE"><img alt="License: MIT" src="https://img.shields.io/badge/license-MIT-green?style=flat-square"></a>
   <img alt="Platform" src="https://img.shields.io/badge/platform-macOS%20%7C%20Windows%20%7C%20Linux-blue?style=flat-square">
-  <a href="https://github.com/MrGameVlogger/Jellyfin_mpv_play/releases/latest"><img alt="Downloads" src="https://img.shields.io/github/downloads/MrGameVlogger/Jellyfin_mpv_play/total?style=flat-square"></a>
+  <a href="https://github.com/MrGameVlogger/jellyfin-mpv-play/releases/latest"><img alt="Downloads" src="https://img.shields.io/github/downloads/MrGameVlogger/jellyfin-mpv-play/total?style=flat-square"></a>
   <img alt="Node.js" src="https://img.shields.io/badge/Node.js-22%20LTS-brightgreen?style=flat-square&logo=node.js">
 </p>
 
@@ -50,9 +50,9 @@
 
 ## Downloads
 
-<a href="https://github.com/MrGameVlogger/Jellyfin_mpv_play/releases/latest"><img alt="macOS" src="https://img.shields.io/badge/macOS-.app-blue?style=for-the-badge&logo=apple"></a>
-<a href="https://github.com/MrGameVlogger/Jellyfin_mpv_play/releases/latest"><img alt="Linux" src="https://img.shields.io/badge/Linux-.tar.gz-yellow?style=for-the-badge&logo=linux"></a>
-<a href="https://github.com/MrGameVlogger/Jellyfin_mpv_play/releases/latest"><img alt="Windows" src="https://img.shields.io/badge/Windows-.zip-blue?style=for-the-badge&logo=windows"></a>
+<a href="https://github.com/MrGameVlogger/jellyfin-mpv-play/releases/latest"><img alt="macOS" src="https://img.shields.io/badge/macOS-.app-blue?style=for-the-badge&logo=apple"></a>
+<a href="https://github.com/MrGameVlogger/jellyfin-mpv-play/releases/latest"><img alt="Linux" src="https://img.shields.io/badge/Linux-.tar.gz-yellow?style=for-the-badge&logo=linux"></a>
+<a href="https://github.com/MrGameVlogger/jellyfin-mpv-play/releases/latest"><img alt="Windows" src="https://img.shields.io/badge/Windows-.zip-blue?style=for-the-badge&logo=windows"></a>
 
 All bundles include their own Node.js runtime. Only [MPV Player](https://mpv.io/installation/) is required.
 
@@ -67,10 +67,10 @@ All bundles include their own Node.js runtime. Only [MPV Player](https://mpv.io/
    brew install mpv
    ```
 
-2. **Download** the latest release from [Releases](https://github.com/MrGameVlogger/Jellyfin_mpv_play/releases), or build from source:
+2. **Download** the latest release from [Releases](https://github.com/MrGameVlogger/jellyfin-mpv-play/releases), or build from source:
    ```bash
-   git clone https://github.com/MrGameVlogger/Jellyfin_mpv_play.git
-   cd Jellyfin_mpv_play
+   git clone https://github.com/MrGameVlogger/jellyfin-mpv-play.git
+   cd jellyfin-mpv-play
    npm install
    cd macapp
    ./build.sh
@@ -98,7 +98,7 @@ All bundles include their own Node.js runtime. Only [MPV Player](https://mpv.io/
 
 1. **Install MPV** — download from [mpv.io/installation](https://mpv.io/installation/) and add to your PATH
 
-2. **Download** the latest `JellyfinMPVPlay-Windows-*.zip` from [Releases](https://github.com/MrGameVlogger/Jellyfin_mpv_play/releases)
+2. **Download** the latest `JellyfinMPVPlay-Windows-*.zip` from [Releases](https://github.com/MrGameVlogger/jellyfin-mpv-play/releases)
 
 3. **Extract** the zip to any folder (e.g. `C:\Apps\JellyfinMPVPlay`)
 
@@ -128,7 +128,7 @@ All bundles include their own Node.js runtime. Only [MPV Player](https://mpv.io/
    sudo pacman -S mpv
    ```
 
-2. **Download** the latest `JellyfinMPVPlay-Linux-*.tar.gz` from [Releases](https://github.com/MrGameVlogger/Jellyfin_mpv_play/releases)
+2. **Download** the latest `JellyfinMPVPlay-Linux-*.tar.gz` from [Releases](https://github.com/MrGameVlogger/jellyfin-mpv-play/releases)
 
 3. **Extract** and configure:
    ```bash
@@ -353,7 +353,7 @@ Set WshShell = Nothing
 ## Project Structure
 
 ```
-Jellyfin_mpv_play/
+jellyfin-mpv-play/
 ├── macapp/                  # Native macOS app
 │   ├── Sources/             #   Swift source files
 │   ├── build.sh             #   Build script (downloads + bundles Node.js)
@@ -540,7 +540,7 @@ See [CHANGELOG.md](CHANGELOG.md) for full release history.
 
 Found a bug? Have a suggestion?
 
-- Open an [Issue](https://github.com/MrGameVlogger/Jellyfin_mpv_play/issues)
+- Open an [Issue](https://github.com/MrGameVlogger/jellyfin-mpv-play/issues)
 - Submit a Pull Request
 
 This is a fork of [JohnGlaus/Jellyfin_mpv_play](https://github.com/JohnGlaus/Jellyfin_mpv_play). Upstream improvements may be synced periodically.
@@ -559,7 +559,7 @@ MIT License — Feel free to use and modify! See [LICENSE](LICENSE).
 A: Yes. Tested on macOS with Homebrew MPV. Use `/opt/homebrew/bin/mpv` (Apple Silicon) or `/usr/local/bin/mpv` (Intel) as your `mpvPath`. The native macOS app bundles Node.js 22 LTS — no separate installation needed.
 
 **Q: Does this work on Linux?**
-A: Yes. Download the Linux bundle from [Releases](https://github.com/MrGameVlogger/Jellyfin_mpv_play/releases), extract, and run `./launch.sh`. Set `mpvPath` to `/usr/bin/mpv` (or wherever MPV is installed).
+A: Yes. Download the Linux bundle from [Releases](https://github.com/MrGameVlogger/jellyfin-mpv-play/releases), extract, and run `./launch.sh`. Set `mpvPath` to `/usr/bin/mpv` (or wherever MPV is installed).
 
 **Q: Can I use this over the internet?**
 A: Yes, if your Jellyfin server is accessible, but LAN is recommended.
@@ -586,5 +586,5 @@ A: Download the latest release, extract to a new folder, and copy your `config.j
 
 <p align="center">
   Made with ❤️ for the Jellyfin community<br>
-  <a href="https://github.com/MrGameVlogger/Jellyfin_mpv_play/stargazers">⭐ Star this repo</a> if you find it useful!
+  <a href="https://github.com/MrGameVlogger/jellyfin-mpv-play/stargazers">⭐ Star this repo</a> if you find it useful!
 </p>

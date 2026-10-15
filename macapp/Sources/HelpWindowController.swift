@@ -169,7 +169,7 @@ class HelpWindowController: NSWindowController {
 
         // ── Links ──
         addSection("More Info", icon: "link")
-        addLink("GitHub: github.com/MrGameVlogger/Jellyfin_mpv_play", url: "https://github.com/MrGameVlogger/Jellyfin_mpv_play")
+        addLink("GitHub: github.com/MrGameVlogger/jellyfin-mpv-play", url: "https://github.com/MrGameVlogger/jellyfin-mpv-play")
         addLink("Upstream: github.com/JohnGlaus/Jellyfin_mpv_play", url: "https://github.com/JohnGlaus/Jellyfin_mpv_play")
         addLink("MPV: mpv.io", url: "https://mpv.io")
         addLink("Jellyfin: jellyfin.org", url: "https://jellyfin.org")

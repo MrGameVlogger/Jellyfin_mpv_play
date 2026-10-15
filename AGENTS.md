@@ -9,8 +9,8 @@ git checkout -b fix/my-fix      # Create branch FIRST
 git add ...
 git commit -m "fix: description"
 git push origin fix/my-fix
-gh pr create --repo MrGameVlogger/Jellyfin_mpv_play --head fix/my-fix --base main --title "fix: description" --body "description"
-gh pr merge <PR_NUMBER> --repo MrGameVlogger/Jellyfin_mpv_play --squash
+gh pr create --repo MrGameVlogger/jellyfin-mpv-play --head fix/my-fix --base main --title "fix: description" --body "description"
+gh pr merge <PR_NUMBER> --repo MrGameVlogger/jellyfin-mpv-play --squash
 git checkout main && git pull origin main && git branch -D fix/my-fix
 ```
 
@@ -570,7 +570,7 @@ Title format for `Episode detected`: `SeriesName - SxEp - EpisodeName` (assemble
 - `isPlayingNext` flag prevents double-triggering of episode transitions. Has a 30s timeout fallback in case `loadfile` silently fails.
 - `markedWatched` Set prevents duplicate "mark as watched" API calls. Cleared on each new file load.
 - MPV args are minimal. User's `~/.config/mpv/mpv.conf` handles vo, hwdec, ao, cache, etc.
-- `gh` CLI defaults to upstream repo (JohnGlaus), not the fork. Run `gh repo set-default MrGameVlogger/Jellyfin_mpv_play` or use `-R MrGameVlogger/Jellyfin_mpv_play` with release commands.
+- `gh` CLI defaults to upstream repo (JohnGlaus), not the fork. Run `gh repo set-default MrGameVlogger/jellyfin-mpv-play` or use `-R MrGameVlogger/jellyfin-mpv-play` with release commands.
 - All windows use standard layering (no `.floating`). Status bar icons are template images — they adapt to light/dark mode automatically.
 - `ConfigParser.swift` is the shared utility for config file parsing and Application Support paths. Used by AppDelegate, NodeProcessManager, and PreferencesWindowController.
 - `Info.plist` has TWO version keys: `CFBundleVersion` (build number) and `CFBundleShortVersionString` (display version). Both must be updated when testing locally.
@@ -666,7 +666,7 @@ gh pr create --body 'Fixed loadfile command'    # OK — plain text
 
 `package.json` is the single source of truth for version. `shim.js` reads it at runtime. CI auto-syncs `Info.plist` into release artifacts, but **local builds require manual Info.plist updates**. The test `package.json version matches Info.plist version` will catch mismatches if Info.plist is included in the PR.
 
-**Important**: `gh` may default to the upstream repo (JohnGlaus). Always use `-R MrGameVlogger/Jellyfin_mpv_play` with release commands, or run `gh repo set-default MrGameVlogger/Jellyfin_mpv_play` once.
+**Important**: `gh` may default to the upstream repo (JohnGlaus). Always use `-R MrGameVlogger/jellyfin-mpv-play` with release commands, or run `gh repo set-default MrGameVlogger/jellyfin-mpv-play` once.
 
 ### When to build locally
 
@@ -799,11 +799,11 @@ Check all GitHub features:
 
 **Run these commands:**
 ```
-gh api repos/MrGameVlogger/Jellyfin_mpv_play/actions/workflows -q '.workflows[] | "\(.name) [\(.state)]"'
-gh run list -R MrGameVlogger/Jellyfin_mpv_play --limit 10
-gh api repos/MrGameVlogger/Jellyfin_mpv_play/code-scanning/default-setup -q '{languages: .languages, state: .state}'
-gh api repos/MrGameVlogger/Jellyfin_mpv_play/code-scanning/alerts -q 'length'
-gh api repos/MrGameVlogger/Jellyfin_mpv_play -q '.security_and_analysis'
+gh api repos/MrGameVlogger/jellyfin-mpv-play/actions/workflows -q '.workflows[] | "\(.name) [\(.state)]"'
+gh run list -R MrGameVlogger/jellyfin-mpv-play --limit 10
+gh api repos/MrGameVlogger/jellyfin-mpv-play/code-scanning/default-setup -q '{languages: .languages, state: .state}'
+gh api repos/MrGameVlogger/jellyfin-mpv-play/code-scanning/alerts -q 'length'
+gh api repos/MrGameVlogger/jellyfin-mpv-play -q '.security_and_analysis'
 ```
 
 **Check for:**

@@ -123,7 +123,7 @@ class AboutWindowController: NSWindowController {
     }
 
     @objc private func openGitHub() {
-        if let url = URL(string: "https://github.com/MrGameVlogger/Jellyfin_mpv_play") {
+        if let url = URL(string: "https://github.com/MrGameVlogger/jellyfin-mpv-play") {
             NSWorkspace.shared.open(url)
         }
     }
