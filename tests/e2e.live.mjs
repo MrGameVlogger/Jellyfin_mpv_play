@@ -313,11 +313,23 @@ async function discoverItems() {
             break;
         }
     }
-    // an item with ASS/SSA subs — styled subs ignore sub-pos/sub-color, so this
-    // is the case the sub_style controls must be verified against
+    // an item with ASS/SSA subs (colour comes from the style, sub-color is
+    // ignored) and one with plain-text subs (sub-color applies) — the two cases
+    // the sub_style controls must be verified against
     for (const it of episodes.data.Items || []) {
-        const ass = (it.MediaStreams || []).filter(s => s.Type === 'Subtitle' && /ass|ssa/i.test(s.Codec || ''));
-        if (ass.length > 0 && it.ParentIndexNumber > 0) { items.assItem = it; break; }
+        const subs = (it.MediaStreams || []).filter(s => s.Type === 'Subtitle');
+        if (it.ParentIndexNumber <= 0 || subs.length === 0) continue;
+        if (!items.assItem && subs.some(s => /ass|ssa/i.test(s.Codec || ''))) items.assItem = it;
+        if (!items.srtItem && subs.some(s => /subrip|srt|webvtt|mov_text/i.test(s.Codec || ''))) items.srtItem = it;
+        if (items.assItem && items.srtItem) break;
+    }
+    if (!items.srtItem) {
+        // the first 30 episodes can be all-ASS (anime libraries); widen the search
+        const wide = await get(`/Users/${authHeaders.userId}/Items`, { IncludeItemTypes: 'Episode,Movie', Limit: 200, Fields: 'MediaStreams' });
+        for (const it of wide.data.Items || []) {
+            const subs = (it.MediaStreams || []).filter(s => s.Type === 'Subtitle');
+            if (subs.some(s => /subrip|srt|webvtt|mov_text/i.test(s.Codec || ''))) { items.srtItem = it; break; }
+        }
     }
     return items;
 }
@@ -786,21 +798,30 @@ t(28, 'state feedback: queue changes, repeat reporting, mpv-key sub-style change
 });
 
 t(29, 'sub_style: correct defaults reported; size/position/color work on ASS subs', async ({ items }) => {
-    // mpv returns sub-color as #AARRGGBB and ASS/SSA subs ignore sub-pos/sub-color
-    // (sub-ass-override default is "scale") — the OSC must see correct defaults
-    // and its controls must actually affect styled subs via sub-ass-style-overrides
+    // mpv returns sub-color as #AARRGGBB (the old comparison to #FFFFFF never
+    // matched). For ASS/SSA the visible colour is the style's PrimaryColour and
+    // sub-color is ignored — report "Style" until a colour is forced via
+    // sub-ass-style-overrides. sub-pos moves ASS too (verified by frame
+    // rendering), so position must NOT be forced through style Alignment
+    // (unreliable and destructive); sub-scale applies to ASS under the default
+    // sub-ass-override=scale.
     const fx = items.assItem;
     if (!fx) { current.details.push('no ASS-subtitled item in library - skipped'); return; }
     await playAndWait(fx.Id);
     await sleep(600);
+    // make sure an ASS track is actually selected for the assertions below
+    const tl = await mpvCmd('get_property', 'track-list');
+    const assTrack = (Array.isArray(tl) ? tl : []).find(t => t && t.type === 'sub' && /ass|ssa/i.test(t.codec || ''));
+    if (assTrack) { await mpvSet('sid', assTrack.id); await sleep(400); }
+
     ipcEvents.length = 0;
     await mpvCmd('script-message', 'shim-jf-osc-action', 'syncplay-refresh'); // triggers a state push
     await sleep(1500);
     check(ipcEvents.length > 0, 'no state push');
     let st = JSON.parse(ipcEvents[ipcEvents.length - 1].args[1]);
     const defColor = st.sub_style.color, defPos = st.sub_style.position, defSize = st.sub_style.size;
-    eq(defColor.current, 'White', 'default color current should read White (mpv returns #AARRGGBB)');
-    eq((defColor.options.find(o => o.selected) || {}).id, '#FFFFFF', 'White should be marked selected');
+    eq(defColor.current, 'Style', 'ASS default color should read Style (colour comes from the ASS style)');
+    eq(defColor.options.find(o => o.selected), undefined, 'no color option should be selected for untouched ASS');
     eq(defPos.current, 'Bottom', 'default position current should read Bottom');
     eq(defSize.current, '100%', 'default size current should read 100%');
 
@@ -809,19 +830,52 @@ t(29, 'sub_style: correct defaults reported; size/position/color work on ASS sub
     await sleep(1500);
     st = JSON.parse(ipcEvents[ipcEvents.length - 1].args[1]);
     eq(st.sub_style.color.current, 'Red', 'color current after set-sub-color');
+    eq((st.sub_style.color.options.find(o => o.selected) || {}).id, '#FF0000', 'Red should be marked selected');
     const assOv = String(await mpvCmd('get_property', 'sub-ass-style-overrides'));
     check(/PrimaryColour/.test(assOv), `ASS style override missing PrimaryColour (got ${assOv})`);
 
     ipcEvents.length = 0;
     await mpvCmd('script-message', 'shim-jf-osc-action', 'set-sub-position', 'top');
     await sleep(1500);
+    eq(await mpvCmd('get_property', 'sub-pos'), 0, 'set-sub-position top should set sub-pos=0 (moves ASS and plain alike)');
     const assOv2 = String(await mpvCmd('get_property', 'sub-ass-style-overrides'));
-    check(/Alignment=8/.test(assOv2), `ASS style override missing Alignment=8 (got ${assOv2})`);
-    check(/PrimaryColour/.test(assOv2), `position override must COMPOSE with color, not clobber it (got ${assOv2})`);
+    check(!/Alignment/.test(assOv2), `position must not force ASS style Alignment (destructive/unreliable; got ${assOv2})`);
+    check(/PrimaryColour/.test(assOv2), `position handling must not clobber the color override (got ${assOv2})`);
 
     await mpvCmd('script-message', 'shim-jf-osc-action', 'set-sub-size', '125');
     await sleep(1500);
-    eq((await mpvCmd('get_property', 'sub-scale')), 1.25, 'set-sub-size should set sub-scale (applies to ASS)');
+    eq(await mpvCmd('get_property', 'sub-scale'), 1.25, 'set-sub-size should set sub-scale (applies to ASS)');
+});
+
+t(30, 'sub_style: plain-text subs report real defaults and accept color', async ({ items }) => {
+    const fx = items.srtItem;
+    if (!fx) { current.details.push('no plain-text-subtitle item in library - skipped'); return; }
+    await playAndWait(fx.Id);
+    await sleep(600);
+    const tl = await mpvCmd('get_property', 'track-list');
+    const srtTrack = (Array.isArray(tl) ? tl : []).find(t => t && t.type === 'sub' && !/ass|ssa/i.test(t.codec || ''));
+    if (srtTrack) { await mpvSet('sid', srtTrack.id); await sleep(400); }
+
+    // sub-color is a global mpv preference persisting across files (earlier
+    // tests may have changed it) — reset to the default to check the mapping
+    await mpvSet('sub-color', '#FFFFFFFF');
+    await sleep(300);
+
+    ipcEvents.length = 0;
+    await mpvCmd('script-message', 'shim-jf-osc-action', 'syncplay-refresh');
+    await sleep(1500);
+    check(ipcEvents.length > 0, 'no state push');
+    const st = JSON.parse(ipcEvents[ipcEvents.length - 1].args[1]);
+    eq(st.sub_style.color.current, 'White', 'plain default color should read White (mpv sub-color is #FFFFFFFF)');
+    eq((st.sub_style.color.options.find(o => o.selected) || {}).id, '#FFFFFF', 'White should be marked selected');
+
+    // and the OSC set path on plain text (sub-color, not the ASS override)
+    ipcEvents.length = 0;
+    await mpvCmd('script-message', 'shim-jf-osc-action', 'set-sub-color', '#FFFF00');
+    await sleep(1500);
+    const st2 = JSON.parse(ipcEvents[ipcEvents.length - 1].args[1]);
+    eq(st2.sub_style.color.current, 'Yellow', 'plain color current after set-sub-color');
+    eq(await mpvCmd('get_property', 'sub-color'), '#FFFFFF00', 'set-sub-color should set sub-color for plain text');
 });
 
 t(23, 'security: token never appears in shim logs', async () => {
