@@ -246,6 +246,38 @@ let currentPlaybackOrder = 'Default';
 let currentLoopPlaylist = 'no';
 let currentLoopFile = 'no';
 let lastSubStylePushAt = 0;
+// ASS/SSA subtitles carry their own styling: sub-pos and sub-color are ignored
+// for them unless sub-ass-override is forced (which wrecks fansub styling).
+// The documented lever that DOES apply under mpv's default sub-ass-override=scale
+// is sub-ass-style-overrides. Keep our two settings composed into one list value,
+// since setting the option replaces the whole list.
+let assStyleOverrides = { alignment: null, primaryColour: null };
+function pushAssStyleOverrides() {
+    const parts = [];
+    if (assStyleOverrides.alignment) parts.push(assStyleOverrides.alignment);
+    if (assStyleOverrides.primaryColour) parts.push(assStyleOverrides.primaryColour);
+    sendMpvCommand('set_property', ['sub-ass-style-overrides', parts.join(',')]);
+}
+
+// mpv returns sub-color as #AARRGGBB (and accepts r/g/b/a float forms) — the
+// OSC's vocabulary is #RRGGBB with friendly names. Normalize so the reported
+// "current" value and the selected flags actually match the options.
+function normalizeSubColor(raw) {
+    if (typeof raw !== 'string') return '#FFFFFF';
+    let hex = raw.trim();
+    const m = /^#([0-9a-f]+)$/i.exec(hex);
+    if (m) {
+        const digits = m[1];
+        // 8 hex digits = #AARRGGBB -> drop alpha; 6 = #RRGGBB as-is
+        return '#' + (digits.length === 8 ? digits.slice(2) : digits).toUpperCase();
+    }
+    const floats = raw.split('/').map(Number);
+    if (floats.length >= 3 && floats.every(n => !Number.isNaN(n))) {
+        const toHex = (n) => Math.round(Math.max(0, Math.min(1, n)) * 255).toString(16).padStart(2, '0');
+        return ('#' + toHex(floats[0]) + toHex(floats[1]) + toHex(floats[2])).toUpperCase();
+    }
+    return '#FFFFFF';
+}
 let playbackGeneration = 0;
 let isMpvPaused = false;
 let isMuted = false;
@@ -2583,6 +2615,10 @@ function handleOscAction(verb, arg) {
                 // arg is position string from sub_style options ("top", "50", "100")
                 const pos = arg === 'top' ? 0 : Number(arg) || 100;
                 sendMpvCommand('set_property', ['sub-pos', pos]);
+                // ASS/SSA subs ignore sub-pos — move them via the style override
+                // (applies under mpv's default sub-ass-override=scale)
+                assStyleOverrides.alignment = arg === 'top' ? 'Alignment=8' : (String(arg) === '50' ? 'Alignment=5' : 'Alignment=2');
+                pushAssStyleOverrides();
                 pushOscState();
             }
             break;
@@ -2590,6 +2626,12 @@ function handleOscAction(verb, arg) {
             if (arg !== undefined) {
                 // arg is hex color string from sub_style options (e.g., "#FFFFFF")
                 sendMpvCommand('set_property', ['sub-color', arg]);
+                // ASS/SSA subs ignore sub-color — recolor dialogue via the style
+                // override (ASS colors are &HAABBGGRR with inverted alpha)
+                const hex = normalizeSubColor(String(arg)).slice(1);
+                const bb = hex.slice(4, 6), gg = hex.slice(2, 4), rr = hex.slice(0, 2);
+                assStyleOverrides.primaryColour = `PrimaryColour=&H00${bb}${gg}${rr}`;
+                pushAssStyleOverrides();
                 pushOscState();
             }
             break;
@@ -2710,7 +2752,7 @@ async function pushOscState(hasMedia = true) {
 
     const currentScale = typeof subScale === 'number' ? Math.round(subScale * 100) : 100;
     const currentPos = typeof subPos === 'number' ? subPos : 100;
-    const currentColor = typeof subColor === 'string' ? subColor.toUpperCase() : '#FFFFFF';
+    const currentColor = normalizeSubColor(subColor);
 
     state.sub_style = {
         size: { current: `${currentScale}%`, options: [
@@ -2720,7 +2762,7 @@ async function pushOscState(hasMedia = true) {
             { id: '125', label: 'Large', selected: currentScale === 125 },
             { id: '150', label: 'Huge', selected: currentScale === 150 }
         ]},
-        position: { current: currentPos === 0 ? 'Top' : currentPos === 100 ? 'Bottom' : 'Middle', options: [
+        position: { current: currentPos === 0 ? 'Top' : currentPos === 100 ? 'Bottom' : currentPos === 50 ? 'Middle' : `${Math.round(currentPos)}%`, options: [
             { id: 'top', label: 'Top', selected: currentPos === 0 },
             { id: '50', label: 'Middle', selected: currentPos === 50 },
             { id: '100', label: 'Bottom', selected: currentPos === 100 }
