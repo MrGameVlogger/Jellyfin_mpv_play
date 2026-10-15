@@ -45,7 +45,7 @@ Features, bugs, and improvements planned for Jellyfin MPV Play.
 
 ### JP subtitle freeze
 
-**Source:** Upstream Issue #2 — [MPV unresponsive when video includes JP subtitles](https://github.com/JohnGlaus/Jellyfin_mpv_play/issues/2) (closed)
+**Source:** Upstream Issue #2 — [MPV unresponsive when video includes JP subtitles](https://github.com/JohnGlaus/jellyfin-mpv-play/issues/2) (closed)
 
 MPV freezes when playing videos with Japanese subtitles. This is an MPV issue, not a shim issue. The shim doesn't touch subtitle rendering — it only passes the subtitle track to MPV via `sid`. Possible causes include CJK font rendering, ASS/SSA format handling, or missing fonts on the user's system. Not reproducible as a shim bug.
 

@@ -14,8 +14,8 @@ Thanks for your interest in contributing! This is a fork of [JohnGlaus/Jellyfin_
 ### Quick Start
 
 ```bash
-git clone https://github.com/MrGameVlogger/Jellyfin_mpv_play.git
-cd Jellyfin_mpv_play
+git clone https://github.com/MrGameVlogger/jellyfin-mpv-play.git
+cd jellyfin-mpv-play
 npm install
 cp config.example.js config.js
 # Edit config.js with your Jellyfin server details
@@ -34,7 +34,7 @@ This compiles the Swift sources, bundles Node.js 22 LTS, and deploys to `/Applic
 ## Project Structure
 
 ```
-Jellyfin_mpv_play/
+jellyfin-mpv-play/
 ├── shim.js                  # Main Node.js application (the entire shim)
 ├── config.example.js        # Configuration template
 ├── package.json
@@ -169,7 +169,7 @@ The native macOS menubar app (`macapp/`) spawns the Node.js shim and parses its 
 
 ## Reporting Bugs
 
-Use the [Bug Report](https://github.com/MrGameVlogger/Jellyfin_mpv_play/issues/new?template=bug_report.md) template. Include:
+Use the [Bug Report](https://github.com/MrGameVlogger/jellyfin-mpv-play/issues/new?template=bug_report.md) template. Include:
 - Platform and OS version
 - App version (menu bar → About)
 - Steps to reproduce
@@ -177,7 +177,7 @@ Use the [Bug Report](https://github.com/MrGameVlogger/Jellyfin_mpv_play/issues/n
 
 ## Feature Requests
 
-Use the [Feature Request](https://github.com/MrGameVlogger/Jellyfin_mpv_play/issues/new?template=feature_request.md) template.
+Use the [Feature Request](https://github.com/MrGameVlogger/jellyfin-mpv-play/issues/new?template=feature_request.md) template.
 
 ## Code of Conduct
 

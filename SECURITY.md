@@ -20,7 +20,7 @@
 If you find a security issue, please report it privately:
 
 1. **Do NOT open a public issue**
-2. Email: [Use GitHub's private vulnerability reporting](https://github.com/MrGameVlogger/Jellyfin_mpv_play/security/advisories/new)
+2. Email: [Use GitHub's private vulnerability reporting](https://github.com/MrGameVlogger/jellyfin-mpv-play/security/advisories/new)
 3. Include:
    - Description of the vulnerability
    - Steps to reproduce
