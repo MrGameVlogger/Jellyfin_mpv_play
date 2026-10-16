@@ -570,6 +570,7 @@ Title format for `Episode detected`: `SeriesName - SxEp - EpisodeName` (assemble
 - `isPlayingNext` flag prevents double-triggering of episode transitions. Has a 30s timeout fallback in case `loadfile` silently fails.
 - `markedWatched` Set prevents duplicate "mark as watched" API calls. Cleared on each new file load.
 - MPV args are minimal. User's `~/.config/mpv/mpv.conf` handles vo, hwdec, ao, cache, etc.
+- **Stays in the fork network deliberately** — GitHub's "Leave fork network" drops issues, PRs and "other metadata" (that means the 350+ PR record and likely the release assets), which outweighs the cosmetic "forked from" tag.
 - `gh` CLI defaults to upstream repo (JohnGlaus), not the fork. Run `gh repo set-default MrGameVlogger/jellyfin-mpv-play` or use `-R MrGameVlogger/jellyfin-mpv-play` with release commands.
 - All windows use standard layering (no `.floating`). Status bar icons are template images — they adapt to light/dark mode automatically.
 - `ConfigParser.swift` is the shared utility for config file parsing and Application Support paths. Used by AppDelegate, NodeProcessManager, and PreferencesWindowController.
@@ -646,6 +647,20 @@ Key architectural decisions:
    - Builds Windows bundle with bundled Node.js (runs on `windows-latest`)
    - Creates a GitHub Release with auto-generated notes and all 3 platform artifacts
 
+### Release command gotchas
+
+- `gh release create` needs explicit notes: `--notes-file` (or `-m`/`-F`).
+  In non-interactive terminals it fails with "Terminal is dumb, but EDITOR
+  unset / Please supply the message using either -m or -F option". Extract
+  the CHANGELOG section into a file and pass it with `--notes-file`.
+- Tag with `git tag -a vX.Y.Z -m "vX.Y.Z"` (step 6). A bare `git tag vX.Y.Z`
+  fails in dumb terminals. If a tag is missing, `gh release create` will
+  create it at the target commit.
+- After the release lands, rebuild and deploy locally (`cd macapp && ./build.sh`)
+  so /Applications matches the released revision. The running menubar app
+  copies `shim.js` from the bundle at launch — a restart picks up the new
+  code; the running mpv session can be left alone.
+
 ### PR description gotchas
 
 When using `gh pr create --body`, the shell will interpret backticks, `$()`, and other special characters. Use one of these approaches:
@@ -680,6 +695,7 @@ open "/Applications/Jellyfin MPV Play.app"
 - **Do NOT use `CI=true` for local testing** — that's only for CI pipelines. Local builds should deploy to `/Applications` so you can actually run and test the app.
 - **Test the built app** — Launch it, connect to Jellyfin, play an episode, verify the fix works.
 - **`npm test` is not enough** — Tests check syntax and contracts, but don't verify runtime behavior. A local build + manual test catches what tests can't.
+- **After merging, redeploy** — `./build.sh` keeps `/Applications` current with main; the deployed bundle can run ahead of the latest *release* (that is expected while fixes accumulate before tagging).
 
 **⚠️ Never delete releases to reorder them** — GitHub release assets (zip files, etc.) are permanently deleted when a release is deleted. If you need to reorder releases, use the GitHub API to update `published_at` dates instead. Always download assets before deleting a release.
 
