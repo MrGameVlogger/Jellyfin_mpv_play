@@ -329,14 +329,16 @@ async function connectIpcWhenReady(timeoutMs = 25000) {
 }
 
 // ---------- config fixture ----------
+// Escape for a JS single-quoted string: backslashes first, then quotes.
+const jsStr = (v) => String(v).replace(/\\/g, '\\\\').replace(/'/g, "\\'");
 function writeConfig({ autoClose = false, headless = true, extraMpvFlags = [] } = {}) {
     const flags = ['--vo=null', '--ao=null', '--force-window=no', ...extraMpvFlags]
-        .map(f => `'${f.replace(/'/g, "\\'")}'`).join(', ');
+        .map(f => `'${jsStr(f)}'`).join(', ');
     fs.writeFileSync(TMP_CONFIG, `module.exports = {
-    serverUrl: '${cfg.serverUrl}',
-    username: '${cfg.username}',
-    password: '${cfg.password}',
-    mpvPath: '${cfg.mpvPath}',
+    serverUrl: '${jsStr(cfg.serverUrl)}',
+    username: '${jsStr(cfg.username)}',
+    password: '${jsStr(cfg.password)}',
+    mpvPath: '${jsStr(cfg.mpvPath)}',
     deviceName: '${TEST_NAME}',
     deviceId: '${TEST_ID}',
     ipcSocketPath: '${IPC_SOCK}',
