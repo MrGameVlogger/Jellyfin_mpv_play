@@ -400,16 +400,18 @@ See [CHANGELOG.md](CHANGELOG.md) for full release history.
 
 ### Recent Releases
 
+**v1.12.2** — OSC state fidelity, correct sub_style defaults, safe ASS edits, unwatched-quit semantics ([details](CHANGELOG.md#v1122))
+
 **v1.12.1** — Web-UI parity fixes: DisplayMessage no longer pauses, faster reconnects, restored menu shortcuts, macOS HIG pass C ([details](CHANGELOG.md#v1121))
 
 **v1.12.0** — Web-UI-parity release: track selection, shuffle, series vs specials plays, watched marking, EPIPE crash fix, macOS HIG pass, live E2E suite ([details](CHANGELOG.md#v1120))
 
 **v1.11.7** — Fixed wrong episode playing on queue load, invalid mpv commands for insert-at and volume ([details](CHANGELOG.md#v1117))
 
-**v1.11.6** — Bug audit: stop report timeout, reporting deduplication, EOF queue guard, IPC recovery ([details](CHANGELOG.md#v1116))
-
 <details>
 <summary><b>Older releases</b></summary>
+
+**v1.11.6** — Bug audit: stop report timeout, reporting deduplication, EOF queue guard, IPC recovery ([details](CHANGELOG.md#v1116))
 
 **v1.11.5** — Jellyfin 12 auth/API compatibility, duplicate instance handling, headless error dialogs ([details](CHANGELOG.md#v1115))
 

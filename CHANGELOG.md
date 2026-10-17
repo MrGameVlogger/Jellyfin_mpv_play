@@ -18,6 +18,23 @@ All notable changes to Jellyfin MPV Play are documented here.
 
 -->
 
+## v1.12.2
+
+### Bug Fixes
+- **OSC state fidelity** — jf-mpv-osc now gets a state push whenever tracks or sub-style values change (including mpv's own r/R/F/G/L keys), queue changes push immediately (PlayNext, PlayLast, server shuffle, playlist resync), and RepeatMode/PlaybackOrder in progress reports reflect real state instead of hardcoded values.
+- **Correct sub_style defaults in the OSC** — mpv reports colors as `#AARRGGBB`, so the OSC showed the raw `#FFFFFFFF` with nothing selected. Colors are normalized and position reporting is truthful.
+- **ASS subtitle edits no longer destructive** — a forced style override moved "Top" to mid-screen and clobbered fansub layouts. Position is handled by `sub-pos` alone (verified by frame rendering), ASS colour reads "Style" until explicitly forced, and colour edits preserve any `sub-ass-style-overrides` from mpv.conf.
+- **"Quit and Mark Unwatched" keeps its promise** — no resume position is saved locally or on the server (stop report at position 0) and the item is reset to unwatched in Jellyfin. A stale intent from a lost quit command clears when the next file loads.
+- **Truthful repeat reporting** — numeric `loop-playlist`/`loop-file` counts (mpv allows them) were reported as RepeatNone; any active loop now maps to RepeatOne/RepeatAll.
+- **Trailing sub-style push** — holding r/R and releasing left the OSC showing a stale value; the final change now lands.
+
+### Internal
+- **Live E2E suite: 32 tests, zero residue** — new pins for sub_style defaults and ASS behaviour, the "no automatic subtitle changes" rule, and unwatched-quit semantics. Teardown restores all Jellyfin UserData (verified) and removes every local artifact the run creates.
+- **CodeQL clean** — completed the string escaping in the e2e config generator (js/incomplete-sanitization).
+- Repository renamed to `jellyfin-mpv-play`; all references updated. Upstream SHAs registered so GitHub reports 0 commits behind (content unchanged).
+
+---
+
 ## v1.12.1
 
 ### Bug Fixes
