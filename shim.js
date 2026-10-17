@@ -3160,8 +3160,35 @@ function showErrorDialog(title, message) {
     }
 }
 
+// A previous instance killed without cleanup (force-quit, crash) leaves its
+// mpv alive on our IPC socket forever (--idle --keep-open). Before doing
+// anything else, tell any such leftover to quit: we are the only legitimate
+// user of this socket (multi-config setups give each config its own).
+function reapOrphanedMpv() {
+    return new Promise(resolve => {
+        let settled = false;
+        const done = () => {
+            if (settled) return;
+            settled = true;
+            try { client.destroy(); } catch {}
+            resolve();
+        };
+        const client = net.connect(CONFIG.ipcSocketPath);
+        client.setTimeout(1500, done);
+        client.on('connect', () => {
+            log('warn', 'mpv', '⚠️ Found a leftover mpv on our IPC socket — quitting it');
+            try { client.write(JSON.stringify({ command: ['quit'] }) + '\n'); } catch {}
+            setTimeout(done, 800);
+        });
+        client.on('error', done);
+    });
+}
+
 async function main() {
     log('info', 'main', '\n🚀 Starting Jellyfin MPV Shim...\n');
+
+    // Clean up after a previous instance that died without running shutdown()
+    await reapOrphanedMpv();
     
     const dataDir = path.join(__dirname, 'data');
     if (!fs.existsSync(dataDir)) {

@@ -187,6 +187,26 @@ async function teardown() {
     }
 }
 
+// A run that dies before teardown leaves its mpv alive forever (--idle
+// --keep-open). At startup, reap any test mpv whose owning run is dead.
+// Live runs are identified by their (live) pid in the socket name, so
+// concurrent runs are never touched.
+function reapStaleTestMpvs() {
+    let names = [];
+    try { names = fs.readdirSync('/tmp'); } catch { return; }
+    for (const f of names) {
+        const m = /^mpv-e2e-live-(\d+)\.sock$/.exec(f);
+        if (!m) continue;
+        const pid = Number(m[1]);
+        let alive = true;
+        try { process.kill(pid, 0); } catch { alive = false; }
+        if (alive) continue;
+        try { execSync(`pkill -f "mpv-e2e-live-${pid}" 2>/dev/null`); } catch {}
+        try { fs.unlinkSync(path.join('/tmp', f)); } catch {}
+        console.log(`reaped stale test mpv (dead run ${pid})`);
+    }
+}
+
 // ---------- shim process ----------
 let shimProc, shimOut = '';
 function startShim(configPath = TMP_CONFIG) {
@@ -210,7 +230,7 @@ async function stopShim() {
     await sleep(1500);
     try { shimProc.kill('SIGKILL'); } catch {}
     shimProc = null;
-    try { execSync('pkill -f "mpv-ipc-e2e-live" 2>/dev/null'); } catch {}
+    try { execSync(`pkill -f "mpv-e2e-live-${process.pid}" 2>/dev/null`); } catch {}
 }
 
 function markLog() { return shimOut.length; }
@@ -1099,6 +1119,7 @@ t(24, 'shutdown: lock file cleaned, session stops', async () => {
 
 // ---------- runner ----------
 async function main() {
+    reapStaleTestMpvs();
     writeConfig();
     const loginInfo = await login('e2e-runner');
     authHeaders = loginInfo;
