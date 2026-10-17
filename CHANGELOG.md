@@ -18,6 +18,13 @@ All notable changes to Jellyfin MPV Play are documented here.
 
 -->
 
+## v1.12.3
+
+### Bug Fixes
+- **Orphaned mpv processes are reaped** — a crashed test run or a force-quit left `mpv --idle --keep-open` alive forever (found in the wild: a 3.5-day-old orphan holding a stray window). The shim now quits any leftover mpv still holding its IPC socket at startup, and the e2e suite sweeps test mpvs whose owning run is dead before it starts. Also fixes the suite's `stopShim` kill pattern, which matched nothing.
+
+---
+
 ## v1.12.2
 
 ### Bug Fixes
