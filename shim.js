@@ -246,6 +246,7 @@ let currentPlaybackOrder = 'Default';
 let currentLoopPlaylist = 'no';
 let currentLoopFile = 'no';
 let lastSubStylePushAt = 0;
+let subStylePushTimer = null;
 // ASS/SSA subtitles carry their own styling. sub-pos DOES move them (mpv
 // default sub-ass-override=scale; the manual's "affects ASS as well" warning
 // is literal — verified by frame rendering), but sub-color does not: the
@@ -2085,6 +2086,12 @@ function handleMpvEvent(event) {
         return;
     }
 
+    if (event.event === 'file-loaded') {
+        // A new file is a new intent: a stale isUnwatchedQuit (quit command
+        // lost because the IPC dropped) must not mark THIS item unwatched.
+        isUnwatchedQuit = false;
+    }
+
     if (event.event === 'property-change' && event.name === 'aid') {
         currentAudioTrack = event.data;
         // The OSC renders track selection from shim-jf-osc-state — push fresh
@@ -2099,8 +2106,9 @@ function handleMpvEvent(event) {
         // button / L key change these without going through SetRepeatMode)
         if (event.name === 'loop-file') currentLoopFile = event.data;
         else currentLoopPlaylist = event.data;
-        currentRepeatMode = (currentLoopFile === 'inf' || currentLoopFile === 'force') ? 'RepeatOne'
-            : ((currentLoopPlaylist === 'inf' || currentLoopPlaylist === 'force') ? 'RepeatAll' : 'RepeatNone');
+        const lf = currentLoopFile, lp = currentLoopPlaylist;
+        currentRepeatMode = (lf && lf !== 'no') ? 'RepeatOne'
+            : ((lp && lp !== 'no') ? 'RepeatAll' : 'RepeatNone');
         return;
     }
 
@@ -2112,6 +2120,13 @@ function handleMpvEvent(event) {
         if (now - lastSubStylePushAt > 500) {
             lastSubStylePushAt = now;
             pushOscState();
+        } else if (!subStylePushTimer) {
+            // trailing push: the change that ends a burst must still land
+            subStylePushTimer = setTimeout(() => {
+                subStylePushTimer = null;
+                lastSubStylePushAt = Date.now();
+                pushOscState();
+            }, 500 - (now - lastSubStylePushAt));
         }
         return;
     }
